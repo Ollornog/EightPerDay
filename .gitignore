@@ -1,0 +1,5 @@
+/dist/
+/eightperday
+*.test
+*.out
+__pycache__/
