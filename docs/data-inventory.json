@@ -1,0 +1,1104 @@
+{
+  "about": "The data EightPerDay stores, field by field, generated from the code (core.DataInventory). An aid for the record of processing activities and the information of the people concerned; no legal advice.",
+  "records": [
+    {
+      "name": "Employer",
+      "kind": "employer",
+      "purpose": "An employer, client or private work of a person, with how its time is tracked.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "name",
+          "purpose": "Name shown to the person."
+        },
+        {
+          "name": "kind",
+          "purpose": "Employer, client or private work."
+        },
+        {
+          "name": "holder",
+          "purpose": "Private (the person's own records) or managed by an organization."
+        },
+        {
+          "name": "organization",
+          "purpose": "The managing organization."
+        },
+        {
+          "name": "mode",
+          "purpose": "How the time is tracked from the start."
+        },
+        {
+          "name": "time_zone",
+          "purpose": "Time zone that decides the local date of a booking."
+        },
+        {
+          "name": "region",
+          "purpose": "Region whose public holidays apply."
+        },
+        {
+          "name": "week_start",
+          "purpose": "First day of the week for weekly totals."
+        },
+        {
+          "name": "day_split",
+          "purpose": "Which day time past midnight counts for."
+        },
+        {
+          "name": "archived",
+          "purpose": "Hidden from new bookings, kept for the past."
+        },
+        {
+          "name": "hold",
+          "purpose": "Legal hold: stops the retention purge, for example during a dispute."
+        }
+      ]
+    },
+    {
+      "name": "ModeChange",
+      "kind": "mode_change",
+      "purpose": "Switches the tracking mode of an employer from a date on.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "valid_from",
+          "purpose": "First day the record applies."
+        },
+        {
+          "name": "mode",
+          "purpose": "The mode from valid_from on."
+        }
+      ]
+    },
+    {
+      "name": "Schedule",
+      "kind": "schedule",
+      "purpose": "Working time model: target per weekday, overtime basis, leave entitlement.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "valid_from",
+          "purpose": "First day the record applies."
+        },
+        {
+          "name": "days",
+          "purpose": "Target minutes per weekday, with optional start, end and break."
+        },
+        {
+          "name": "overtime_basis",
+          "purpose": "Period whose surplus counts as overtime (day, week, month)."
+        },
+        {
+          "name": "leave_days",
+          "purpose": "Leave entitlement per calendar year."
+        }
+      ]
+    },
+    {
+      "name": "PayRule",
+      "kind": "pay_rule",
+      "purpose": "What an employer pays for work.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "project_id",
+          "purpose": "Project the rule is limited to."
+        },
+        {
+          "name": "valid_from",
+          "purpose": "First day the record applies."
+        },
+        {
+          "name": "valid_to",
+          "purpose": "Last day the record applies; empty means open-ended."
+        },
+        {
+          "name": "basis",
+          "purpose": "Per hour, per project, per assignment or per period."
+        },
+        {
+          "name": "amount",
+          "purpose": "Amount in minor units."
+        },
+        {
+          "name": "currency",
+          "purpose": "Currency (ISO 4217)."
+        },
+        {
+          "name": "unit",
+          "purpose": "Day, assignment, week, month or year, depending on the basis."
+        }
+      ]
+    },
+    {
+      "name": "Client",
+      "kind": "client",
+      "purpose": "A customer below an employer, for grouping projects.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "name",
+          "purpose": "Name shown to the person."
+        },
+        {
+          "name": "archived",
+          "purpose": "Hidden from new bookings, kept for the past."
+        }
+      ]
+    },
+    {
+      "name": "Project",
+      "kind": "project",
+      "purpose": "A project that bookings belong to.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "client_id",
+          "purpose": "The client of the project."
+        },
+        {
+          "name": "name",
+          "purpose": "Name shown to the person."
+        },
+        {
+          "name": "billable",
+          "purpose": "Whether its time is billed."
+        },
+        {
+          "name": "completed_on",
+          "purpose": "Day of completion; triggers a pay rule per project."
+        },
+        {
+          "name": "target_minutes",
+          "purpose": "Optional goal of minutes per target_period."
+        },
+        {
+          "name": "target_period",
+          "purpose": "Period of the goal."
+        },
+        {
+          "name": "archived",
+          "purpose": "Hidden from new bookings, kept for the past."
+        }
+      ]
+    },
+    {
+      "name": "Activity",
+      "kind": "activity",
+      "purpose": "A kind of work, optionally tied to a project.",
+      "holder": "The person alone.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "project_id",
+          "purpose": "Project the activity belongs to."
+        },
+        {
+          "name": "name",
+          "purpose": "Name shown to the person."
+        },
+        {
+          "name": "archived",
+          "purpose": "Hidden from new bookings, kept for the past."
+        }
+      ]
+    },
+    {
+      "name": "Tag",
+      "kind": "tag",
+      "purpose": "A label for bookings.",
+      "holder": "The person alone.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "path",
+          "purpose": "The label, with / for levels."
+        },
+        {
+          "name": "color",
+          "purpose": "Display colour."
+        }
+      ]
+    },
+    {
+      "name": "AbsenceType",
+      "kind": "absence_type",
+      "purpose": "An own kind of absence and its effect on the target.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "key",
+          "purpose": "Identifies the type; overrides a built-in one of the same key."
+        },
+        {
+          "name": "name",
+          "purpose": "Name shown to the person."
+        },
+        {
+          "name": "effect",
+          "purpose": "Fills the target, reduces it, or information only."
+        },
+        {
+          "name": "deducts_leave",
+          "purpose": "Counts against the leave entitlement."
+        },
+        {
+          "name": "health",
+          "purpose": "Reveals health data: no note is stored for it."
+        },
+        {
+          "name": "needs_approval",
+          "purpose": "Absences of the type wait for approval."
+        }
+      ]
+    },
+    {
+      "name": "Confirmation",
+      "kind": "confirmation",
+      "purpose": "The person's statement that the planned days were worked as planned.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "from",
+          "purpose": "First day covered."
+        },
+        {
+          "name": "to",
+          "purpose": "Last day covered."
+        },
+        {
+          "name": "confirmed_at",
+          "purpose": "When the person confirmed."
+        }
+      ]
+    },
+    {
+      "name": "Adjustment",
+      "kind": "adjustment",
+      "purpose": "A change of the time or leave account: carry-over, payout, correction.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "date",
+          "purpose": "Day the change counts on."
+        },
+        {
+          "name": "kind",
+          "purpose": "Time account (overtime) or leave account."
+        },
+        {
+          "name": "minutes",
+          "purpose": "Minutes for the time account."
+        },
+        {
+          "name": "days",
+          "purpose": "Days for the leave account."
+        },
+        {
+          "name": "reason",
+          "purpose": "Why the account changed."
+        }
+      ]
+    },
+    {
+      "name": "PeriodClose",
+      "kind": "period_close",
+      "purpose": "Closes a period: its records can no longer change.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Never deleted on its own; erased with the private part (Store.Erase).",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "from",
+          "purpose": "First day covered."
+        },
+        {
+          "name": "to",
+          "purpose": "Last day covered."
+        },
+        {
+          "name": "target",
+          "purpose": "Target minutes when closing."
+        },
+        {
+          "name": "actual",
+          "purpose": "Actual minutes when closing."
+        },
+        {
+          "name": "balance",
+          "purpose": "Balance when closing."
+        },
+        {
+          "name": "closed_at",
+          "purpose": "When the period was closed."
+        },
+        {
+          "name": "closed_by",
+          "purpose": "Who closed it."
+        }
+      ]
+    },
+    {
+      "name": "Holiday",
+      "kind": "holiday",
+      "purpose": "A day off of one's own next to the public holidays.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "date",
+          "purpose": "The day."
+        },
+        {
+          "name": "name",
+          "purpose": "Name shown to the person."
+        },
+        {
+          "name": "fraction",
+          "purpose": "Share of the day off, in thousandths."
+        }
+      ]
+    },
+    {
+      "name": "LeaveNotice",
+      "kind": "leave_notice",
+      "purpose": "Proof that the employer asked the person to take the leave of a year and pointed out that it lapses otherwise.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion_class": "leave_notices",
+      "deletion": "Removed by the retention purge of its class (Store.Purge), except for employers on hold; the private part also by Store.Erase.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "year",
+          "purpose": "Leave year the notice is about."
+        },
+        {
+          "name": "notified_at",
+          "purpose": "When the person was notified."
+        },
+        {
+          "name": "text",
+          "purpose": "The text of the notice."
+        }
+      ]
+    },
+    {
+      "name": "PurgeLog",
+      "kind": "purge_log",
+      "purpose": "Proof of a run of the retention purge.",
+      "holder": "Whoever runs the purge.",
+      "deletion": "Never deleted by the library; erased with the person's records (Store.Erase).",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person whose records were purged; empty for a run over everyone."
+        },
+        {
+          "name": "class",
+          "purpose": "Deletion class of the run."
+        },
+        {
+          "name": "cutoff",
+          "purpose": "Records dated before this day were removed."
+        },
+        {
+          "name": "removed",
+          "purpose": "How many records went."
+        },
+        {
+          "name": "at",
+          "purpose": "When the purge ran."
+        }
+      ]
+    },
+    {
+      "name": "AbsencePay",
+      "kind": "absence_pay",
+      "purpose": "Says that an employer pays an absence type, and how.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "type",
+          "purpose": "Absence type key, or public_holiday."
+        },
+        {
+          "name": "method",
+          "purpose": "At the target minutes or at the average of the reference weeks."
+        },
+        {
+          "name": "valid_from",
+          "purpose": "First day the record applies."
+        },
+        {
+          "name": "valid_to",
+          "purpose": "Last day the record applies; empty means open-ended."
+        },
+        {
+          "name": "weeks",
+          "purpose": "Reference weeks of the average."
+        }
+      ]
+    },
+    {
+      "name": "Surcharge",
+      "kind": "surcharge",
+      "purpose": "A percentage on top of the pay for night, Sunday, holiday or overtime minutes.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "kind",
+          "purpose": "Night, Sunday, holiday or overtime."
+        },
+        {
+          "name": "valid_from",
+          "purpose": "First day the record applies."
+        },
+        {
+          "name": "valid_to",
+          "purpose": "Last day the record applies; empty means open-ended."
+        },
+        {
+          "name": "basis_points",
+          "purpose": "The percentage in hundredths of a percent."
+        },
+        {
+          "name": "base_amount",
+          "purpose": "Hourly base in minor units, for staff without an hourly rule."
+        },
+        {
+          "name": "currency",
+          "purpose": "Currency of the base."
+        },
+        {
+          "name": "window_start",
+          "purpose": "Start of the night window, minutes after midnight."
+        },
+        {
+          "name": "window_end",
+          "purpose": "End of the night window, minutes after midnight."
+        }
+      ]
+    },
+    {
+      "name": "Submission",
+      "kind": "submission",
+      "purpose": "A period or leave request handed in for approval, or a correction of one (company feature).",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Never deleted on its own; stays with the organization like the records of its managed employer.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "kind",
+          "purpose": "Period, leave request or correction."
+        },
+        {
+          "name": "from",
+          "purpose": "First day covered."
+        },
+        {
+          "name": "to",
+          "purpose": "Last day covered."
+        },
+        {
+          "name": "absence_id",
+          "purpose": "The absence a leave request asks for."
+        },
+        {
+          "name": "supersedes",
+          "purpose": "The approved submission a correction asks to open again."
+        },
+        {
+          "name": "status",
+          "purpose": "Submitted, approved, rejected or withdrawn."
+        },
+        {
+          "name": "note",
+          "purpose": "The person's note; for a correction why."
+        },
+        {
+          "name": "submitted_at",
+          "purpose": "When it was handed in."
+        },
+        {
+          "name": "target",
+          "purpose": "Target minutes of the period when handed in."
+        },
+        {
+          "name": "actual",
+          "purpose": "Actual minutes of the period when handed in."
+        },
+        {
+          "name": "balance",
+          "purpose": "Balance of the period when handed in."
+        },
+        {
+          "name": "decided_at",
+          "purpose": "When it was decided or withdrawn."
+        },
+        {
+          "name": "decided_by",
+          "purpose": "Who decided or withdrew it."
+        },
+        {
+          "name": "reason",
+          "purpose": "Reason of the decision; always given for a rejection."
+        }
+      ]
+    },
+    {
+      "name": "Entry",
+      "purpose": "A booking of working time, a break or a deviation from the plan.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion_class": "time_records",
+      "deletion": "Removed by the retention purge of its class (Store.Purge), except for employers on hold; the private part also by Store.Erase.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "kind",
+          "purpose": "Work, break or deviation."
+        },
+        {
+          "name": "date",
+          "purpose": "Local date the booking counts for."
+        },
+        {
+          "name": "time_zone",
+          "purpose": "Time zone it was booked in."
+        },
+        {
+          "name": "start",
+          "purpose": "Start, in UTC."
+        },
+        {
+          "name": "end",
+          "purpose": "End, in UTC."
+        },
+        {
+          "name": "minutes",
+          "purpose": "Duration in minutes; the truth for every sum."
+        },
+        {
+          "name": "precision",
+          "purpose": "Span, day or week."
+        },
+        {
+          "name": "assignment",
+          "purpose": "Groups bookings of one job for pay per assignment."
+        },
+        {
+          "name": "project_id",
+          "purpose": "Project of the booking."
+        },
+        {
+          "name": "activity_id",
+          "purpose": "Activity of the booking."
+        },
+        {
+          "name": "tags",
+          "purpose": "Labels."
+        },
+        {
+          "name": "note",
+          "purpose": "The person's note."
+        },
+        {
+          "name": "source",
+          "purpose": "Where it came from: by hand, timer, free text, plan, suggestion, import."
+        },
+        {
+          "name": "billable",
+          "purpose": "Whether the time is billed."
+        },
+        {
+          "name": "rate",
+          "purpose": "Hourly rate applied when booked."
+        },
+        {
+          "name": "approved_at",
+          "purpose": "When it was approved (company feature)."
+        },
+        {
+          "name": "approved_by",
+          "purpose": "Who approved it."
+        },
+        {
+          "name": "version",
+          "purpose": "Version for the correction history; every change counts it up."
+        },
+        {
+          "name": "created",
+          "purpose": "When the record was created."
+        },
+        {
+          "name": "changed",
+          "purpose": "When the record was last changed."
+        },
+        {
+          "name": "deleted_at",
+          "purpose": "When the record was marked as deleted; the history keeps what it was."
+        }
+      ]
+    },
+    {
+      "name": "Absence",
+      "purpose": "An absence over days: leave, sickness (a flag without details), days off.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion_class": "time_records",
+      "deletion": "Removed by the retention purge of its class (Store.Purge), except for employers on hold; the private part also by Store.Erase.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "type",
+          "purpose": "Absence type key."
+        },
+        {
+          "name": "from",
+          "purpose": "First day covered."
+        },
+        {
+          "name": "to",
+          "purpose": "Last day covered."
+        },
+        {
+          "name": "half_day",
+          "purpose": "Every covered day counts half."
+        },
+        {
+          "name": "status",
+          "purpose": "Requested, approved or rejected."
+        },
+        {
+          "name": "approved_by",
+          "purpose": "Who decided on it."
+        },
+        {
+          "name": "note",
+          "purpose": "The person's note; never for types with health data."
+        },
+        {
+          "name": "version",
+          "purpose": "Version for the correction history; every change counts it up."
+        },
+        {
+          "name": "created",
+          "purpose": "When the record was created."
+        },
+        {
+          "name": "changed",
+          "purpose": "When the record was last changed."
+        },
+        {
+          "name": "deleted_at",
+          "purpose": "When the record was marked as deleted; the history keeps what it was."
+        }
+      ]
+    },
+    {
+      "name": "Revision",
+      "purpose": "One step of the correction history of an entry or absence: who changed what, when and why.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion_class": "time_records",
+      "deletion": "Goes with its record.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "type",
+          "purpose": "Entry or absence."
+        },
+        {
+          "name": "record_id",
+          "purpose": "The record changed."
+        },
+        {
+          "name": "version",
+          "purpose": "Version the change produced."
+        },
+        {
+          "name": "op",
+          "purpose": "Created, changed or deleted."
+        },
+        {
+          "name": "at",
+          "purpose": "When."
+        },
+        {
+          "name": "by",
+          "purpose": "Who."
+        },
+        {
+          "name": "reason",
+          "purpose": "Why."
+        },
+        {
+          "name": "before",
+          "purpose": "The record before the change."
+        },
+        {
+          "name": "after",
+          "purpose": "The record after the change."
+        }
+      ]
+    },
+    {
+      "name": "Organization",
+      "purpose": "A body that manages the time tracking of its members.",
+      "holder": "The organization and its administrators.",
+      "deletion": "Kept until its administrators remove it; no erasure of a person reaches it.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "name",
+          "purpose": "Name shown to the person."
+        },
+        {
+          "name": "time_zone",
+          "purpose": "Default time zone for new members."
+        },
+        {
+          "name": "region",
+          "purpose": "Default holiday region for new members."
+        },
+        {
+          "name": "features",
+          "purpose": "Company features (approval, supervisor view), off by default, with the works agreement and who confirmed it when."
+        },
+        {
+          "name": "retention",
+          "purpose": "Retention per deletion class."
+        },
+        {
+          "name": "templates",
+          "purpose": "Schedules offered to members."
+        }
+      ]
+    },
+    {
+      "name": "Membership",
+      "purpose": "Ties a person to an organization for a period, with a role.",
+      "holder": "The organization and its administrators.",
+      "deletion": "Ended, never deleted; stays with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "organization",
+          "purpose": "The organization."
+        },
+        {
+          "name": "person",
+          "purpose": "The member."
+        },
+        {
+          "name": "role",
+          "purpose": "Member or administrator."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The managed employer that holds the member's records."
+        },
+        {
+          "name": "from",
+          "purpose": "First day of the membership."
+        },
+        {
+          "name": "until",
+          "purpose": "Last day; empty while it lasts."
+        }
+      ]
+    },
+    {
+      "name": "Access",
+      "purpose": "The access log: who read, changed, exported or decided whose data when.",
+      "holder": "The person concerned (their own log) and whoever runs the instance.",
+      "deletion_class": "access_log",
+      "deletion": "Only added; removed by the retention purge, never before two years.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "at",
+          "purpose": "When."
+        },
+        {
+          "name": "actor",
+          "purpose": "Who."
+        },
+        {
+          "name": "organization",
+          "purpose": "On behalf of which organization."
+        },
+        {
+          "name": "subject",
+          "purpose": "Whose data."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "action",
+          "purpose": "Read, change, export, decision or role change."
+        },
+        {
+          "name": "what",
+          "purpose": "Which data, without the data itself."
+        },
+        {
+          "name": "from",
+          "purpose": "First day of the data touched."
+        },
+        {
+          "name": "to",
+          "purpose": "Last day of the data touched."
+        },
+        {
+          "name": "prev",
+          "purpose": "Hash of the subject's entry before."
+        },
+        {
+          "name": "hash",
+          "purpose": "Hash of this entry."
+        }
+      ]
+    }
+  ]
+}

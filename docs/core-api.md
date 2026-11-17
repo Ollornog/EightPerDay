@@ -143,6 +143,14 @@ Only for an organization with `Features.Approval` on; without it there are no su
   `leave_notices`, `access_log`) gives the cutoff for
   `Store.Purge(ctx, owner, class, cutoff)`, which skips employers on hold and logs every run.
 
+## Data inventory
+
+`DataInventory()` lists every record the library stores with its purpose, holder, deletion and every field with its
+purpose (A21). [`data-inventory.json`](data-inventory.json) is its output; a test fails when a field has no
+description or the file is out of date (`go test ./core -run TestDataInventory -update-inventory` rewrites it).
+Templates for employers (a works agreement skeleton, an entry for the record of processing activities) are in
+[`legal/`](legal/README.md), as drafts and without legal advice.
+
 ## PostgreSQL
 
 ```go
