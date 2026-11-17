@@ -2,7 +2,7 @@
 id: M-1
 type: Milestone
 title: "The core library: model, calculations, parser, storage"
-status: in-arbeit
+status: erledigt
 tags: [core]
 created: 2026-11-17
 ---
@@ -22,5 +22,7 @@ The Go library that everything else stands on (ADR-1), with the data model of AD
   person concerned (CSV, JSON).
 - A storage interface with a PostgreSQL implementation (embedded migrations, table prefix, tenant column, row-level
   security on a configurable setting) and an in-memory one for tests.
+- Organizations with members and administrators; employers held privately or managed by an organization, strictly
+  separated; the person's overview over all employers with hints on the limits of the Working Hours Act.
 - Table tests for every rule: month ends, daylight saving time in Europe/Berlin, a schedule that changes in the middle
   of a month, part time, public holidays, mode switches.

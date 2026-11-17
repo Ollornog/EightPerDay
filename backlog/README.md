@@ -7,7 +7,7 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 
 ## Meilensteine
 
-* ◐ **[M-1](M-1-core-library.md)** The core library: model, calculations, parser, storage — noch keine Aufgaben
+* ☑ **[M-1](M-1-core-library.md)** The core library: model, calculations, parser, storage — noch keine Aufgaben
 * ☐ **[M-2](M-2-standalone-binary.md)** The standalone program with a small web interface — noch keine Aufgaben
 * ☐ **[M-3](M-3-embedding.md)** Embedding: another application runs the core in its own database — noch keine Aufgaben
 

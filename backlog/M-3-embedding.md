@@ -16,3 +16,5 @@ An application such as UnderDoc embeds the library, runs its migrations in its o
   application in its own migration flow.
 - A test proves that one tenant cannot read or change another tenant's rows through any store method.
 - The company features (approval, a supervisor's view) exist as hooks in the data model and are off by default.
+- UnderDoc maps its tenant to an organization and its accounts to persons, and shows the person's overview only to
+  the person.

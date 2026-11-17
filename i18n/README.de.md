@@ -5,7 +5,8 @@
 
 **Zeiterfassung, die sich nach deiner Arbeit richtet, nicht umgekehrt.**
 
-> **Stand: früh.** Das Repository ist gerade angelegt. Die Kernbibliothek entsteht, siehe [`backlog/`](../backlog/).
+> **Stand: früh.** Die Kernbibliothek steht ([docs/core-api.md](../docs/core-api.md), Englisch); das eigenständige
+> Programm mit Weboberfläche entsteht, siehe [`backlog/`](../backlog/).
 
 ## Warum
 
@@ -17,6 +18,8 @@ bei einer Tabelle.
 ## Was es können wird
 
 - **Mehrere Arbeit- und Auftraggeber je Person**, auch private, jeder mit eigenem Zeitmodell und eigener Vergütung.
+- **Organisationen**, die die Zeiterfassung ihrer Mitglieder verwalten, streng getrennt von dem, was eine Person privat
+  erfasst; beides geht gleichzeitig, mit einer Gesamtsicht über alles.
 - **Betriebsarten je Arbeitgeber, jederzeit wechselbar ohne Datenverlust:**
   - *Wochensumme*: eine Zahl je Woche, die nächste Woche beginnt leer.
   - *Vorlage*: Soll je Wochentag, Saldo und Überstunden.
