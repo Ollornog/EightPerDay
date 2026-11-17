@@ -84,7 +84,9 @@ type Employer struct {
 	Region string `json:"region,omitempty"`
 	// WeekStart is the first day of the week for weekly totals and confirmations; Monday by default.
 	WeekStart time.Weekday `json:"week_start"`
-	Archived  bool         `json:"archived,omitempty"`
+	// DaySplit says which day a span past midnight counts for: the day it starts (the default) or each day its part.
+	DaySplit DaySplit `json:"day_split,omitempty"`
+	Archived bool     `json:"archived,omitempty"`
 	// Hold stops the retention purge for this employer, for example during a dispute (legal hold).
 	Hold bool `json:"hold,omitempty"`
 }
@@ -546,6 +548,9 @@ func (e Employer) Validate() error {
 	}
 	if e.WeekStart < time.Sunday || e.WeekStart > time.Saturday {
 		return invalid("week start %d", e.WeekStart)
+	}
+	if !e.DaySplit.Valid() {
+		return invalid("day split %q", e.DaySplit)
 	}
 	return nil
 }

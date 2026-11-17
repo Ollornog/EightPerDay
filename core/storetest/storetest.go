@@ -76,11 +76,21 @@ func catalog(t *testing.T, s core.Store) {
 		Basis: core.PayHourly, Amount: 2500, Currency: "EUR"}))
 	must(t, s.Put(ctx, core.Tag{ID: "t1", Owner: "alice", Path: "site/a"}))
 	wantErr(t, s.Put(ctx, core.Tag{ID: "t2", Owner: "alice", Path: "bad tag"}), core.ErrInvalid)
+	must(t, s.Put(ctx, core.AbsencePay{ID: "ap1", Owner: "alice", EmployerID: "e1", Type: core.AbsenceVacation,
+		Method: core.PayAverage, ValidFrom: core.MustDate("2026-01-01"), Weeks: 13}))
+	must(t, s.Put(ctx, core.Surcharge{ID: "sc1", Owner: "alice", EmployerID: "e1", Kind: core.SurchargeNight,
+		ValidFrom: core.MustDate("2026-01-01"), BasisPoints: 2500, WindowStart: 20 * 60, WindowEnd: 6 * 60}))
+	wantErr(t, s.Put(ctx, core.Surcharge{ID: "sc2", Owner: "alice", EmployerID: "e1", Kind: core.SurchargeNight,
+		ValidFrom: core.MustDate("2026-01-01"), BasisPoints: 2500}), core.ErrInvalid)
 
 	c, err := s.Catalog(ctx, "alice")
 	must(t, err)
 	if len(c.Employers) != 1 || len(c.Schedules) != 1 || len(c.PayRules) != 1 || len(c.Tags) != 1 {
 		t.Fatalf("catalog: %+v", c)
+	}
+	if len(c.AbsencePays) != 1 || c.AbsencePays[0].Weeks != 13 || len(c.Surcharges) != 1 ||
+		c.Surcharges[0].WindowStart != 20*60 || c.Surcharges[0].WindowEnd != 6*60 {
+		t.Fatalf("pay rules beyond work: %+v / %+v", c.AbsencePays, c.Surcharges)
 	}
 	if got := c.Schedules[0].Days[time.Monday]; got.Minutes != 480 || *got.Start != start || *got.End != end {
 		t.Fatalf("schedule came back as %+v", got)
@@ -416,6 +426,10 @@ func managedSeparate(t *testing.T, s core.Store) {
 	}
 	must(t, s.Put(ctx, core.Holiday{ID: "h", Owner: "alice", Date: core.MustDate("2026-03-03"), Name: "Own", Fraction: 1000}))
 	must(t, s.Put(ctx, core.Tag{ID: "t", Owner: "alice", Path: "private"}))
+	for _, id := range []string{"m1", "p1"} {
+		must(t, s.Put(ctx, core.Surcharge{ID: "sc-" + id, Owner: "alice", EmployerID: id, Kind: core.SurchargeSunday,
+			ValidFrom: core.MustDate("2026-01-01"), BasisPoints: 5000}))
+	}
 	for _, e := range []core.Entry{entry("alice", "m1", "2026-03-02", 480), entry("alice", "p1", "2026-03-02", 120),
 		entry("bob", "m2", "2026-03-02", 300), entry("bob", "m3", "2026-03-02", 60)} {
 		_, err := s.CreateEntry(ctx, e, core.Change{})
@@ -443,7 +457,7 @@ func managedSeparate(t *testing.T, s core.Store) {
 		t.Fatalf("acme sees employers %v", emps)
 	}
 	if len(acme.Catalog.Schedules) != 1 || acme.Catalog.Schedules[0].ID != "s-m1" || len(acme.Catalog.Holidays) != 0 ||
-		len(acme.Catalog.Tags) != 0 {
+		len(acme.Catalog.Tags) != 0 || len(acme.Catalog.Surcharges) != 1 || acme.Catalog.Surcharges[0].ID != "sc-m1" {
 		t.Fatalf("acme sees records beyond its employers: %+v", acme.Catalog)
 	}
 	minutes := 0

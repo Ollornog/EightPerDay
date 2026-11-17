@@ -21,7 +21,7 @@ application that embeds it. The reasons are in [ADR-1](../backlog/ADR-1-library-
 - `Employer` with `Holder` `private` or `managed` (+ `Organization`), `Mode`, time zone, holiday region.
 - Catalog records, filed by `Store.Put` and read as a whole with `Store.Catalog(owner)`: `ModeChange`, `Schedule`,
   `PayRule`, `Client`, `Project`, `Activity`, `Tag`, `AbsenceType`, `Confirmation`, `Adjustment`, `PeriodClose`,
-  `Holiday`, `LeaveNotice`, `PurgeLog`.
+  `Holiday`, `LeaveNotice`, `PurgeLog`, `AbsencePay`, `Surcharge`.
 - Time records with history: `Entry` (`work`, `break`, `adjust`; `Minutes` always, `Start`/`End` optional) and
   `Absence`. Every create, update and delete writes a `Revision`; updates need the current `Version`
   (`ErrConflict`), closed periods refuse changes (`ErrLocked`).
@@ -36,7 +36,7 @@ entries before a switch to `exact`; `SpreadWeek` splits a week entry into days.
 ## Calculations
 
 All of them are pure functions over `core.Data` (catalog, entries, absences), loaded with `core.Load(ctx, store,
-owner, from, to)`.
+owner, from, to)`. `Load` reads entries from the day before `from` on, for night shifts.
 
 | Function | Result |
 |---|---|
@@ -44,7 +44,7 @@ owner, from, to)`.
 | `Sum(days)`, `Totals(days, PeriodWeek/Month/Year, weekStart)` | Totals per period |
 | `Overtime(data, employerID, from, to)` | Time account: balance with adjustments, overtime by the schedule's basis (day, week, month) |
 | `Leave(data, employerID, year)` | Leave account: entitlement (prorated), adjustments, taken, requested, remaining |
-| `ComputeEarnings(data, employerID, from, to)` | Earnings per pay rule: hourly, per project, per assignment (day or job), flat per period |
+| `ComputeEarnings(data, employerID, from, to)` | Earnings per pay rule: hourly, per project, per assignment (day or job), flat per period; paid absences and surcharges; `Reasons` splits the total by reason |
 | `PersonalOverview(data, from, to, weekStart)` | The person's view over all employers, with hints on the Working Hours Act; refuses data of several people |
 | `PublicHolidays(region, year)`, `Regions()`, `AddHolidayRule` | Public holidays of the German states and Austria, as data, and of parts of a state (see below) |
 
@@ -60,6 +60,25 @@ below the state's and every holiday of the state, plus or minus those days; the 
 | `DE-TH-CATHOLIC` | + Corpus Christi | § 2 Abs. 2, § 10 Abs. 1 ThürFGtG |
 
 `HolidayRule.Except` takes a day away from a part; `AddHolidayRule` adds parts of one's own.
+
+Night shifts: `Employer.DaySplit` says which day a span past midnight counts for, for target, balance, earnings
+and the overview: `start_day` (the default, the whole span on the day it starts) or `midnight` (each day its part,
+with the real length on daylight saving nights: 22:00 to 06:00 is 9 hours in late October, 7 in late March). Keeping
+the start day, a timed break after midnight inside the shift still counts for the shift's day.
+
+Pay beyond time worked, both with a valid-from date per employer; `ComputeEarnings` lists them as lines of their own
+(`Basis` `paid_absence` or `surcharge`, `Reason` the absence type or surcharge kind), and `Earnings.Reasons` sums
+by basis and reason:
+
+- `AbsencePay` pays an absence type (or `public_holiday`, the target lost to a holiday): `target` pays the minutes
+  of the schedule at the hourly rule (the minutes lost), `average` pays them at the average earnings per worked minute
+  of the `Weeks` (13 by default) before the absence; without a target the average worked day counts. An absence type
+  without a rule is unpaid; a monthly salary needs no rule. `EarningsDataFrom` says how far back to load for averages.
+- `Surcharge` adds `BasisPoints` (2500 is 25 %) on `night` minutes in a clock window (`WindowStart` to `WindowEnd`,
+  minutes after midnight, wrapping over midnight), on `sunday` and `holiday` minutes (a full holiday of the region or
+  an own full holiday), and on the `overtime` of each period of the overtime basis. Night adds up with Sunday and
+  holiday; on a Sunday that is a holiday, a holiday surcharge replaces the Sunday one. A minute counts by its own clock
+  time, whatever day its entry counts for. The base is the minute's hourly rate, or `BaseAmount` for salaried staff.
 
 Pay: `ApplyRate` stores the rate as a snapshot on an entry, `Revalue` lists entries whose snapshot differs from the
 current rule (store them with `UpdateEntry` to re-value on purpose).

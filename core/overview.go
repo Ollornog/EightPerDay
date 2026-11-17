@@ -268,6 +268,12 @@ func catalogRecords(c Catalog) []Record {
 	for _, v := range c.LeaveNotices {
 		add(v)
 	}
+	for _, v := range c.AbsencePays {
+		add(v)
+	}
+	for _, v := range c.Surcharges {
+		add(v)
+	}
 	return out
 }
 
@@ -360,6 +366,12 @@ func withOwner(r Record, owner string) Record {
 		v.Owner = owner
 		return v
 	case LeaveNotice:
+		v.Owner = owner
+		return v
+	case AbsencePay:
+		v.Owner = owner
+		return v
+	case Surcharge:
 		v.Owner = owner
 		return v
 	}

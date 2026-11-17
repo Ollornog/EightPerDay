@@ -29,11 +29,14 @@ const (
 	RecHoliday      Kind = "holiday"
 	RecLeaveNotice  Kind = "leave_notice"
 	RecPurgeLog     Kind = "purge_log"
+	RecAbsencePay   Kind = "absence_pay"
+	RecSurcharge    Kind = "surcharge"
 )
 
 // Kinds lists every catalog kind.
 var Kinds = []Kind{RecEmployer, RecModeChange, RecSchedule, RecPayRule, RecClient, RecProject, RecActivity,
-	RecTag, RecAbsenceType, RecConfirmation, RecAdjustment, RecPeriodClose, RecHoliday, RecLeaveNotice, RecPurgeLog}
+	RecTag, RecAbsenceType, RecConfirmation, RecAdjustment, RecPeriodClose, RecHoliday, RecLeaveNotice, RecPurgeLog,
+	RecAbsencePay, RecSurcharge}
 
 // Meta is what a store needs to know about a catalog record to file it.
 type Meta struct {
@@ -86,6 +89,8 @@ type Catalog struct {
 	Holidays      []Holiday      `json:"holidays"`
 	LeaveNotices  []LeaveNotice  `json:"leave_notices"`
 	PurgeLogs     []PurgeLog     `json:"purge_logs"`
+	AbsencePays   []AbsencePay   `json:"absence_pays,omitempty"`
+	Surcharges    []Surcharge    `json:"surcharges,omitempty"`
 }
 
 // Add files a record into the catalog. Stores use it to build a catalog from stored records.
@@ -121,6 +126,10 @@ func (c *Catalog) Add(r Record) {
 		c.LeaveNotices = append(c.LeaveNotices, v)
 	case PurgeLog:
 		c.PurgeLogs = append(c.PurgeLogs, v)
+	case AbsencePay:
+		c.AbsencePays = append(c.AbsencePays, v)
+	case Surcharge:
+		c.Surcharges = append(c.Surcharges, v)
 	}
 }
 
@@ -159,6 +168,10 @@ func DecodeRecord(kind Kind, data []byte) (Record, error) {
 		r, err = decode[LeaveNotice](data)
 	case RecPurgeLog:
 		r, err = decode[PurgeLog](data)
+	case RecAbsencePay:
+		r, err = decode[AbsencePay](data)
+	case RecSurcharge:
+		r, err = decode[Surcharge](data)
 	default:
 		return nil, invalid("record kind %q", kind)
 	}
@@ -362,13 +375,18 @@ type Data struct {
 }
 
 // Load reads the data of an owner for the days from to to. The catalog is complete; entries and absences cover the
-// range.
+// range. Entries start one day earlier, so a night shift that began the evening before from can count its part on
+// from (DaySplit).
 func Load(ctx context.Context, s Store, owner string, from, to Date) (Data, error) {
 	cat, err := s.Catalog(ctx, owner)
 	if err != nil {
 		return Data{}, err
 	}
-	entries, err := s.Entries(ctx, EntryFilter{Owner: owner, From: from, To: to})
+	entryFrom := from
+	if !from.IsZero() {
+		entryFrom = from.AddDays(-1)
+	}
+	entries, err := s.Entries(ctx, EntryFilter{Owner: owner, From: entryFrom, To: to})
 	if err != nil {
 		return Data{}, err
 	}
