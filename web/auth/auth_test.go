@@ -80,15 +80,27 @@ func TestMigrationsRunTwice(t *testing.T) {
 }
 
 func TestFirstLinkOnlyWithoutAccounts(t *testing.T) {
-	s, _ := newService(t)
+	s, c := newService(t)
 	ctx := context.Background()
-	token, err := s.FirstSetupLink(ctx)
+	older, err := s.FirstSetupLink(ctx, "")
+	if err != nil || older == "" {
+		t.Fatalf("%q %v", older, err)
+	}
+	// A new first link replaces the one before: only one works at a time.
+	token, err := s.FirstSetupLink(ctx, "")
 	if err != nil || token == "" {
 		t.Fatalf("%q %v", token, err)
+	}
+	if _, err := s.LookupSetupLink(ctx, older); !errors.Is(err, ErrLinkInvalid) {
+		t.Fatalf("the replaced first link still works: %v", err)
 	}
 	link, err := s.LookupSetupLink(ctx, token)
 	if err != nil || !link.Admin || link.Username != "" {
 		t.Fatalf("%+v %v", link, err)
+	}
+	// It lasts an hour, not a day.
+	if want := c.Now().Add(time.Hour); !link.Expires.Equal(want) || FirstLinkTTL != time.Hour {
+		t.Fatalf("the first link lasts until %v, want %v", link.Expires, want)
 	}
 	a, err := s.SetupWithPassword(ctx, token, SetupChoice{Username: " Mara ", DisplayName: "Mara S."}, goodPassword)
 	if err != nil {
@@ -97,11 +109,27 @@ func TestFirstLinkOnlyWithoutAccounts(t *testing.T) {
 	if a.Username != "mara" || !a.Admin || a.DisplayName != "Mara S." || !a.HasPassword || a.HasTOTP {
 		t.Fatalf("%+v", a)
 	}
-	if again, err := s.FirstSetupLink(ctx); err != nil || again != "" {
+	if again, err := s.FirstSetupLink(ctx, ""); err != nil || again != "" {
 		t.Fatalf("a second first link: %q %v", again, err)
 	}
 	if _, err := s.SetupWithPassword(ctx, token, SetupChoice{Username: "eve"}, goodPassword); !errors.Is(err, ErrLinkInvalid) {
 		t.Fatalf("the link worked twice: %v", err)
+	}
+}
+
+func TestFirstLinkExpiresAfterAnHour(t *testing.T) {
+	s, c := newService(t)
+	ctx := context.Background()
+	token, err := s.FirstSetupLink(ctx, "Mara")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if link, err := s.LookupSetupLink(ctx, token); err != nil || link.Username != "mara" || !link.Admin {
+		t.Fatalf("%+v %v", link, err)
+	}
+	c.Add(time.Hour + time.Second)
+	if _, err := s.SetupWithPassword(ctx, token, SetupChoice{}, goodPassword); !errors.Is(err, ErrLinkInvalid) {
+		t.Fatalf("the first link worked after an hour: %v", err)
 	}
 }
 

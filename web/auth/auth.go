@@ -2,7 +2,7 @@
 
 // Package auth signs people in to the standalone program: local accounts with a passkey (the default), a password with
 // a code from an authenticator app, or a password alone. There is no sign-up: the first administrator comes from a
-// one-time link the program prints at its first start, everyone else from an invitation. The core library knows
+// short-lived one-time link made at the server's console (eightperday link --admin), everyone else from an invitation. The core library knows
 // nothing of this (ADR-1); the accounts live in tables of their own.
 package auth
 

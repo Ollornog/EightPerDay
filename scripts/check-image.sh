@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds the image and starts it hardened (read-only, no capabilities) next to the database image of compose.yaml: it
-# has to get healthy, print the link for the first account, and serve the sign-in and that link with its CSP. This is
+# has to get healthy, keep the link for the first account out of its log, make that link at the console (docker exec),
+# and serve the sign-in and that link with its CSP. This is
 # also the acceptance test for updates of the base images and of the database image.
 #
 #   scripts/check-image.sh        (docker; on the tower: sg docker -c scripts/check-image.sh)
@@ -51,10 +52,15 @@ base="http://127.0.0.1:$port"
 head="$(curl -fsSI "$base/login")" || fail "the sign-in does not answer"
 grep -qi '^content-security-policy:' <<<"$head" || fail "the sign-in has no CSP"
 logs="$(docker logs "$app" 2>&1)"
-link="$(grep -o 'http://localhost:8080/setup?token=[A-Za-z0-9_-]*' <<<"$logs" | head -1)" || true
-[[ -n "$link" ]] || fail "the first start printed no link for the first account"
+# Whoever reads the log must not find a link that makes them the administrator; the log only says how to make one.
+[[ "$logs" != *'token='* ]] || fail "the log holds a one-time link"
+[[ "$logs" == *'eightperday link --admin'* ]] || fail "the log does not say how to make the first account"
+made="$(docker exec "$app" /eightperday link --admin)" || fail "the console makes no link for the first account"
+pattern='http://localhost:8080/setup\?token=[A-Za-z0-9_-]+'
+[[ "$made" =~ $pattern ]] || fail "the console printed no link for the first account"
+link="${BASH_REMATCH[0]}"
 setup="$(curl -fsS "$base${link#http://localhost:8080}")" || fail "the one-time link does not answer"
 [[ "$setup" == *'data-setup'* ]] || fail "the one-time link does not show the setup"
 user="$(docker inspect -f '{{.Config.User}}' "$image")"
 [[ "$user" == 65532:65532 ]] || fail "the image runs as $user"
-echo "✓ image: healthy, read-only, without capabilities, prints the first link and serves the sign-in with its CSP"
+echo "✓ image: healthy, read-only, without capabilities, no link in the log, the first link from the console, the sign-in with its CSP"

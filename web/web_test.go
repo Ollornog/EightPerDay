@@ -183,7 +183,7 @@ func TestFirstAccountThroughTheOneTimeLink(t *testing.T) {
 	if !strings.Contains(s.get("/login").body, "No account yet") {
 		t.Fatal("the sign-in page does not say where the first account comes from")
 	}
-	token, err := s.auth.FirstSetupLink(context.Background())
+	token, err := s.auth.FirstSetupLink(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

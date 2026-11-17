@@ -85,6 +85,12 @@ All notable changes to this project are documented in this file. The format foll
   is gone. The week views follow C22's data-entry blocks; duration fields tell the accepted forms and refuse other
   input already in the browser.
 
+### Security
+
+- The one-time link for the first administrator no longer goes to the log, where everyone who reads the log could
+  take the program over: a start without an account only says how to make it, and it is made at the server's console
+  with `eightperday link --admin`. It lasts one hour instead of 24, and a new one replaces the one before.
+
 ### Fixed
 
 - A form without a date (such as a pay rule or a surcharge) answers that the date is missing instead of failing.

@@ -32,7 +32,7 @@
   "login.throttled": "Zu viele Fehlversuche. Bitte warte %d Sekunden.",
   "login.expired": "Dieser Schritt ist abgelaufen. Bitte fang neu an.",
   "login.noaccount.title": "Noch kein Konto",
-  "login.noaccount.text": "Beim ersten Start schreibt das Programm einen Einmal-Link in sein Protokoll. Öffne ihn, um das erste Konto anzulegen.",
+  "login.noaccount.text": "Wer das Programm betreibt, erzeugt den Einmal-Link für das erste Konto an der Konsole des Servers mit eightperday link --admin. Er gilt eine Stunde.",
   "code.title": "Code aus deiner App",
   "code.lead": "Gib den sechsstelligen Code ein, den deine Authenticator-App für EightPerDay zeigt.",
   "code.label": "Code",
