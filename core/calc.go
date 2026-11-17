@@ -57,8 +57,7 @@ func newEmployerView(d Data, employerID string) (*employerView, error) {
 	if !ok {
 		return nil, fmt.Errorf("employer %q: %w", employerID, ErrNotFound)
 	}
-	v := &employerView{emp: emp, holidays: newHolidayCalendar(d.Catalog, emp), types: d.Catalog.AbsenceTypesFor(employerID),
-		entries: map[Date][]Entry{}}
+	v := &employerView{emp: emp, holidays: newHolidayCalendar(d.Catalog, emp), types: d.Catalog.AbsenceTypesFor(employerID)}
 	for _, m := range d.Catalog.ModeChanges {
 		if m.EmployerID == employerID {
 			v.modes = append(v.modes, m)
@@ -76,11 +75,7 @@ func newEmployerView(d Data, employerID string) (*employerView, error) {
 			v.confirms = append(v.confirms, c)
 		}
 	}
-	for _, e := range d.Entries {
-		if e.EmployerID == employerID && e.DeletedAt == nil {
-			v.entries[e.Date] = append(v.entries[e.Date], e)
-		}
-	}
+	v.entries = entriesByDay(d, emp)
 	for _, a := range d.Absences {
 		if appliesTo(emp, a.EmployerID) && a.DeletedAt == nil && a.Status == StatusApproved {
 			v.absences = append(v.absences, a)
@@ -146,9 +141,17 @@ func (v *employerView) confirmed(d Date) bool {
 	return false
 }
 
-// absent returns the absence fractions of the day in thousandths, by effect, capped at a full day in the order the
-// absences start, and the type keys.
-func (v *employerView) absent(d Date) (fills, reduces, info int, keys []string) {
+// absentPart is the share of one day (in thousandths) that one absence takes.
+type absentPart struct {
+	absence  Absence
+	typ      AbsenceType
+	fraction int
+}
+
+// absentParts returns the absences of the day with their fractions, capped at a full day in the order the absences
+// start.
+func (v *employerView) absentParts(d Date) []absentPart {
+	var out []absentPart
 	left := 1000
 	for _, a := range v.absences {
 		if !d.Within(a.From, a.To) || left == 0 {
@@ -164,15 +167,23 @@ func (v *employerView) absent(d Date) (fills, reduces, info int, keys []string) 
 		}
 		f = min(f, left)
 		left -= f
-		switch t.Effect {
+		out = append(out, absentPart{a, t, f})
+	}
+	return out
+}
+
+// absent returns the absence fractions of the day in thousandths, by effect, and the type keys.
+func (v *employerView) absent(d Date) (fills, reduces, info int, keys []string) {
+	for _, p := range v.absentParts(d) {
+		switch p.typ.Effect {
 		case FillsTarget:
-			fills += f
+			fills += p.fraction
 		case ReducesTarget:
-			reduces += f
+			reduces += p.fraction
 		default:
-			info += f
+			info += p.fraction
 		}
-		keys = append(keys, a.Type)
+		keys = append(keys, p.absence.Type)
 	}
 	return fills, reduces, info, keys
 }

@@ -50,3 +50,10 @@ All notable changes to this project are documented in this file. The format foll
   (`DE-BY-AUGSBURG`), Bavarian municipalities without Assumption Day (`DE-BY-PROTESTANT`), and Corpus Christi in
   the Catholic municipalities of Saxony (`DE-SN-CATHOLIC`) and Thuringia (`DE-TH-CATHOLIC`). Rules can now leave
   regions out (`HolidayRule.Except`).
+- Night shifts: an employer counts a span past midnight for the day it starts (the default) or splits it at local
+  midnight (`Employer.DaySplit`), with the real length on daylight saving nights; a break after midnight in a night
+  shift counts for the shift's day. `Load` reads entries from the day before.
+- Pay beyond time worked: paid absences (`AbsencePay`: public holidays, leave, sickness or own types, at the target
+  minutes or at the average of the reference weeks) and surcharges (`Surcharge`: night window, Sunday, holiday,
+  overtime, in basis points, valid from a date, with an hourly base for salaried staff). The earnings list them by
+  reason (`EarningLine.Reason`, `Earnings.Reasons`).

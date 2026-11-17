@@ -26,7 +26,31 @@ func Overtime(d Data, employerID string, from, to Date) (OvertimeAccount, error)
 	}
 	emp, _ := d.Catalog.Employer(employerID)
 	var acc OvertimeAccount
-	// Group by the basis valid at the start of each group; a schedule change starts a new group.
+	for _, day := range days {
+		acc.Balance += boolInt(day.HasTarget) * day.Balance
+	}
+	for _, p := range overtimePeriods(days, d.Catalog, emp) {
+		acc.Overtime += p.surplus
+	}
+	for _, a := range d.Catalog.Adjustments {
+		if a.EmployerID == employerID && a.Kind == AdjustOvertime && a.Date.Within(from, to) {
+			acc.Adjustments += a.Minutes
+		}
+	}
+	acc.Balance += acc.Adjustments
+	return acc, nil
+}
+
+// overtimePeriod is one period of the overtime basis with its surplus (zero if it had none).
+type overtimePeriod struct {
+	from, to Date
+	surplus  int
+}
+
+// overtimePeriods groups the days by the overtime basis valid at the start of each group (a schedule change starts a
+// new group) and returns the surplus of each: per day for the basis day, else the positive sum of the group.
+func overtimePeriods(days []Day, cat Catalog, emp Employer) []overtimePeriod {
+	var out []overtimePeriod
 	var group []Day
 	var basis OvertimeBasis
 	var key Date
@@ -34,21 +58,18 @@ func Overtime(d Data, employerID string, from, to Date) (OvertimeAccount, error)
 		if len(group) == 0 {
 			return
 		}
-		t := Sum(group)
 		if basis == BasisDay {
 			for _, g := range group {
-				if g.HasTarget && g.Balance > 0 {
-					acc.Overtime += g.Balance
-				}
+				out = append(out, overtimePeriod{g.Date, g.Date, boolInt(g.HasTarget && g.Balance > 0) * g.Balance})
 			}
-		} else if t.Balance > 0 {
-			acc.Overtime += t.Balance
+		} else {
+			t := Sum(group)
+			out = append(out, overtimePeriod{t.From, t.To, max(0, t.Balance)})
 		}
 		group = group[:0]
 	}
 	for _, day := range days {
-		acc.Balance += boolInt(day.HasTarget) * day.Balance
-		s, _ := ScheduleAt(d.Catalog, employerID, day.Date)
+		s, _ := ScheduleAt(cat, emp.ID, day.Date)
 		b := s.OvertimeBasis
 		var k Date
 		switch b {
@@ -66,13 +87,7 @@ func Overtime(d Data, employerID string, from, to Date) (OvertimeAccount, error)
 		group = append(group, day)
 	}
 	flush()
-	for _, a := range d.Catalog.Adjustments {
-		if a.EmployerID == employerID && a.Kind == AdjustOvertime && a.Date.Within(from, to) {
-			acc.Adjustments += a.Minutes
-		}
-	}
-	acc.Balance += acc.Adjustments
-	return acc, nil
+	return out
 }
 
 func boolInt(b bool) int {
