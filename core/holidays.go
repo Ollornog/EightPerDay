@@ -11,7 +11,11 @@ import (
 
 // HolidayRule is one public holiday as data: either a fixed day of the year (Month, Day), an offset from Easter Sunday
 // (Easter), or the Wednesday before 23 November (BussUndBettag). It applies in the listed regions from FromYear to
-// ToYear (0 means unbounded). A region "DE" means every German state.
+// ToYear (0 means unbounded), except in the regions of Except.
+//
+// Regions nest by their code: a rule for "DE" applies in every German state ("DE-BY"), a rule for "DE-BY" in every
+// part of Bavaria ("DE-BY-AUGSBURG"). A part of a state is a group of municipalities whose holidays differ from the
+// state's, and it has every holiday of the state unless a rule names it in Except.
 type HolidayRule struct {
 	Name          string
 	Month         time.Month
@@ -19,14 +23,20 @@ type HolidayRule struct {
 	Easter        *int
 	BussUndBettag bool
 	Regions       []string
-	FromYear      int
-	ToYear        int
+	// Except names regions (and with them their parts) where the rule does not apply.
+	Except   []string
+	FromYear int
+	ToYear   int
+	// Source names the law the rule rests on, where it is narrower than a whole state.
+	Source string
 }
 
 // PublicHoliday is a public holiday on a date.
 type PublicHoliday struct {
 	Date Date
 	Name string
+	// Source is the rule's source, set for days that only some municipalities keep.
+	Source string
 }
 
 func easter(offset int) *int { return &offset }
@@ -35,9 +45,12 @@ var (
 	rulesMu sync.RWMutex
 	// The German states (ISO 3166-2:DE) and Austria. Sources: the holiday laws of the states and the Austrian
 	// Arbeitsruhegesetz; Sundays that are holidays by law (Easter and Whit Sunday in Brandenburg) are included.
-	// Regional days that only apply in some municipalities (Assumption in parts of Bavaria, Corpus Christi in parts of
-	// Saxony and Thuringia, the Augsburg peace festival) are left to own holidays (Holiday records); Bavaria counts
-	// Assumption here, as most Bavarian municipalities are Catholic.
+	//
+	// Days that only some municipalities keep are parts of a state with a code of their own (see the rules with a
+	// Source): Bavaria counts Assumption, as most Bavarian municipalities have a Catholic majority, and the part
+	// DE-BY-PROTESTANT leaves it out; DE-BY-AUGSBURG adds the peace festival; DE-SN-CATHOLIC and DE-TH-CATHOLIC add
+	// Corpus Christi. Which municipality belongs to which part is decided by the authorities named in the source;
+	// the code does not list municipalities, the person or the organization picks the part.
 	holidayRules = []HolidayRule{
 		{Name: "New Year's Day", Month: time.January, Day: 1, Regions: []string{"DE", "AT"}},
 		{Name: "Epiphany", Month: time.January, Day: 6, Regions: []string{"DE-BW", "DE-BY", "DE-ST", "AT"}},
@@ -53,7 +66,17 @@ var (
 		{Name: "Whit Sunday", Easter: easter(49), Regions: []string{"DE-BB"}},
 		{Name: "Whit Monday", Easter: easter(50), Regions: []string{"DE", "AT"}},
 		{Name: "Corpus Christi", Easter: easter(60), Regions: []string{"DE-BW", "DE-BY", "DE-HE", "DE-NW", "DE-RP", "DE-SL", "AT"}},
-		{Name: "Assumption Day", Month: time.August, Day: 15, Regions: []string{"DE-BY", "DE-SL", "AT"}},
+		{Name: "Corpus Christi", Easter: easter(60), Regions: []string{"DE-SN-CATHOLIC"},
+			Source: "Saxony: § 1 Abs. 1 SächsSFG with the Fronleichnamsverordnung (municipalities listed in its annex)"},
+		{Name: "Corpus Christi", Easter: easter(60), Regions: []string{"DE-TH-CATHOLIC"},
+			Source: "Thuringia: § 2 Abs. 2 and § 10 Abs. 1 ThürFGtG (municipalities with a predominantly Catholic population, " +
+				"so far those where it was kept in 1994)"},
+		{Name: "Assumption Day", Month: time.August, Day: 15, Regions: []string{"DE-BY"}, Except: []string{"DE-BY-PROTESTANT"},
+			Source: "Bavaria: Art. 1 Abs. 1 Nr. 2 and Abs. 3 FTG (municipalities with a predominantly Catholic population, " +
+				"as found by the Landesamt für Statistik)"},
+		{Name: "Assumption Day", Month: time.August, Day: 15, Regions: []string{"DE-SL", "AT"}},
+		{Name: "Augsburg Peace Festival", Month: time.August, Day: 8, Regions: []string{"DE-BY-AUGSBURG"},
+			Source: "Bavaria: Art. 1 Abs. 2 FTG (the city of Augsburg)"},
 		{Name: "World Children's Day", Month: time.September, Day: 20, Regions: []string{"DE-TH"}, FromYear: 2019},
 		{Name: "Day of German Unity", Month: time.October, Day: 3, Regions: []string{"DE"}, FromYear: 1990},
 		{Name: "National Day", Month: time.October, Day: 26, Regions: []string{"AT"}},
@@ -68,10 +91,11 @@ var (
 		{Name: "St. Stephen's Day", Month: time.December, Day: 26, Regions: []string{"DE", "AT"}},
 	}
 	regions = []string{"DE", "DE-BB", "DE-BE", "DE-BW", "DE-BY", "DE-HB", "DE-HE", "DE-HH", "DE-MV", "DE-NI", "DE-NW",
-		"DE-RP", "DE-SH", "DE-SL", "DE-SN", "DE-ST", "DE-TH", "AT"}
+		"DE-RP", "DE-SH", "DE-SL", "DE-SN", "DE-ST", "DE-TH", "AT",
+		"DE-BY-AUGSBURG", "DE-BY-PROTESTANT", "DE-SN-CATHOLIC", "DE-TH-CATHOLIC"}
 )
 
-// Regions lists the region codes with public holidays.
+// Regions lists the region codes with public holidays: the states first, then their parts.
 func Regions() []string {
 	rulesMu.RLock()
 	defer rulesMu.RUnlock()
@@ -85,12 +109,13 @@ func KnownRegion(code string) bool {
 	return slices.Contains(regions, code)
 }
 
-// AddHolidayRule extends the data with a rule, for example for another country. Regions it names become known.
+// AddHolidayRule extends the data with a rule, for example for another country or a part of a state. Regions it names
+// (also in Except) become known.
 func AddHolidayRule(r HolidayRule) {
 	rulesMu.Lock()
 	defer rulesMu.Unlock()
 	holidayRules = append(holidayRules, r)
-	for _, code := range r.Regions {
+	for _, code := range slices.Concat(r.Regions, r.Except) {
 		if !slices.Contains(regions, code) {
 			regions = append(regions, code)
 		}
@@ -113,20 +138,31 @@ func EasterSunday(year int) Date {
 	return NewDate(year, time.Month(month), day)
 }
 
+// within reports whether region is the region code or one of its parts ("DE-BY-AUGSBURG" is within "DE-BY" and "DE").
+func within(region, code string) bool {
+	return region == code || strings.HasPrefix(region, code+"-")
+}
+
 func ruleApplies(rule HolidayRule, region string, year int) bool {
 	if (rule.FromYear != 0 && year < rule.FromYear) || (rule.ToYear != 0 && year > rule.ToYear) {
 		return false
 	}
+	for _, r := range rule.Except {
+		if within(region, r) {
+			return false
+		}
+	}
 	for _, r := range rule.Regions {
-		if r == region || (r == "DE" && strings.HasPrefix(region, "DE-")) {
+		if within(region, r) {
 			return true
 		}
 	}
 	return false
 }
 
-// PublicHolidays returns the public holidays of the region in the year, ordered by date. A region "DE" alone returns
-// only the holidays of every German state.
+// PublicHolidays returns the public holidays of the region in the year, ordered by date. A region has the holidays of
+// the regions it lies within: "DE-BY-AUGSBURG" those of "DE-BY" and "DE". A region "DE" alone returns only the
+// holidays of every German state.
 func PublicHolidays(region string, year int) []PublicHoliday {
 	rulesMu.RLock()
 	defer rulesMu.RUnlock()
@@ -145,7 +181,7 @@ func PublicHolidays(region string, year int) []PublicHoliday {
 		default:
 			d = NewDate(year, rule.Month, rule.Day)
 		}
-		out = append(out, PublicHoliday{Date: d, Name: rule.Name})
+		out = append(out, PublicHoliday{Date: d, Name: rule.Name, Source: rule.Source})
 	}
 	slices.SortFunc(out, func(a, b PublicHoliday) int { return a.Date.Compare(b.Date) })
 	return out

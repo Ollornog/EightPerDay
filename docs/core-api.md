@@ -46,7 +46,20 @@ owner, from, to)`.
 | `Leave(data, employerID, year)` | Leave account: entitlement (prorated), adjustments, taken, requested, remaining |
 | `ComputeEarnings(data, employerID, from, to)` | Earnings per pay rule: hourly, per project, per assignment (day or job), flat per period |
 | `PersonalOverview(data, from, to, weekStart)` | The person's view over all employers, with hints on the Working Hours Act; refuses data of several people |
-| `PublicHolidays(region, year)`, `Regions()`, `AddHolidayRule` | Public holidays of the German states and Austria, as data |
+| `PublicHolidays(region, year)`, `Regions()`, `AddHolidayRule` | Public holidays of the German states and Austria, as data, and of parts of a state (see below) |
+
+Public holidays of parts of a state: some days are kept only in some municipalities. A part has a code of its own
+below the state's and every holiday of the state, plus or minus those days; the rule names its law in `Source`
+(`PublicHoliday.Source`). The person or the organization picks the part, the library lists no municipalities.
+
+| Region | Difference to the state | Source |
+|---|---|---|
+| `DE-BY-AUGSBURG` | + Augsburg Peace Festival (8 August) | Art. 1 Abs. 2 FTG (Bavaria) |
+| `DE-BY-PROTESTANT` | − Assumption Day (`DE-BY` counts it, as most Bavarian municipalities have a Catholic majority) | Art. 1 Abs. 1 Nr. 2, Abs. 3 FTG |
+| `DE-SN-CATHOLIC` | + Corpus Christi | § 1 Abs. 1 SächsSFG with the Fronleichnamsverordnung |
+| `DE-TH-CATHOLIC` | + Corpus Christi | § 2 Abs. 2, § 10 Abs. 1 ThürFGtG |
+
+`HolidayRule.Except` takes a day away from a part; `AddHolidayRule` adds parts of one's own.
 
 Pay: `ApplyRate` stores the rate as a snapshot on an entry, `Revalue` lists entries whose snapshot differs from the
 current rule (store them with `UpdateEntry` to re-value on purpose).

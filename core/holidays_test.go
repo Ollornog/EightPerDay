@@ -75,7 +75,7 @@ func TestPublicHolidays(t *testing.T) {
 }
 
 func TestRegions(t *testing.T) {
-	if len(Regions()) != 18 || !KnownRegion("DE-HH") || !KnownRegion("AT") || KnownRegion("DE-XX") {
+	if len(Regions()) != 22 || !KnownRegion("DE-HH") || !KnownRegion("AT") || KnownRegion("DE-XX") {
 		t.Fatalf("regions: %v", Regions())
 	}
 	AddHolidayRule(HolidayRule{Name: "Test Day", Month: time.July, Day: 4, Regions: []string{"ZZ-TEST"}})
@@ -110,5 +110,65 @@ func TestOwnHolidays(t *testing.T) {
 		if got.Holiday != c.holiday || got.AdjustedTarget != c.adjusted {
 			t.Errorf("%s: holiday %q adjusted %d, want %q %d", c.date, got.Holiday, got.AdjustedTarget, c.holiday, c.adjusted)
 		}
+	}
+}
+
+// Parts of a state have every holiday of the state, plus or minus the days their municipalities keep.
+func TestRegionalHolidays(t *testing.T) {
+	cases := []struct {
+		region string
+		year   int
+		count  int
+		has    []string
+		hasNot []string
+	}{
+		{"DE-BY-AUGSBURG", 2026, 14, []string{"2026-08-08 Augsburg Peace Festival", "2026-08-15 Assumption Day",
+			"2026-06-04 Corpus Christi", "2026-01-01 New Year's Day"}, nil},
+		{"DE-BY-PROTESTANT", 2026, 12, []string{"2026-06-04 Corpus Christi", "2026-01-06 Epiphany"},
+			[]string{"2026-08-15 Assumption Day", "2026-08-08 Augsburg Peace Festival"}},
+		{"DE-BY", 2026, 13, []string{"2026-08-15 Assumption Day"}, []string{"2026-08-08 Augsburg Peace Festival"}},
+		{"DE-SN-CATHOLIC", 2026, 12, []string{"2026-06-04 Corpus Christi", "2026-11-18 Repentance and Prayer Day"}, nil},
+		{"DE-SN", 2026, 11, nil, []string{"2026-06-04 Corpus Christi"}},
+		{"DE-TH-CATHOLIC", 2026, 12, []string{"2026-06-04 Corpus Christi", "2026-09-20 World Children's Day"}, nil},
+		{"DE-TH", 2026, 11, nil, []string{"2026-06-04 Corpus Christi"}},
+		// A code that merely starts like a state is no part of it: only the days of every German state.
+		{"DE-BYX", 2026, 9, nil, []string{"2026-01-06 Epiphany", "2026-08-15 Assumption Day"}},
+	}
+	for _, c := range cases {
+		got := names(PublicHolidays(c.region, c.year))
+		if len(got) != c.count {
+			t.Errorf("%s %d: %d holidays, want %d: %v", c.region, c.year, len(got), c.count, got)
+		}
+		for _, h := range c.has {
+			if !slices.Contains(got, h) {
+				t.Errorf("%s %d: missing %s", c.region, c.year, h)
+			}
+		}
+		for _, h := range c.hasNot {
+			if slices.Contains(got, h) {
+				t.Errorf("%s %d: unexpected %s", c.region, c.year, h)
+			}
+		}
+	}
+	// Every municipal day names its source.
+	for _, region := range []string{"DE-BY-AUGSBURG", "DE-SN-CATHOLIC", "DE-TH-CATHOLIC"} {
+		for _, h := range PublicHolidays(region, 2026) {
+			if (h.Name == "Augsburg Peace Festival" || (h.Name == "Corpus Christi" && region != "DE-BY-AUGSBURG")) && h.Source == "" {
+				t.Errorf("%s: %s without source", region, h.Name)
+			}
+		}
+	}
+	for _, code := range []string{"DE-BY-AUGSBURG", "DE-BY-PROTESTANT", "DE-SN-CATHOLIC", "DE-TH-CATHOLIC"} {
+		if !KnownRegion(code) {
+			t.Errorf("%s unknown", code)
+		}
+	}
+	emp := employerOf(ModeSchedule, "DE-BY-AUGSBURG")
+	if err := emp.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	data := Data{Catalog: Catalog{Employers: []Employer{emp}, Schedules: []Schedule{week("s", "2026-01-01", 480, 480, 480, 480, 480, 480, 0)}}}
+	if got := dayOf(t, mustDays(t, data, "2026-08-08", "2026-08-08"), "2026-08-08"); got.Holiday != "Augsburg Peace Festival" || got.AdjustedTarget != 0 {
+		t.Fatalf("peace festival in Augsburg: %+v", got)
 	}
 }
