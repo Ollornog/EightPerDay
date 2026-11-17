@@ -121,6 +121,8 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	mux.HandleFunc("GET /sw.js", h.serviceWorker)
 	mux.HandleFunc("GET /about", h.about)
 	mux.HandleFunc("GET /licenses", h.licenses)
+	mux.HandleFunc("GET /legal", h.legalPage)
+	mux.HandleFunc("GET /legal/{name}", h.legalDownload)
 	mux.HandleFunc("POST /language", h.setLanguage)
 
 	mux.HandleFunc("GET /login", h.loginPage)

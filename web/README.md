@@ -45,6 +45,12 @@ A duration field carries `pattern` from `durationPattern` (Go, `track.go`), whic
   and an administrator's reads and changes of a member's settings go through `LogAccess`. The person sees the log on
   `/access` (linked from the reports), with a note whether the chain holds (`core.VerifyAccesses`). `Options.AccessLog`
   defaults to the store's own.
+- Leave reminders: the week view shows `core.LeaveReminders` for the person while the year's data are loaded (the
+  week shown lies in this year or next to it), with the employer's notice when there is one; the note on lapsing
+  leave is only given for German employers.
+- Legal templates: `/legal` shows the files of `docs/legal` (embedded by the package `docs`) with their downloads
+  and the kinds of data from `core.DataInventory`, with `docs/data-inventory.json` to download; the page says first
+  that none of it is legal advice or checked by a lawyer.
 - Pay beyond time worked: the employer settings take paid absences (`core.AbsencePay`) and surcharges
   (`core.Surcharge`), and how shifts past midnight count (`Employer.DaySplit`); the reports name every line by its
   reason.

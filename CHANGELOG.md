@@ -77,6 +77,13 @@ All notable changes to this project are documented in this file. The format foll
   opened again by a correction; a page for the person shows who of an organization read, changed or decided what of
   their data (the access log, also written for settings and memberships); the employer settings take paid absences,
   surcharges and how shifts past midnight count, and the reports name each earning by its reason.
+- Leave reminders in the interface: towards the end of the year the week view tells the person how much leave of the
+  year is still open, and whether the employer recorded the notice that it can lapse (`LeaveReminders`).
+- A page with the templates for employers (`/legal`, linked from the about dialog and the organization's page): the
+  texts of `docs/legal` (embedded as the package `docs`) to read and download, and the kinds of data with the data
+  inventory as a download, marked first as no legal advice and not checked by a lawyer.
+- The backlog names the next milestone, the first release (M-4), with publishing the container image as its open task
+  (T-5).
 
 ### Changed
 

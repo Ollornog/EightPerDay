@@ -63,7 +63,9 @@ project. A free-text line (`8-16:30 30m Pause`, `Fr -2h früher weg`, `Mo-Mi Url
 what it understood while it is typed. Reports show balance, time account, leave and earnings per employer and month,
 and the person's own hints on the Working Hours Act; everything about a person can be exported as JSON or CSV.
 Organizations manage members, schedule templates and pay; they see only what belongs to them, never a member's
-private employers, and their company features are off unless switched on with a works agreement.
+private employers, and their company features are off unless switched on with a works agreement. Towards the end of
+the year the week view reminds a person of leave still open; the page `/legal` shows the templates for employers from
+[`docs/legal`](docs/legal/) and the kinds of data stored, as drafts that are no legal advice.
 
 **Signing in.** There is no sign-up. The first account, which administers the program, comes from a one-time link made
 at the server's console with `eightperday link --admin` (in a container `docker compose exec eightperday /eightperday

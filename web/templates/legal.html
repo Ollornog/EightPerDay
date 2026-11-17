@@ -1,0 +1,37 @@
+{{define "content"}}
+{{$d := .Data}}
+<h1 class="text-2xl font-bold">{{t "legal.title"}}</h1>
+<p class="mt-2 text-muted-foreground text-sm">{{t "legal.lead"}}</p>
+<div class="mt-4 grid gap-4">
+  <div class="alert" data-variant="warning" role="note" data-legal-disclaimer>{{template "icon-alert"}}<h2>{{t "legal.disclaimer.title"}}</h2>
+    <section><p>{{t "legal.disclaimer.text"}}</p></section></div>
+  {{range $d.Files}}
+  <details class="card" data-size="sm" data-legal-file="{{.Name}}">
+    <summary><h3>{{t (print .Key)}}</h3></summary>
+    <section class="grid gap-2">
+      <p class="text-muted-foreground text-sm">{{t (print .Key ".lead")}}</p>
+      <pre class="code-block max-h-96" data-wrap><code>{{.Text}}</code></pre>
+      <div><a class="btn" data-variant="outline" data-size="sm" href="/legal/{{.Name}}" download>{{t "legal.download"}} ({{.Name}})</a></div>
+    </section>
+  </details>
+  {{end}}
+  <details class="card" data-size="sm" data-legal-inventory>
+    <summary><h3>{{t "legal.inventory"}}</h3></summary>
+    <section class="grid gap-3">
+      <p class="text-muted-foreground text-sm">{{t "legal.inventory.lead"}}</p>
+      <div><a class="btn" data-variant="outline" data-size="sm" href="/legal/data-inventory.json" download>{{t "legal.download"}} (data-inventory.json)</a></div>
+      <ul class="grid gap-3 text-sm">
+        {{range $d.Inventory}}
+        <li class="grid gap-0.5 border-b pb-2" data-kind="{{.Name}}">
+          <span class="font-medium">{{.Name}}</span>
+          <span>{{.Purpose}}</span>
+          <span class="text-muted-foreground text-xs">{{t "legal.inventory.holder"}}: {{.Holder}}</span>
+          <span class="text-muted-foreground text-xs">{{t "legal.inventory.deletion"}}: {{.Deletion}}</span>
+          <span class="text-muted-foreground text-xs">{{t "legal.inventory.fields"}}: {{range $i, $f := .Fields}}{{if $i}}, {{end}}{{$f.Name}}{{end}}</span>
+        </li>
+        {{end}}
+      </ul>
+    </section>
+  </details>
+</div>
+{{end}}

@@ -464,3 +464,33 @@ func TestOrgPageReadsAreLoggedOncePerDay(t *testing.T) {
 		t.Fatal("the chain does not hold")
 	}
 }
+
+// Towards the end of the year the person reads how much leave is still open, and whether the employer recorded the
+// notice that it can lapse; a week of another year, whose data do not hold this year, shows no reminder.
+func TestLeaveReminder(t *testing.T) {
+	s, worker, _, member, managed := approvalSite(t)
+	home := "/?e=" + managed.ID
+	body := worker.get(home).body
+	if !strings.Contains(body, "data-leave-reminder") || !strings.Contains(body, "Leave left in 2026") ||
+		!strings.Contains(body, "in 43 days") || !strings.Contains(body, "data-reminder-nonotice") {
+		t.Fatalf("no reminder of the open leave: %.3000s", body)
+	}
+	if strings.Contains(worker.get(home+"&w=2027-01-04").body, "data-leave-reminder") {
+		t.Error("a week of next year reminds of this year's leave")
+	}
+	notice := core.LeaveNotice{ID: core.NewID(), Owner: member.ID, EmployerID: managed.ID, Year: 2026,
+		NotifiedAt: time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC), Text: "Please take your leave."}
+	if err := s.store.Put(context.Background(), notice); err != nil {
+		t.Fatal(err)
+	}
+	body = worker.get(home).body
+	if !strings.Contains(body, "data-reminder-notice") || strings.Contains(body, "data-reminder-nonotice") {
+		t.Fatal("the recorded notice is not shown")
+	}
+	worker.post("/language", url.Values{"lang": {"de"}, "back": {"/"}})
+	if body := worker.get(home).body; !strings.Contains(body, "Resturlaub 2026") || !strings.Contains(body, "Noch 5 Urlaubstage") ||
+		!strings.Contains(body, "am 01.10.2026 darauf") {
+		i := strings.Index(body, "data-leave-reminder")
+		t.Fatalf("the German reminder: %.600s", body[max(i, 0):])
+	}
+}

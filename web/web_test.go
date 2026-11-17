@@ -171,7 +171,7 @@ func TestSignInIsNeeded(t *testing.T) {
 	if a := s.post("/account/name", url.Values{"display_name": {"x"}}); a.status != http.StatusUnauthorized {
 		t.Errorf("a change without an account: %d", a.status)
 	}
-	for _, path := range []string{"/login", "/about", "/licenses", "/manifest.webmanifest", "/sw.js", "/favicon.ico", "/assets/app/app.js"} {
+	for _, path := range []string{"/login", "/about", "/licenses", "/legal", "/legal/works-agreement.md", "/manifest.webmanifest", "/sw.js", "/favicon.ico", "/assets/app/app.js"} {
 		if a := s.get(path); a.status != http.StatusOK {
 			t.Errorf("%s needs no account but answered %d", path, a.status)
 		}
@@ -512,7 +512,7 @@ func pages(t *testing.T) map[string]string {
 	s.mustPost("/orgs/"+org+"/features", url.Values{"supervisor_view": {"on"}, "confirm": {"on"}, "agreement": {"BV"}, "back": {"/"}})
 	for _, lang := range languages {
 		s.post("/language", url.Values{"lang": {lang}, "back": {"/"}})
-		paths := []string{"/account", "/admin", "/about", "/licenses", "/nothing", "/setup?token=" + token, "/setup?token=bad",
+		paths := []string{"/account", "/admin", "/about", "/licenses", "/legal", "/nothing", "/setup?token=" + token, "/setup?token=bad",
 			"/reports", "/reports?month=2026-10", "/orgs", "/orgs/" + org}
 		for _, e := range employers {
 			paths = append(paths, "/?e="+e.ID, "/employers/"+e.ID)
