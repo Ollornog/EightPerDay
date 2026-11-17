@@ -1,0 +1,346 @@
+// SPDX-License-Identifier: MIT
+
+package web
+
+import (
+	"math"
+	"net/http"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/Ollornog/EightPerDay/core"
+)
+
+// employerData is the settings page of an employer: its data, its mode over time, its schedules, pay rules and
+// projects. For a managed employer only the organization's administrators change the settings (core.MayChangeSettings).
+type employerData struct {
+	Employer    core.Employer
+	Owner       string // the person whose employer it is; differs from the viewer when an administrator edits a member's
+	OwnerName   string
+	Org         string
+	CanChange   bool
+	Today       core.Date
+	Mode        core.Mode
+	Modes       []core.Mode
+	ModeChanges []core.ModeChange
+	Schedules   []scheduleView
+	PayRules    []core.PayRule
+	Projects    []core.Project
+	Regions     []string
+	Kinds       []core.EmployerKind
+	Weekdays    []int
+	Bases       []core.PayBasis
+	Back        string
+}
+
+type scheduleView struct {
+	core.Schedule
+	Hours [7]string
+	Week  int
+}
+
+// weekdays in the order of a German week, Monday first.
+var weekdays = []int{1, 2, 3, 4, 5, 6, 0}
+
+// employerTarget finds the employer of a settings address and checks who acts: the person on a private employer, an
+// administrator of the organization on a managed one, and the person reads the settings of their managed employer.
+func (h *handler) employerTarget(w http.ResponseWriter, r *http.Request) (core.Catalog, core.Employer, string, bool, bool) {
+	ctx := r.Context()
+	account := accountFrom(ctx)
+	owner := r.URL.Query().Get("owner")
+	if owner == "" {
+		owner = r.PostFormValue("owner")
+	}
+	if owner == "" {
+		owner = account.ID
+	}
+	cat, err := h.options.Store.Catalog(ctx, owner)
+	if err != nil {
+		h.failed(w, r, err)
+		return cat, core.Employer{}, owner, false, false
+	}
+	emp, found := cat.Employer(r.PathValue("id"))
+	if !found {
+		h.notFound(w, r)
+		return cat, emp, owner, false, false
+	}
+	memberships, err := h.options.Store.Memberships(ctx, emp.Organization, account.ID)
+	if err != nil {
+		h.failed(w, r, err)
+		return cat, emp, owner, false, false
+	}
+	actor := core.ActorFor(account.ID, emp.Organization, memberships, h.today(&emp))
+	canChange := core.MayChangeSettings(emp, actor)
+	// Someone else's employer: only an administrator of its organization, never a private one.
+	if owner != account.ID && !canChange {
+		h.notFound(w, r)
+		return cat, emp, owner, false, false
+	}
+	return cat, emp, owner, canChange, true
+}
+
+func (h *handler) employerPage(w http.ResponseWriter, r *http.Request) {
+	cat, emp, owner, canChange, ok := h.employerTarget(w, r)
+	if !ok {
+		return
+	}
+	h.render(w, r, http.StatusOK, "employer", view{Title: emp.Name, Data: h.employerData(r, cat, emp, owner, canChange)})
+}
+
+func (h *handler) employerData(r *http.Request, cat core.Catalog, emp core.Employer, owner string, canChange bool) employerData {
+	today := h.today(&emp)
+	d := employerData{Employer: emp, Owner: owner, CanChange: canChange, Today: today, Mode: core.ModeAt(cat, emp.ID, today),
+		Modes: core.Modes, Regions: core.Regions(), Weekdays: weekdays, Projects: projectsOf(cat, emp.ID),
+		Kinds: []core.EmployerKind{core.KindEmployer, core.KindClient, core.KindPrivate},
+		Bases: []core.PayBasis{core.PayHourly, core.PayPerProject, core.PayPerAssignment, core.PayFlatPeriod},
+		Back:  "/employers/" + emp.ID}
+	if owner != accountFrom(r.Context()).ID {
+		d.Back += "?owner=" + owner
+		if a, err := h.options.Auth.Account(r.Context(), owner); err == nil {
+			d.OwnerName = a.DisplayName
+		}
+	}
+	if emp.Managed() {
+		if org, err := h.options.Store.Organization(r.Context(), emp.Organization); err == nil {
+			d.Org = org.Name
+		}
+	}
+	for _, m := range cat.ModeChanges {
+		if m.EmployerID == emp.ID {
+			d.ModeChanges = append(d.ModeChanges, m)
+		}
+	}
+	slices.SortFunc(d.ModeChanges, func(a, b core.ModeChange) int { return a.ValidFrom.Compare(b.ValidFrom) })
+	for _, s := range cat.Schedules {
+		if s.EmployerID != emp.ID {
+			continue
+		}
+		v := scheduleView{Schedule: s, Week: s.WeekMinutes()}
+		for i, plan := range s.Days {
+			v.Hours[i] = formatMinutes(plan.Minutes)
+		}
+		d.Schedules = append(d.Schedules, v)
+	}
+	slices.SortFunc(d.Schedules, func(a, b scheduleView) int { return b.ValidFrom.Compare(a.ValidFrom) })
+	for _, p := range cat.PayRules {
+		if p.EmployerID == emp.ID {
+			d.PayRules = append(d.PayRules, p)
+		}
+	}
+	slices.SortFunc(d.PayRules, func(a, b core.PayRule) int { return b.ValidFrom.Compare(a.ValidFrom) })
+	return d
+}
+
+// createEmployer makes a private employer of the person, with its mode from today on.
+func (h *handler) createEmployer(w http.ResponseWriter, r *http.Request) {
+	account := accountFrom(r.Context())
+	emp := core.Employer{ID: core.NewID(), Owner: account.ID, Name: strings.TrimSpace(r.PostFormValue("name")),
+		Kind: core.EmployerKind(r.PostFormValue("kind")), Holder: core.HolderPrivate, Mode: core.Mode(r.PostFormValue("mode")),
+		TimeZone: core.DefaultTimeZone, Region: r.PostFormValue("region"), WeekStart: time.Monday}
+	if err := emp.Validate(); err != nil {
+		h.back(w, r, err, "")
+		return
+	}
+	if err := h.options.Store.Put(r.Context(), emp); err != nil {
+		h.back(w, r, err, "")
+		return
+	}
+	// A schedule from the form, when the mode needs one: hours per weekday from the start form.
+	if minutes, err := parseHours(r.PostFormValue("weekday_hours")); err == nil && minutes > 0 {
+		s := core.Schedule{ID: core.NewID(), Owner: account.ID, EmployerID: emp.ID, ValidFrom: h.today(&emp).StartOfMonth()}
+		for _, d := range []time.Weekday{time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday} {
+			s.Days[d].Minutes = minutes
+		}
+		if days, err := strconv.ParseFloat(strings.ReplaceAll(r.PostFormValue("leave_days"), ",", "."), 64); err == nil && days >= 0 {
+			s.LeaveDays = days
+		}
+		if err := h.options.Store.Put(r.Context(), s); err != nil {
+			h.back(w, r, err, "")
+			return
+		}
+	}
+	h.rememberEmployer(w, emp.ID)
+	http.Redirect(w, r, "/?e="+emp.ID+"&done=created", http.StatusSeeOther)
+}
+
+// changeEmployer acts on the settings of an employer; each action checks MayChangeSettings first.
+func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
+	cat, emp, owner, canChange, ok := h.employerTarget(w, r)
+	if !ok {
+		return
+	}
+	if !canChange {
+		h.back(w, r, errForbidden, "")
+		return
+	}
+	ctx := r.Context()
+	var err error
+	switch r.PathValue("action") {
+	case "details":
+		emp.Name = strings.TrimSpace(r.PostFormValue("name"))
+		emp.Kind = core.EmployerKind(r.PostFormValue("kind"))
+		emp.Region = r.PostFormValue("region")
+		if tz := strings.TrimSpace(r.PostFormValue("time_zone")); tz != "" {
+			emp.TimeZone = tz
+		}
+		if err = emp.Validate(); err == nil {
+			err = h.options.Store.Put(ctx, emp)
+		}
+	case "mode":
+		var from core.Date
+		if from, err = formDate(r, "from"); err == nil {
+			m := core.ModeChange{ID: core.NewID(), Owner: owner, EmployerID: emp.ID, ValidFrom: from, Mode: core.Mode(r.PostFormValue("mode"))}
+			if err = m.Validate(); err == nil {
+				err = h.options.Store.Put(ctx, m)
+			}
+		}
+	case "schedule":
+		var s core.Schedule
+		if s, err = scheduleFromForm(r, owner, emp.ID); err == nil {
+			err = h.options.Store.Put(ctx, s)
+		}
+	case "pay":
+		var p core.PayRule
+		if p, err = payRuleFromForm(r, owner, emp.ID); err == nil {
+			err = h.options.Store.Put(ctx, p)
+		}
+	case "project":
+		p := core.Project{ID: core.NewID(), Owner: owner, EmployerID: emp.ID, Name: strings.TrimSpace(r.PostFormValue("name")),
+			Billable: r.PostFormValue("billable") == "on"}
+		if err = p.Validate(); err == nil {
+			err = h.options.Store.Put(ctx, p)
+		}
+	case "archive-project":
+		for _, p := range cat.Projects {
+			if p.ID == r.PostFormValue("project") && p.EmployerID == emp.ID {
+				p.Archived = true
+				err = h.options.Store.Put(ctx, p)
+			}
+		}
+	case "delete":
+		var kind core.Kind
+		switch r.PostFormValue("kind") {
+		case "schedule":
+			kind = core.RecSchedule
+		case "pay":
+			kind = core.RecPayRule
+		case "mode":
+			kind = core.RecModeChange
+		default:
+			h.notFound(w, r)
+			return
+		}
+		err = h.options.Store.Delete(ctx, kind, owner, r.PostFormValue("record"))
+	case "archive":
+		if emp.Managed() {
+			err = errForbidden // a membership ends in the organization, not here
+		} else {
+			emp.Archived = true
+			err = h.options.Store.Put(ctx, emp)
+		}
+		if err == nil {
+			http.Redirect(w, r, "/?done=archived", http.StatusSeeOther)
+			return
+		}
+	default:
+		h.notFound(w, r)
+		return
+	}
+	h.back(w, r, err, "saved")
+}
+
+// scheduleFromForm reads hours per weekday, optional start, end and break, the overtime basis and the leave days.
+func scheduleFromForm(r *http.Request, owner, employerID string) (core.Schedule, error) {
+	from, err := formDate(r, "from")
+	if err != nil {
+		return core.Schedule{}, err
+	}
+	s := core.Schedule{ID: core.NewID(), Owner: owner, EmployerID: employerID, ValidFrom: from,
+		OvertimeBasis: core.OvertimeBasis(r.PostFormValue("basis"))}
+	for _, day := range weekdays {
+		suffix := strconv.Itoa(day)
+		minutes, err := parseHours(r.PostFormValue("hours-" + suffix))
+		if err != nil || minutes < 0 {
+			return s, core.ErrInvalid
+		}
+		s.Days[day].Minutes = minutes
+		start, okStart := parseClock(r.PostFormValue("start-" + suffix))
+		end, okEnd := parseClock(r.PostFormValue("end-" + suffix))
+		if okStart && okEnd {
+			s.Days[day].Start, s.Days[day].End = &start, &end
+			if pause, err := parseHours(r.PostFormValue("break-" + suffix)); err == nil && pause > 0 {
+				s.Days[day].Break = pause
+			}
+		}
+	}
+	if raw := strings.TrimSpace(r.PostFormValue("leave_days")); raw != "" {
+		days, err := strconv.ParseFloat(strings.ReplaceAll(raw, ",", "."), 64)
+		if err != nil || days < 0 || math.IsNaN(days) {
+			return s, core.ErrInvalid
+		}
+		s.LeaveDays = days
+	}
+	return s, s.Validate()
+}
+
+// payRuleFromForm reads a pay rule; the amount is typed in the currency (12,50) and stored in cents.
+func payRuleFromForm(r *http.Request, owner, employerID string) (core.PayRule, error) {
+	from, err := formDate(r, "from")
+	if err != nil {
+		return core.PayRule{}, err
+	}
+	amount, err := parseMoney(r.PostFormValue("amount"))
+	if err != nil {
+		return core.PayRule{}, core.ErrInvalid
+	}
+	p := core.PayRule{ID: core.NewID(), Owner: owner, EmployerID: employerID, ProjectID: r.PostFormValue("project"), ValidFrom: from,
+		Basis: core.PayBasis(r.PostFormValue("basis")), Amount: amount, Currency: strings.ToUpper(strings.TrimSpace(r.PostFormValue("currency"))),
+		Unit: r.PostFormValue("unit")}
+	if p.Currency == "" {
+		p.Currency = "EUR"
+	}
+	if raw := strings.TrimSpace(r.PostFormValue("to")); raw != "" {
+		if p.ValidTo, err = core.ParseDate(raw); err != nil {
+			return p, err
+		}
+	}
+	return p, p.Validate()
+}
+
+// parseMoney reads an amount such as 12,50 or 1200 into cents.
+func parseMoney(input string) (int64, error) {
+	s := strings.TrimSpace(strings.ReplaceAll(input, " ", ""))
+	if s == "" {
+		return 0, core.ErrInvalid
+	}
+	whole, fraction, _ := strings.Cut(strings.ReplaceAll(s, ",", "."), ".")
+	units, err := strconv.ParseInt(whole, 10, 64)
+	if err != nil || units < 0 || units > 100_000_000 || len(fraction) > 2 {
+		return 0, core.ErrInvalid
+	}
+	cents := int64(0)
+	if fraction != "" {
+		if len(fraction) == 1 {
+			fraction += "0"
+		}
+		if cents, err = strconv.ParseInt(fraction, 10, 64); err != nil {
+			return 0, core.ErrInvalid
+		}
+	}
+	return units*100 + cents, nil
+}
+
+// formatMoney writes cents as an amount with two decimals and the currency.
+func formatMoney(lang string, cents int64, currency string) string {
+	sign := ""
+	if cents < 0 {
+		sign, cents = "-", -cents
+	}
+	separator := "."
+	if lang == "de" {
+		separator = ","
+	}
+	return sign + strconv.FormatInt(cents/100, 10) + separator + leftPad(int(cents%100)) + " " + currency
+}

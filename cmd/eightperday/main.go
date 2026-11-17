@@ -41,6 +41,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/Ollornog/EightPerDay/core/pgstore"
 	"github.com/Ollornog/EightPerDay/internal/version"
 	"github.com/Ollornog/EightPerDay/web"
 	"github.com/Ollornog/EightPerDay/web/auth"
@@ -164,6 +165,30 @@ func readConfig(getenv func(string) string) (config, error) {
 	return c, nil
 }
 
+// tenant is the one tenant of the standalone program: all its rows carry it, row-level security holds them to it.
+const tenant = "eightperday"
+
+// storeOptions are part of the schema; they never change once the migrations ran.
+var storeOptions = pgstore.Options{Prefix: "epd_", TenantSetting: "eightperday.tenant"}
+
+// openStore runs the migrations of the core library and opens its store on a pool whose connections carry the tenant.
+func openStore(ctx context.Context, c config) (*pgxpool.Pool, *pgstore.Store, error) {
+	pool, err := pgstore.Connect(ctx, c.databaseURL, storeOptions, tenant)
+	if err != nil {
+		return nil, nil, fmt.Errorf("database: %w", err)
+	}
+	if err := pgstore.Migrate(ctx, pool, storeOptions); err != nil {
+		pool.Close()
+		return nil, nil, fmt.Errorf("core migrations: %w", err)
+	}
+	store, err := pgstore.New(pool, storeOptions)
+	if err != nil {
+		pool.Close()
+		return nil, nil, err
+	}
+	return pool, store, nil
+}
+
 func open(ctx context.Context, c config, log *slog.Logger) (*pgxpool.Pool, *auth.Service, error) {
 	pool, err := pgxpool.New(ctx, c.databaseURL)
 	if err != nil {
@@ -201,6 +226,11 @@ func serve(ctx context.Context, getenv func(string) string, stdout, stderr io.Wr
 		return err
 	}
 	defer pool.Close()
+	storePool, store, err := openStore(ctx, c)
+	if err != nil {
+		return err
+	}
+	defer storePool.Close()
 	if token, err := accounts.FirstSetupLink(ctx); err != nil {
 		return err
 	} else if token != "" {
@@ -208,7 +238,7 @@ func serve(ctx context.Context, getenv func(string) string, stdout, stderr io.Wr
 		_, _ = fmt.Fprintf(stderr, "\nNo account yet. Open this one-time link within %s to create the administrator:\n\n  %s\n\n",
 			auth.FirstLinkTTL, setupURL(c.origin, token))
 	}
-	handler, err := web.New(log, web.Options{Auth: accounts, Origin: c.origin, Gate: c.gate, TrustedProxies: c.proxies})
+	handler, err := web.New(log, web.Options{Auth: accounts, Store: store, Origin: c.origin, Gate: c.gate, TrustedProxies: c.proxies})
 	if err != nil {
 		return err
 	}
@@ -216,7 +246,7 @@ func serve(ctx context.Context, getenv func(string) string, stdout, stderr io.Wr
 	ready := func() bool {
 		ping, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		return pool.Ping(ping) == nil
+		return pool.Ping(ping) == nil && storePool.Ping(ping) == nil
 	}
 	log.Info("eightperday", slog.String("version", version.Version), slog.String("origin", c.origin.String()))
 	return web.Serve(ctx, log, web.NewServer(c.addr, handler, log), web.NewServer(c.healthAddr, web.Health(ready), log))

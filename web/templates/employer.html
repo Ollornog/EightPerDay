@@ -1,0 +1,154 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="flex items-center gap-2">
+  <a class="btn" data-variant="ghost" data-size="icon-sm" href="{{if $d.OwnerName}}/orgs/{{$d.Employer.Organization}}{{else}}/?e={{$d.Employer.ID}}{{end}}" aria-label="{{t "action.back"}}">{{template "icon-left"}}</a>
+  <h1 class="min-w-0 flex-1 truncate text-2xl font-bold">{{$d.Employer.Name}}</h1>
+</div>
+{{if $d.OwnerName}}<p class="mt-1 text-muted-foreground text-sm">{{t "employer.of" $d.OwnerName}}</p>{{end}}
+{{if and $d.Org (not $d.CanChange)}}<div class="alert mt-4" role="note">{{template "icon-info"}}<h2>{{t "employer.managed" $d.Org}}</h2></div>{{end}}
+<div class="mt-4 grid gap-4">
+  <form method="post" action="/employers/{{$d.Employer.ID}}/details" class="card">
+    <header><h2 class="card-title">{{t "employer.details"}}</h2></header>
+    <section class="grid gap-4">
+      <input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}">
+      <div class="field" role="group"><label for="emp-name">{{t "employer.name"}}</label><input class="input" id="emp-name" name="name" value="{{$d.Employer.Name}}" maxlength="200" required></div>
+      <div class="field" role="group"><label for="emp-kind">{{t "employer.kind"}}</label>
+        <select class="select w-full" id="emp-kind" name="kind">{{range $d.Kinds}}<option value="{{.}}"{{if eq . $d.Employer.Kind}} selected{{end}}>{{t (print "kind." .)}}</option>{{end}}</select></div>
+      <div class="field" role="group"><label for="emp-region">{{t "employer.region"}}</label>
+        <select class="select w-full" id="emp-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range $d.Regions}}<option value="{{.}}"{{if eq . $d.Employer.Region}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+      <div class="field" role="group"><label for="emp-tz">{{t "employer.timezone"}}</label><input class="input" id="emp-tz" name="time_zone" value="{{$d.Employer.TimeZone}}" placeholder="Europe/Berlin" maxlength="64"></div>
+    </section>
+    {{if $d.CanChange}}<footer><button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button></footer>{{end}}
+  </form>
+
+  <div class="card">
+    <header><h2 class="card-title">{{t "employer.mode"}}</h2><p class="card-description">{{t "employer.mode.lead"}}</p></header>
+    <section class="grid gap-4">
+      <p class="text-sm">{{t "employer.mode.now"}} <span class="font-semibold" data-current-mode="{{$d.Mode}}">{{t (print "mode." $d.Mode)}}</span></p>
+      {{if $d.ModeChanges}}
+      <ul class="grid gap-1 text-sm">{{range $d.ModeChanges}}<li class="flex items-center gap-2"><span class="tabular-nums">{{t "employer.mode.from" (day .ValidFrom)}}</span><span class="flex-1">{{t (print "mode." .Mode)}}</span>
+        {{if $d.CanChange}}<form method="post" action="/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="mode"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}</li>{{end}}</ul>
+      {{end}}
+      {{if $d.CanChange}}
+      <form method="post" action="/employers/{{$d.Employer.ID}}/mode" class="grid gap-3">
+        <input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}">
+        <fieldset class="grid gap-3">
+          <legend class="label mb-2">{{t "employer.mode.choose"}}</legend>
+          {{range $d.Modes}}
+          <label class="flex items-start gap-3" for="mode-{{.}}">
+            <input class="input" type="radio" id="mode-{{.}}" name="mode" value="{{.}}"{{if eq . $d.Mode}} checked{{end}}>
+            <span class="grid gap-0.5"><span class="font-medium">{{t (print "mode." .)}}</span><span class="text-muted-foreground text-xs">{{t (print "mode." . ".hint")}}</span></span>
+          </label>
+          {{end}}
+        </fieldset>
+        <div class="field" role="group"><label for="mode-from">{{t "employer.validfrom"}}</label><input class="input" type="date" id="mode-from" name="from" value="{{$d.Today}}" required></div>
+        <p class="text-muted-foreground text-xs">{{t "employer.mode.keeps"}}</p>
+        <button type="submit" class="btn" data-variant="outline">{{t "employer.mode.switch"}}</button>
+      </form>
+      {{end}}
+    </section>
+  </div>
+
+  <div class="card">
+    <header><h2 class="card-title">{{t "employer.schedule"}}</h2><p class="card-description">{{t "employer.schedule.lead"}}</p></header>
+    <section class="grid gap-4">
+      {{range $d.Schedules}}
+      <div class="grid gap-1 rounded-md border p-3 text-sm" data-schedule>
+        <div class="flex items-center gap-2"><span class="flex-1 font-medium">{{t "employer.mode.from" (day .ValidFrom)}} · {{hours .Week}} {{t "employer.perweek"}}</span>
+          {{if $d.CanChange}}<form method="post" action="/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="schedule"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}</div>
+        <p class="text-muted-foreground text-xs tabular-nums">{{$s := .}}{{range $d.Weekdays}}{{t (print "weekday." .)}} {{index $s.Hours .}} {{end}}{{if .LeaveDays}}· {{t "employer.leavedays"}} {{half .LeaveDays}}{{end}}</p>
+      </div>
+      {{else}}
+      <p class="text-muted-foreground text-sm">{{t "employer.schedule.none"}}</p>
+      {{end}}
+      {{if $d.CanChange}}
+      <details>
+        <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "employer.schedule.add"}}</summary>
+        <form method="post" action="/employers/{{$d.Employer.ID}}/schedule" class="mt-3 grid gap-3">
+          <input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}">
+          {{range $d.Weekdays}}
+          <div class="grid gap-2 rounded-md border p-2">
+            <div class="flex items-center gap-2">
+              <label class="w-16 font-medium" for="hours-{{.}}">{{t (print "weekday." .)}}</label>
+              <input class="input w-24 tabular-nums" id="hours-{{.}}" name="hours-{{.}}" inputmode="decimal" placeholder="0:00" autocomplete="off">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="sr-only" for="start-{{.}}">{{t "span.start"}}</label><input class="input min-w-0" type="time" id="start-{{.}}" name="start-{{.}}" aria-label="{{t "span.start"}}">
+              <label class="sr-only" for="end-{{.}}">{{t "span.end"}}</label><input class="input min-w-0" type="time" id="end-{{.}}" name="end-{{.}}" aria-label="{{t "span.end"}}">
+            </div>
+          </div>
+          {{end}}
+          <p class="text-muted-foreground text-xs">{{t "employer.schedule.times"}}</p>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <div class="field" role="group"><label for="sched-from">{{t "employer.validfrom"}}</label><input class="input" type="date" id="sched-from" name="from" value="{{$d.Today}}" required></div>
+            <div class="field" role="group"><label for="sched-leave">{{t "employer.leavedays"}}</label><input class="input" id="sched-leave" name="leave_days" inputmode="decimal" placeholder="30"></div>
+          </div>
+          <div class="field" role="group"><label for="sched-basis">{{t "employer.basis"}}</label>
+            <select class="select w-full" id="sched-basis" name="basis"><option value="week">{{t "basis.week"}}</option><option value="day">{{t "basis.day"}}</option><option value="month">{{t "basis.month"}}</option></select></div>
+          <button type="submit" class="btn">{{t "employer.schedule.save"}}</button>
+        </form>
+      </details>
+      {{end}}
+    </section>
+  </div>
+
+  <div class="card">
+    <header><h2 class="card-title">{{t "employer.pay"}}</h2><p class="card-description">{{t "employer.pay.lead"}}</p></header>
+    <section class="grid gap-4">
+      {{range $d.PayRules}}
+      <div class="flex items-center gap-2 rounded-md border p-3 text-sm" data-payrule>
+        <span class="min-w-0 flex-1">{{t (print "pay." .Basis)}} · <span class="tabular-nums">{{money .Amount .Currency}}</span>{{if .Unit}} / {{t (print "unit." .Unit)}}{{end}} · {{t "employer.mode.from" (day .ValidFrom)}}</span>
+        {{if $d.CanChange}}<form method="post" action="/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="pay"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
+      </div>
+      {{else}}
+      <p class="text-muted-foreground text-sm">{{t "employer.pay.none"}}</p>
+      {{end}}
+      {{if $d.CanChange}}
+      <details>
+        <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "employer.pay.add"}}</summary>
+        <form method="post" action="/employers/{{$d.Employer.ID}}/pay" class="mt-3 grid gap-3">
+          <input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}">
+          <div class="field" role="group"><label for="pay-basis">{{t "employer.pay.basis"}}</label>
+            <select class="select w-full" id="pay-basis" name="basis">{{range $d.Bases}}<option value="{{.}}">{{t (print "pay." .)}}</option>{{end}}</select></div>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <div class="field" role="group"><label for="pay-amount">{{t "employer.pay.amount"}}</label><input class="input tabular-nums" id="pay-amount" name="amount" inputmode="decimal" placeholder="25,00" required></div>
+            <div class="field" role="group"><label for="pay-currency">{{t "employer.pay.currency"}}</label><input class="input" id="pay-currency" name="currency" value="EUR" maxlength="3"></div>
+          </div>
+          <div class="field" role="group"><label for="pay-unit">{{t "employer.pay.unit"}}</label>
+            <select class="select w-full" id="pay-unit" name="unit"><option value="">–</option><option value="day">{{t "unit.day"}}</option><option value="assignment">{{t "unit.assignment"}}</option><option value="week">{{t "unit.week"}}</option><option value="month">{{t "unit.month"}}</option><option value="year">{{t "unit.year"}}</option></select>
+            <p class="text-muted-foreground text-xs">{{t "employer.pay.unit.hint"}}</p></div>
+          {{template "project-select" (projectChoice "pay-project" $d.Projects)}}
+          <div class="field" role="group"><label for="pay-from">{{t "employer.validfrom"}}</label><input class="input" type="date" id="pay-from" name="from" value="{{$d.Today}}" required></div>
+          <button type="submit" class="btn">{{t "employer.pay.save"}}</button>
+        </form>
+      </details>
+      {{end}}
+    </section>
+  </div>
+
+  <div class="card">
+    <header><h2 class="card-title">{{t "employer.projects"}}</h2></header>
+    <section class="grid gap-2">
+      {{range $d.Projects}}
+      <div class="flex items-center gap-2 text-sm" data-project><span class="min-w-0 flex-1 truncate">{{.Name}}</span>
+        {{if $d.CanChange}}<form method="post" action="/employers/{{$d.Employer.ID}}/archive-project"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="project" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="sm">{{t "employer.archive"}}</button></form>{{end}}</div>
+      {{else}}<p class="text-muted-foreground text-sm">{{t "projects.none"}}</p>{{end}}
+      {{if $d.CanChange}}
+      <form method="post" action="/employers/{{$d.Employer.ID}}/project" class="flex items-center gap-2">
+        <input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}">
+        <label class="sr-only" for="emp-project">{{t "projects.new"}}</label>
+        <input class="input min-w-0 flex-1" id="emp-project" name="name" maxlength="200" placeholder="{{t "projects.new"}}" required>
+        <button type="submit" class="btn" data-variant="outline">{{t "projects.add"}}</button>
+      </form>
+      {{end}}
+    </section>
+  </div>
+
+  {{if and $d.CanChange (not $d.Org)}}
+  <form method="post" action="/employers/{{$d.Employer.ID}}/archive" data-confirm="{{t "employer.archive.confirm"}}">
+    <input type="hidden" name="back" value="{{$d.Back}}">
+    <button type="submit" class="btn w-full" data-variant="ghost">{{t "employer.archive.employer"}}</button>
+  </form>
+  {{end}}
+</div>
+{{end}}

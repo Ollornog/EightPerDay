@@ -20,3 +20,7 @@ lockfile and no build step for JavaScript.
 | `.epd-tabbar` | a tab bar fixed to the bottom of a phone's screen, above the home indicator, hidden from 48rem on |
 | `.epd-qr` | a QR code at a size a camera reads well, without smoothing |
 | `.epd-secret`, `.epd-licenses` | long unbroken strings (a TOTP key, license texts) that wrap anywhere |
+
+Composed from C22's parts, but worth a pattern of their own there: a day row (weekday, date, chips for holiday and
+absence, value and balance), a row of three figures (week, account, leave), a duration field (`7:30`, `7,5`, `7h30m`)
+and a collapsible card (`details.card` with its summary as the header).

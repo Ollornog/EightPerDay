@@ -17,6 +17,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -35,6 +36,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/Ollornog/EightPerDay/core/memstore"
 	"github.com/Ollornog/EightPerDay/internal/pgtest"
 	"github.com/Ollornog/EightPerDay/web"
 	"github.com/Ollornog/EightPerDay/web/auth"
@@ -118,7 +120,10 @@ func setup(t *testing.T) *browser {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler, err := web.New(log, web.Options{Auth: accounts, Origin: origin})
+	b0store := memstore.New()
+	// The program's clock stands on Wednesday, 18 November 2026, so a week looks the same on every day the test runs.
+	handler, err := web.New(log, web.Options{Auth: accounts, Origin: origin, Store: b0store,
+		Now: func() time.Time { return time.Date(2026, 11, 18, 9, 30, 0, 0, time.UTC) }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,6 +226,19 @@ func start(t *testing.T) *browser {
 
 func (b *browser) call(method string, params, result any) {
 	b.t.Helper()
+	if err := b.try(method, params, result); err != nil {
+		b.t.Fatalf("%s: %v", method, err)
+	}
+}
+
+// navigating tells the error of a call that met a page being replaced, which is worth another try.
+func navigating(err error) bool {
+	return err != nil && (strings.Contains(err.Error(), "navigated or closed") || strings.Contains(err.Error(), "Cannot find context"))
+}
+
+// try sends a call and returns the error Chrome answers with, instead of failing the test.
+func (b *browser) try(method string, params, result any) error {
+	b.t.Helper()
 	b.mu.Lock()
 	b.next++
 	id := b.next
@@ -234,20 +252,19 @@ func (b *browser) call(method string, params, result any) {
 	}
 	encoded, _ := json.Marshal(m)
 	if _, err := b.out.Write(append(encoded, 0)); err != nil {
-		b.t.Fatalf("%s: %v; %s", method, err, b.why())
+		return fmt.Errorf("%v; %s", err, b.why())
 	}
 	select {
 	case r := <-answer:
 		if r.Error != nil {
-			b.t.Fatalf("%s: %s", method, r.Error.Message)
+			return errors.New(r.Error.Message)
 		}
 		if result != nil {
-			if err := json.Unmarshal(r.Result, result); err != nil {
-				b.t.Fatalf("%s: %v", method, err)
-			}
+			return json.Unmarshal(r.Result, result)
 		}
+		return nil
 	case <-time.After(30 * time.Second):
-		b.t.Fatalf("%s: no answer; %s", method, b.why())
+		return fmt.Errorf("no answer; %s", b.why())
 	}
 }
 
@@ -368,7 +385,15 @@ func (b *browser) eval(expression string) string {
 			Exception struct{ Description string }
 		}
 	}
-	b.call("Runtime.evaluate", map[string]any{"expression": expression, "returnByValue": true, "awaitPromise": true}, &result)
+	params := map[string]any{"expression": expression, "returnByValue": true, "awaitPromise": true}
+	err := b.try("Runtime.evaluate", params, &result)
+	for tries := 0; navigating(err) && tries < 50; tries++ {
+		time.Sleep(50 * time.Millisecond)
+		err = b.try("Runtime.evaluate", params, &result)
+	}
+	if err != nil {
+		b.t.Fatalf("Runtime.evaluate: %v", err)
+	}
 	if result.ExceptionDetails != nil {
 		b.t.Fatalf("%s: %s %s", expression, result.ExceptionDetails.Text, result.ExceptionDetails.Exception.Description)
 	}
@@ -421,13 +446,21 @@ func (b *browser) rect(selector string) box {
 // and the topmost thing at that point: a covered control cannot be tapped.
 func (b *browser) tap(selector string) {
 	b.t.Helper()
-	r := b.rect(selector)
-	if r.Width < 1 || r.Height < 1 {
-		b.t.Fatalf("%s is not visible", selector)
-	}
-	top := b.eval(fmt.Sprintf(`(() => { const e = document.elementFromPoint(%f, %f), t = document.querySelector(%s); return !!e && (e === t || t.contains(e)); })()`, r.X, r.Y, strconv.Quote(selector)))
-	if top != "true" {
-		b.t.Fatalf("%s is covered by something else", selector)
+	// A thumb waits until what it aims at has come to rest, such as a section that opens with an animation.
+	var r box
+	for deadline := time.Now().Add(2 * time.Second); ; time.Sleep(50 * time.Millisecond) {
+		r = b.rect(selector)
+		if r.Width < 1 || r.Height < 1 {
+			b.t.Fatalf("%s is not visible", selector)
+		}
+		top := b.eval(fmt.Sprintf(`(() => { const e = document.elementFromPoint(%f, %f), t = document.querySelector(%s); return !!e && (e === t || t.contains(e)); })()`, r.X, r.Y, strconv.Quote(selector)))
+		if top == "true" {
+			break
+		}
+		if time.Now().After(deadline) {
+			b.t.Fatalf("%s is covered by something else: %s", selector,
+				b.eval(fmt.Sprintf(`document.elementFromPoint(%f, %f)?.outerHTML.slice(0, 160)`, r.X, r.Y)))
+		}
 	}
 	b.call("Input.dispatchTouchEvent", map[string]any{"type": "touchStart", "touchPoints": []map[string]any{{"x": r.X, "y": r.Y}}}, nil)
 	time.Sleep(60 * time.Millisecond)

@@ -18,10 +18,12 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Ollornog/EightPerDay/assets"
+	"github.com/Ollornog/EightPerDay/core"
 	"github.com/Ollornog/EightPerDay/internal/version"
 	"github.com/Ollornog/EightPerDay/web/auth"
 )
@@ -64,6 +66,10 @@ type Options struct {
 	Gate *Gate
 	// TrustedProxies are the addresses whose X-Forwarded-For and gate headers are believed.
 	TrustedProxies []netip.Prefix
+	// Store holds the time records (core/pgstore in the program, core/memstore in tests).
+	Store core.Store
+	// Now replaces the clock in tests.
+	Now func() time.Time
 }
 
 type handler struct {
@@ -76,8 +82,8 @@ type handler struct {
 
 // New returns the complete handler with logging and security headers.
 func New(log *slog.Logger, options Options) (http.Handler, error) {
-	if options.Auth == nil || options.Origin == nil {
-		return nil, errors.New("web: Auth and Origin are required")
+	if options.Auth == nil || options.Origin == nil || options.Store == nil {
+		return nil, errors.New("web: Auth, Origin and Store are required")
 	}
 	if options.Gate != nil && (options.Gate.UserHeader == "" || len(options.TrustedProxies) == 0) {
 		return nil, errors.New("web: a gate needs its user header and the addresses of the trusted proxies")
@@ -123,6 +129,29 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 
 	signedIn := http.NewServeMux()
 	signedIn.HandleFunc("GET /{$}", h.home)
+	signedIn.HandleFunc("POST /employers", h.createEmployer)
+	signedIn.HandleFunc("GET /employers/{id}", h.employerPage)
+	signedIn.HandleFunc("POST /employers/{id}/{action}", h.changeEmployer)
+	signedIn.HandleFunc("POST /book/week", h.weekTotal)
+	signedIn.HandleFunc("POST /book/days", h.dayTotals)
+	signedIn.HandleFunc("POST /book/projects", h.projectTotals)
+	signedIn.HandleFunc("POST /book/confirm", h.confirmWeek)
+	signedIn.HandleFunc("POST /book/adjust", h.adjust)
+	signedIn.HandleFunc("POST /book/span", h.addSpan)
+	signedIn.HandleFunc("POST /book/line", h.freeText)
+	signedIn.HandleFunc("POST /book/exact", h.materializeWeek)
+	signedIn.HandleFunc("POST /book/absence", h.addAbsence)
+	signedIn.HandleFunc("POST /absences/{id}/remove", h.removeAbsence)
+	signedIn.HandleFunc("POST /entries/{id}/remove", h.removeEntry)
+	signedIn.HandleFunc("POST /timer/start", h.startTimer)
+	signedIn.HandleFunc("POST /timer/stop", h.stopTimer)
+	signedIn.HandleFunc("GET /api/parse", h.parsePreview)
+	signedIn.HandleFunc("GET /reports", h.reports)
+	signedIn.HandleFunc("GET /export/{format}", h.export)
+	signedIn.HandleFunc("GET /orgs", h.orgsPage)
+	signedIn.HandleFunc("POST /orgs", h.createOrg)
+	signedIn.HandleFunc("GET /orgs/{id}", h.orgPage)
+	signedIn.HandleFunc("POST /orgs/{id}/{action}", h.changeOrg)
 	signedIn.HandleFunc("GET /account", h.accountPage)
 	signedIn.HandleFunc("POST /account/name", h.accountName)
 	signedIn.HandleFunc("POST /account/password", h.accountPassword)
@@ -152,10 +181,22 @@ func (h *handler) parseTemplates() error {
 	}
 	for _, lang := range languages {
 		base, err := template.New("").Funcs(template.FuncMap{
-			"t":       h.catalog.translator(lang),
-			"minutes": formatMinutes,
-			"dataURL": dataURL,
-			"date":    func(t time.Time) string { return formatDate(lang, t) },
+			"t":         h.catalog.translator(lang),
+			"minutes":   formatMinutes,
+			"dataURL":   dataURL,
+			"money":     func(cents int64, currency string) string { return formatMoney(lang, cents, currency) },
+			"day":       func(d core.Date) string { return formatDate(lang, toTime(d)) },
+			"hours":     func(minutes int) string { return formatMinutes(minutes) },
+			"signed":    signedMinutes,
+			"half":      func(days float64) string { return formatDays(lang, days) },
+			"add":       func(a, b int) int { return a + b },
+			"entriesOf": func(entries []entryView, back string) entriesData { return entriesData{Entries: entries, Back: back} },
+			"projectChoice": func(id string, projects []core.Project) projectChoice {
+				return projectChoice{ID: id, Projects: projects}
+			},
+			"newEmployerForm": func() newEmployer { return newEmployerData(nil) },
+			"dateOf":          func(t *time.Time) core.Date { return core.DateOf(*t) },
+			"date":            func(t time.Time) string { return formatDate(lang, t) },
 		}).ParseFS(templateFiles, "templates/layout.html")
 		if err != nil {
 			return err
@@ -266,10 +307,6 @@ func (h *handler) failed(w http.ResponseWriter, r *http.Request, err error) {
 	h.message(w, r, http.StatusInternalServerError, h.t(r, "error.internal.title"), h.t(r, "error.internal.text"))
 }
 
-func (h *handler) home(w http.ResponseWriter, r *http.Request) {
-	h.render(w, r, http.StatusOK, "home", view{Title: h.t(r, "home.title")})
-}
-
 func hashAssets() (string, error) {
 	hash := sha256.New()
 	err := fs.WalkDir(assetFiles, "assets", func(p string, d fs.DirEntry, err error) error {
@@ -324,6 +361,33 @@ func formatMinutes(minutes int) string {
 		sign, minutes = "-", -minutes
 	}
 	return fmt.Sprintf("%s%d:%02d", sign, minutes/60, minutes%60)
+}
+
+type entriesData struct {
+	Entries []entryView
+	Back    string
+}
+
+type projectChoice struct {
+	ID       string
+	Projects []core.Project
+}
+
+// signedMinutes writes a balance with its sign, such as +1:30 or -0:45; zero has none.
+func signedMinutes(minutes int) string {
+	if minutes > 0 {
+		return "+" + formatMinutes(minutes)
+	}
+	return formatMinutes(minutes)
+}
+
+// formatDays writes days with at most one decimal, such as 30 or 12,5.
+func formatDays(lang string, days float64) string {
+	text := strconv.FormatFloat(days, 'f', -1, 64)
+	if lang == "de" {
+		text = strings.ReplaceAll(text, ".", ",")
+	}
+	return text
 }
 
 func formatDate(lang string, t time.Time) string {
