@@ -35,9 +35,13 @@ A duration field carries `pattern` from `durationPattern` (Go, `track.go`), whic
 - Approval (`approval.go`): when an organization switches it on, a member hands in a week with a tap; leave (and
   absence types that need approval) is booked as requested and handed in at once. Handed-in days show as such and
   refuse changes; a correction with a reason opens an approved week again once approved. Administrators decide on the
-  organization's page, never their own, and a rejection needs a reason. The rules are the core library's
-  (`core.Submit`, `core.Decide`, `core.Withdraw`, `core.LeaveDecision`, `core.ReviewData`).
-- Access log: every read of an organization goes through `core.ReadManaged`; decisions, membership and role changes,
+  organization's page, never their own (an administrator's own request shows as such, without the buttons), and a
+  rejection needs a reason. The days read for the reviews follow the open requests (`core.ReviewRange`), however far
+  from today they lie. The rules are the core library's
+  (`core.Submit`, `core.Decide`, `core.Withdraw`, `core.LeaveDecision`, `core.ReviewData`, `core.ReviewRange`).
+- Access log: every read of an organization goes through `core.ReadManaged`, the organization's page through
+  `core.ReadManagedDaily`, which logs a view once per member and day (in the organization's time zone) instead of on
+  every call; decisions, membership and role changes,
   and an administrator's reads and changes of a member's settings go through `LogAccess`. The person sees the log on
   `/access` (linked from the reports), with a note whether the chain holds (`core.VerifyAccesses`). `Options.AccessLog`
   defaults to the store's own.

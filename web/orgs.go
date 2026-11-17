@@ -185,7 +185,8 @@ func (h *handler) orgData(r *http.Request, org core.Organization, members []core
 	// The supervisor view: present or absent today, without reasons and without history, only when switched on.
 	if org.Features.SupervisorView {
 		d.ShowPresence = true
-		data, err := core.ReadManaged(ctx, h.options.Store, h.options.AccessLog, actor, org.ID, today, today, "presence view")
+		data, err := core.ReadManagedDaily(ctx, h.options.Store, h.options.AccessLog, actor, org.ID, today, today,
+			"presence view", h.now(), orgLocation(org))
 		if err != nil {
 			return d, err
 		}

@@ -764,4 +764,36 @@ func RunAccessLog(t *testing.T, newStore func(t *testing.T) AccessLogStore) {
 	if len(c.PurgeLogs) != 1 || c.PurgeLogs[0].Class != core.ClassAccessLog {
 		t.Fatalf("purge log: %+v", c.PurgeLogs)
 	}
+
+	// A view opened again on the same day adds nothing; other days read, or the next day, add an entry.
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	must(t, err)
+	morning := time.Date(2026, 11, 18, 0, 30, 0, 0, berlin)
+	view := core.Access{Actor: "boss", Organization: "acme", Subject: "carol", Action: core.AccessRead, What: "approval",
+		From: core.MustDate("2026-11-01"), To: core.MustDate("2026-11-30")}
+	for i, step := range []struct {
+		at       time.Time
+		from, to string
+		added    bool
+	}{
+		{morning, "2026-11-01", "2026-11-30", true},
+		{morning.Add(20 * time.Hour), "2026-11-01", "2026-11-30", false}, // same day in Berlin, another day in UTC
+		{morning.Add(21 * time.Hour), "2026-11-05", "2026-11-06", false}, // fewer days
+		{morning.Add(22 * time.Hour), "2026-10-31", "2026-11-30", true},  // a day more
+		{morning.Add(24 * time.Hour), "2026-11-01", "2026-11-30", true},  // the next day
+	} {
+		a := view
+		a.At, a.From, a.To = step.at, core.MustDate(step.from), core.MustDate(step.to)
+		got, added, err := core.LogAccessOnce(ctx, s, a, berlin)
+		must(t, err)
+		if added != step.added || got.Hash == "" {
+			t.Fatalf("step %d: added %v, want %v (%+v)", i, added, step.added, got)
+		}
+	}
+	carol, err := s.Accesses(ctx, "carol")
+	must(t, err)
+	if len(carol) != 3 {
+		t.Fatalf("carol's log holds %d entries, want 3", len(carol))
+	}
+	must(t, core.VerifyAccesses(carol))
 }

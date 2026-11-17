@@ -114,7 +114,8 @@ Only for an organization with `Features.Approval` on; without it there are no su
   opens the period or the absence again; the person changes it and hands it in anew.
 - A submission is replaced only while it is open and never deleted (`ErrLocked`); decided ones stay as they are.
 - `ReviewData(org, data)` is what a reviewer sees of `Store.Managed`: the days handed in and the absences asked for,
-  nothing else.
+  nothing else. `ReviewRange(catalog, today)` gives the days to read for it: from the first to the last day of any
+  open submission, and today, so a leave request far ahead or a correction of an old week comes with its records.
 - `LeaveReminders(data, employerID, today, warnDays)`: open leave of the year within `warnDays` (92 by default)
   before 31 December, with whether the employer recorded its notice (`LeaveNotice`, BAG 9 AZR 266/20). The person
   sees it as a reminder, the organization on its managed data as the notices it still owes.
@@ -127,6 +128,12 @@ Only for an organization with `Features.Approval` on; without it there are no su
 - `ReadManaged(ctx, store, log, actor, organization, from, to, purpose)` is `Store.Managed` with a read logged for
   every person whose records the organization gets. Changes, exports, decisions and role changes are logged with
   `LogAccess`.
+- For a view that is opened again and again, `ReadManagedDaily(…, purpose, at, loc)` logs with
+  `LogAccessOnce(ctx, log, access, loc)`: nothing is added while the person's log already holds an entry of the same
+  day (in `loc`) by the same actor and organization, for the same employer, action and purpose, whose days cover the
+  new read. Other days, another purpose, another actor or the next day each add an entry, so nothing read goes
+  unlogged; entries are still only added, and the chain and `VerifyAccesses` are unchanged. Added in a
+  backwards-compatible way: `ReadManaged` and `LogAccess` behave as before.
 - `Accesses(ctx, subject)` is the person's own view; `ExportOwner` includes it.
 - Every entry holds the hash of the subject's entry before it (`Prev`, `Hash`); `VerifyAccesses` checks the chain.
   PostgreSQL only adds rows (no update policy) and only lets the retention purge (`ClassAccessLog`) delete rows older

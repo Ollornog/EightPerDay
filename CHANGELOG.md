@@ -88,6 +88,14 @@ All notable changes to this project are documented in this file. The format foll
   first, each state followed by its parts (`DE-BY-AUGSBURG`, `DE-BY-PROTESTANT`, `DE-SN-CATHOLIC`,
   `DE-TH-CATHOLIC`), then Austria; a region an embedding adds keeps its code.
 
+- The organization's page logs its reads once per member, view and day (`ReadManagedDaily`, `LogAccessOnce`, both
+  new and backwards-compatible) instead of on every call; a read of other days still adds an entry, and the chain is
+  unchanged.
+- The reviews read the days of the open requests (`ReviewRange`, new) instead of a fixed span from 62 days back to
+  366 days ahead, so a leave request far ahead or far back shows with its absence and can be decided.
+- An administrator's own request shows on the organization's page as such ("another administrator decides it"),
+  without the buttons to decide it.
+
 ### Security
 
 - The one-time link for the first administrator no longer goes to the log, where everyone who reads the log could

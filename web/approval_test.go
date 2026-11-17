@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Ollornog/EightPerDay/core"
 )
@@ -16,7 +17,14 @@ import (
 // managed employer in the mode plan.
 func approvalSite(t *testing.T) (s, worker *site, org string, member *accountRef, managed core.Employer) {
 	t.Helper()
-	s, _ = trackSite(t)
+	s, worker, org, member, managed, _ = approvalSiteWithClock(t)
+	return s, worker, org, member, managed
+}
+
+// approvalSiteWithClock is approvalSite with the clock of the program.
+func approvalSiteWithClock(t *testing.T) (s, worker *site, org string, member *accountRef, managed core.Employer, c *clock) {
+	t.Helper()
+	s, c = trackSite(t)
 	boss := s.me("boss", true)
 	s.mustPost("/orgs", url.Values{"name": {"ACME"}, "region": {"DE-BY"}, "back": {"/orgs"}})
 	memberships, _ := s.store.Memberships(context.Background(), "", boss.ID)
@@ -34,7 +42,7 @@ func approvalSite(t *testing.T) (s, worker *site, org string, member *accountRef
 			managed = e
 		}
 	}
-	return s, worker, org, member, managed
+	return s, worker, org, member, managed, c
 }
 
 func submissions(t *testing.T, s *site, owner string) []core.Submission {
@@ -295,5 +303,164 @@ func TestFormatPercent(t *testing.T) {
 		if got := formatPercent(c.lang, c.bp); got != c.want {
 			t.Errorf("%d %s: %q", c.bp, c.lang, got)
 		}
+	}
+}
+
+// managedEmployer returns the managed employer of a person.
+func managedEmployer(t *testing.T, s *site, owner string) core.Employer {
+	t.Helper()
+	cat, err := s.store.Catalog(context.Background(), owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range cat.Employers {
+		if e.Managed() {
+			return e
+		}
+	}
+	t.Fatal("no managed employer")
+	return core.Employer{}
+}
+
+// reviewOf cuts the block of one submission out of the organization's page.
+func reviewOf(t *testing.T, page, id string) string {
+	t.Helper()
+	start := strings.Index(page, `data-review="`+id+`"`)
+	if start < 0 {
+		t.Fatalf("the page does not show submission %s", id)
+	}
+	block := page[start:]
+	if end := strings.Index(block[1:], "data-review="); end >= 0 {
+		block = block[:end+1]
+	}
+	if end := strings.Index(block, "data-presence"); end >= 0 {
+		block = block[:end]
+	}
+	return block
+}
+
+// An administrator who records time in the organization sees their own request marked, without the buttons to
+// decide it; another administrator decides it.
+func TestOwnRequestOfAnAdministrator(t *testing.T) {
+	s, _, org, _, _ := approvalSite(t)
+	ann := newSiteSharing(t, s)
+	annRef := ann.me("ann", false)
+	s.mustPost("/orgs/"+org+"/member", url.Values{"person": {annRef.ID}, "role": {"admin"}, "template": {"Full time"},
+		"from": {"2026-11-01"}, "records": {"on"}, "back": {"/"}})
+	annEmployer := managedEmployer(t, s, annRef.ID)
+	ann.mustPost("/book/absence", url.Values{"employer": {annEmployer.ID}, "type": {"vacation"}, "from": {"2026-11-26"},
+		"back": {"/"}})
+	subs := submissions(t, s, annRef.ID)
+	if len(subs) != 1 {
+		t.Fatalf("%+v", subs)
+	}
+	own := reviewOf(t, ann.get("/orgs/"+org).body, subs[0].ID)
+	if !strings.Contains(own, "data-review-own") || !strings.Contains(own, "another administrator") ||
+		strings.Contains(own, "data-approve") || strings.Contains(own, "data-reject") {
+		t.Fatalf("the own request is not marked as such: %s", own)
+	}
+	if a := ann.post("/orgs/"+org+"/decide", url.Values{"submission": {subs[0].ID}, "decision": {"approve"}}); a.status < 400 {
+		t.Fatalf("an administrator decided their own request: %d", a.status)
+	}
+	other := reviewOf(t, s.get("/orgs/"+org).body, subs[0].ID)
+	if strings.Contains(other, "data-review-own") || !strings.Contains(other, "data-approve") {
+		t.Fatalf("the other administrator cannot decide: %s", other)
+	}
+	s.mustPost("/orgs/"+org+"/decide", url.Values{"submission": {subs[0].ID}, "decision": {"approve"}, "back": {"/"}})
+	if got := submissions(t, s, annRef.ID); got[0].Status != core.SubmissionApproved {
+		t.Fatalf("%+v", got)
+	}
+}
+
+// Leave requests far ahead and far back show with their absence and can be decided: the days read follow the
+// requests, and the access log names those days.
+func TestReviewsReachFarDays(t *testing.T) {
+	s, worker, org, member, managed := approvalSite(t)
+	worker.mustPost("/book/absence", url.Values{"employer": {managed.ID}, "type": {"vacation"}, "from": {"2028-03-01"},
+		"to": {"2028-03-02"}, "back": {"/"}})
+	worker.mustPost("/book/absence", url.Values{"employer": {managed.ID}, "type": {"vacation"}, "from": {"2026-08-10"},
+		"back": {"/"}})
+	subs := submissions(t, s, member.ID)
+	if len(subs) != 2 {
+		t.Fatalf("%+v", subs)
+	}
+	page := s.get("/orgs/" + org).body
+	for _, sub := range subs {
+		if block := reviewOf(t, page, sub.ID); !strings.Contains(block, "Leave request: Leave") {
+			t.Errorf("the leave request of %v does not name its absence: %s", sub.From, block)
+		}
+	}
+	accesses, err := s.store.(core.AccessLog).Accesses(context.Background(), member.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var read *core.Access
+	for i, a := range accesses {
+		if a.What == "approval" {
+			read = &accesses[i]
+		}
+	}
+	if read == nil || read.From != core.MustDate("2026-08-10") || read.To != core.MustDate("2028-03-02") {
+		t.Fatalf("the access log does not name the days read: %+v", read)
+	}
+	for _, sub := range subs {
+		s.mustPost("/orgs/"+org+"/decide", url.Values{"submission": {sub.ID}, "decision": {"approve"}, "back": {"/"}})
+	}
+	absences, _ := s.store.Absences(context.Background(), core.AbsenceFilter{Owner: member.ID})
+	if len(absences) != 2 {
+		t.Fatalf("%+v", absences)
+	}
+	for _, a := range absences {
+		if a.Status != core.StatusApproved {
+			t.Errorf("the leave from %v is %s", a.From, a.Status)
+		}
+	}
+}
+
+// Opening the organization's page again on the same day adds nothing to a member's access log; the next day, or a
+// read of other days, does. The chain holds.
+func TestOrgPageReadsAreLoggedOncePerDay(t *testing.T) {
+	s, worker, org, member, managed, c := approvalSiteWithClock(t)
+	s.mustPost("/orgs/"+org+"/features", url.Values{"approval": {"on"}, "supervisor_view": {"on"}, "confirm": {"on"},
+		"agreement": {"BV 2026"}, "back": {"/"}})
+	count := func(what string) int {
+		t.Helper()
+		accesses, err := s.store.(core.AccessLog).Accesses(context.Background(), member.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := core.VerifyAccesses(accesses); err != nil {
+			t.Fatal(err)
+		}
+		n := 0
+		for _, a := range accesses {
+			if a.What == what && a.Action == core.AccessRead {
+				n++
+			}
+		}
+		return n
+	}
+	for range 3 {
+		s.get("/orgs/" + org)
+		c.Add(time.Hour)
+	}
+	if count("approval") != 1 || count("presence view") != 1 {
+		t.Fatalf("three views on one day: %d approval, %d presence reads", count("approval"), count("presence view"))
+	}
+	// A new request widens the days read: that read is logged.
+	worker.mustPost("/book/absence", url.Values{"employer": {managed.ID}, "type": {"vacation"}, "from": {"2027-02-01"},
+		"back": {"/"}})
+	s.get("/orgs/" + org)
+	if count("approval") != 2 {
+		t.Fatalf("a read of other days is not logged: %d", count("approval"))
+	}
+	c.Add(24 * time.Hour)
+	s.get("/orgs/" + org)
+	s.get("/orgs/" + org)
+	if count("approval") != 3 || count("presence view") != 2 {
+		t.Fatalf("the next day: %d approval, %d presence reads", count("approval"), count("presence view"))
+	}
+	if body := worker.get("/access").body; !strings.Contains(body, "The log is complete") {
+		t.Fatal("the chain does not hold")
 	}
 }
