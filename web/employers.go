@@ -27,6 +27,9 @@ type employerData struct {
 	ModeChanges []core.ModeChange
 	Schedules   []scheduleView
 	PayRules    []core.PayRule
+	AbsencePays []core.AbsencePay
+	Surcharges  []core.Surcharge
+	Types       []core.AbsenceType
 	Projects    []core.Project
 	Regions     []string
 	Kinds       []core.EmployerKind
@@ -86,6 +89,12 @@ func (h *handler) employerPage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// An administrator reading a member's settings: into the member's access log.
+	if err := h.logAccess(r.Context(), accountFrom(r.Context()).ID, emp.Organization, owner, emp.ID, core.AccessRead, "employer settings",
+		core.Date{}, core.Date{}); err != nil {
+		h.failed(w, r, err)
+		return
+	}
 	h.render(w, r, http.StatusOK, "employer", view{Title: emp.Name, Data: h.employerData(r, cat, emp, owner, canChange)})
 }
 
@@ -130,6 +139,22 @@ func (h *handler) employerData(r *http.Request, cat core.Catalog, emp core.Emplo
 		}
 	}
 	slices.SortFunc(d.PayRules, func(a, b core.PayRule) int { return b.ValidFrom.Compare(a.ValidFrom) })
+	for _, p := range cat.AbsencePays {
+		if p.EmployerID == emp.ID {
+			d.AbsencePays = append(d.AbsencePays, p)
+		}
+	}
+	slices.SortFunc(d.AbsencePays, func(a, b core.AbsencePay) int { return b.ValidFrom.Compare(a.ValidFrom) })
+	for _, s := range cat.Surcharges {
+		if s.EmployerID == emp.ID {
+			d.Surcharges = append(d.Surcharges, s)
+		}
+	}
+	slices.SortFunc(d.Surcharges, func(a, b core.Surcharge) int { return b.ValidFrom.Compare(a.ValidFrom) })
+	d.Types = cat.AbsenceTypesFor(emp.ID)
+	for i, t := range d.Types {
+		d.Types[i].Name = h.absenceName(r, t)
+	}
 	return d
 }
 
@@ -182,6 +207,7 @@ func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
 		emp.Name = strings.TrimSpace(r.PostFormValue("name"))
 		emp.Kind = core.EmployerKind(r.PostFormValue("kind"))
 		emp.Region = r.PostFormValue("region")
+		emp.DaySplit = core.DaySplit(r.PostFormValue("day_split"))
 		if tz := strings.TrimSpace(r.PostFormValue("time_zone")); tz != "" {
 			emp.TimeZone = tz
 		}
@@ -206,6 +232,16 @@ func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
 		if p, err = payRuleFromForm(r, owner, emp.ID); err == nil {
 			err = h.options.Store.Put(ctx, p)
 		}
+	case "absence-pay":
+		var p core.AbsencePay
+		if p, err = absencePayFromForm(r, owner, emp.ID); err == nil {
+			err = h.options.Store.Put(ctx, p)
+		}
+	case "surcharge":
+		var s core.Surcharge
+		if s, err = surchargeFromForm(r, owner, emp.ID); err == nil {
+			err = h.options.Store.Put(ctx, s)
+		}
 	case "project":
 		p := core.Project{ID: core.NewID(), Owner: owner, EmployerID: emp.ID, Name: strings.TrimSpace(r.PostFormValue("name")),
 			Billable: r.PostFormValue("billable") == "on"}
@@ -228,6 +264,10 @@ func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
 			kind = core.RecPayRule
 		case "mode":
 			kind = core.RecModeChange
+		case "absence-pay":
+			kind = core.RecAbsencePay
+		case "surcharge":
+			kind = core.RecSurcharge
 		default:
 			h.notFound(w, r)
 			return
@@ -247,6 +287,11 @@ func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
 	default:
 		h.notFound(w, r)
 		return
+	}
+	if err == nil {
+		// An administrator changing a member's settings: into the member's access log.
+		err = h.logAccess(ctx, accountFrom(ctx).ID, emp.Organization, owner, emp.ID, core.AccessChange,
+			"employer settings: "+r.PathValue("action"), core.Date{}, core.Date{})
 	}
 	h.back(w, r, err, "saved")
 }
@@ -307,6 +352,56 @@ func payRuleFromForm(r *http.Request, owner, employerID string) (core.PayRule, e
 		}
 	}
 	return p, p.Validate()
+}
+
+// absencePayFromForm reads a rule that pays an absence type (or public holidays): at the target minutes or at the
+// average of the reference weeks.
+func absencePayFromForm(r *http.Request, owner, employerID string) (core.AbsencePay, error) {
+	from, err := formDate(r, "from")
+	if err != nil {
+		return core.AbsencePay{}, err
+	}
+	p := core.AbsencePay{ID: core.NewID(), Owner: owner, EmployerID: employerID, Type: r.PostFormValue("type"),
+		Method: core.AbsencePayMethod(r.PostFormValue("method")), ValidFrom: from}
+	if raw := strings.TrimSpace(r.PostFormValue("weeks")); raw != "" && p.Method == core.PayAverage {
+		if p.Weeks, err = strconv.Atoi(raw); err != nil {
+			return p, core.ErrInvalid
+		}
+	}
+	return p, p.Validate()
+}
+
+// surchargeFromForm reads a surcharge: the kind, the percentage (25 or 12,5), the night window and an hourly base for
+// salaried staff.
+func surchargeFromForm(r *http.Request, owner, employerID string) (core.Surcharge, error) {
+	from, err := formDate(r, "from")
+	if err != nil {
+		return core.Surcharge{}, err
+	}
+	percent, err := parseMoney(r.PostFormValue("percent")) // two decimals: 25,5 % are 2550 basis points
+	if err != nil {
+		return core.Surcharge{}, core.ErrInvalid
+	}
+	s := core.Surcharge{ID: core.NewID(), Owner: owner, EmployerID: employerID, Kind: core.SurchargeKind(r.PostFormValue("kind")),
+		ValidFrom: from, BasisPoints: int(percent)}
+	if s.Kind == core.SurchargeNight {
+		start, okStart := parseClock(r.PostFormValue("window_start"))
+		end, okEnd := parseClock(r.PostFormValue("window_end"))
+		if !okStart || !okEnd {
+			return s, core.ErrInvalid
+		}
+		s.WindowStart, s.WindowEnd = start, end
+	}
+	if raw := strings.TrimSpace(r.PostFormValue("base")); raw != "" {
+		if s.BaseAmount, err = parseMoney(raw); err != nil {
+			return s, core.ErrInvalid
+		}
+		s.Currency = strings.ToUpper(strings.TrimSpace(r.PostFormValue("currency")))
+		if s.Currency == "" {
+			s.Currency = "EUR"
+		}
+	}
+	return s, s.Validate()
 }
 
 // parseMoney reads an amount such as 12,50 or 1200 into cents.

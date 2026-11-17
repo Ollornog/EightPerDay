@@ -163,4 +163,14 @@ func TestOtherModesAndReportsOnAPhone(t *testing.T) {
 	b.settle()
 	b.reachable("employer settings")
 	b.shot("employer")
+	// A night surcharge, typed with a thumb.
+	b.tap(`details:has(form[action$="/surcharge"]) summary`)
+	b.typeInto("#sc-percent", "25")
+	b.typeInto("#sc-start", "22:00")
+	b.typeInto("#sc-end", "6:00")
+	b.tap(`form[action$="/surcharge"] button[type=submit]`)
+	b.must(`location.search.includes('done=saved') && document.querySelectorAll('[data-surcharge]').length === 1`, "the surcharge is saved")
+	b.settle()
+	b.reachable("employer pay")
+	b.shot("employer-pay")
 }

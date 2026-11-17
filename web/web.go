@@ -68,6 +68,9 @@ type Options struct {
 	TrustedProxies []netip.Prefix
 	// Store holds the time records (core/pgstore in the program, core/memstore in tests).
 	Store core.Store
+	// AccessLog records what an organization reads and changes of a person's data, for the person to see. Nil: the
+	// store's own, which both stores of the core library have.
+	AccessLog core.AccessLog
 	// Now replaces the clock in tests.
 	Now func() time.Time
 }
@@ -84,6 +87,13 @@ type handler struct {
 func New(log *slog.Logger, options Options) (http.Handler, error) {
 	if options.Auth == nil || options.Origin == nil || options.Store == nil {
 		return nil, errors.New("web: Auth, Origin and Store are required")
+	}
+	if options.AccessLog == nil {
+		log, ok := options.Store.(core.AccessLog)
+		if !ok {
+			return nil, errors.New("web: the store keeps no access log; pass Options.AccessLog")
+		}
+		options.AccessLog = log
 	}
 	if options.Gate != nil && (options.Gate.UserHeader == "" || len(options.TrustedProxies) == 0) {
 		return nil, errors.New("web: a gate needs its user header and the addresses of the trusted proxies")
@@ -141,6 +151,9 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	signedIn.HandleFunc("POST /book/line", h.freeText)
 	signedIn.HandleFunc("POST /book/exact", h.materializeWeek)
 	signedIn.HandleFunc("POST /book/spread", h.spreadWeek)
+	signedIn.HandleFunc("POST /approval/submit", h.submit)
+	signedIn.HandleFunc("POST /approval/{id}/withdraw", h.withdraw)
+	signedIn.HandleFunc("GET /access", h.accessPage)
 	signedIn.HandleFunc("POST /book/absence", h.addAbsence)
 	signedIn.HandleFunc("POST /absences/{id}/remove", h.removeAbsence)
 	signedIn.HandleFunc("POST /entries/{id}/remove", h.removeEntry)
@@ -199,6 +212,8 @@ func (h *handler) parseTemplates() error {
 			"dateOf":          func(t *time.Time) core.Date { return core.DateOf(*t) },
 			"date":            func(t time.Time) string { return formatDate(lang, t) },
 			"durationPattern": func() string { return durationPattern },
+			"percent":         func(basisPoints int) string { return formatPercent(lang, basisPoints) },
+			"clock":           clockText,
 		}).ParseFS(templateFiles, "templates/layout.html")
 		if err != nil {
 			return err

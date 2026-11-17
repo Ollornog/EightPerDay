@@ -87,7 +87,7 @@
       {{range $d.Absences}}
       <div class="flex items-center gap-2" data-absence>
         <span class="badge" data-variant="secondary">{{.Name}}</span>
-        <span class="min-w-0 flex-1 text-sm tabular-nums">{{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}{{if .HalfDay}} · {{t "track.half"}}{{end}}{{if eq .Status "requested"}} · {{t "absence.requested"}}{{end}}</span>
+        <span class="min-w-0 flex-1 text-sm tabular-nums">{{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}{{if .HalfDay}} · {{t "track.half"}}{{end}}{{if eq .Status "requested"}} · {{t "absence.requested"}}{{else if eq .Status "rejected"}} · {{t "absence.rejected"}}{{end}}</span>
         <form method="post" action="/absences/{{.ID}}/remove" data-confirm="{{t "absence.remove.confirm"}}">
           <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$d.Back}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
@@ -97,6 +97,7 @@
     </section>
   </div>
   {{end}}
+  {{if $d.Approval}}{{template "approval" $d}}{{end}}
 </div>
 <dialog id="new-employer" class="dialog" aria-labelledby="new-employer-title">
   <div>
@@ -105,6 +106,50 @@
     <button type="button" class="btn btn-close" data-variant="ghost" aria-label="{{t "dialog.close"}}" data-close-dialog>{{template "icon-x"}}</button>
   </div>
 </dialog>
+{{end}}
+
+{{define "approval"}}
+<div class="card" data-size="sm" data-approval>
+  <header><h2 class="card-title">{{t "approval.title"}}</h2><p class="card-description">{{t "approval.lead"}}</p></header>
+  <section class="grid gap-3">
+    {{if .WeekLocked}}
+    <p class="text-sm" data-week-locked>{{template "icon-check-small"}} {{t "approval.week.locked"}}</p>
+    {{else}}
+    <form method="post" action="/approval/submit" class="grid gap-2"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
+      <input type="hidden" name="kind" value="period"><input type="hidden" name="from" value="{{.Week}}"><input type="hidden" name="to" value="{{.WeekEnd}}">
+      <button type="submit" class="btn w-full" data-submit-week>{{t "approval.submit.week"}}</button>
+      <p class="text-muted-foreground text-xs">{{t "approval.submit.hint"}}</p>
+    </form>
+    {{end}}
+    {{$back := .Back}}{{$emp := .Employer.ID}}
+    {{range .Submissions}}
+    <div class="grid gap-2 rounded-md border p-3 text-sm" data-submission="{{.Status}}">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="font-medium">{{t (print "approval.kind." .Kind)}}{{if .Name}}: {{.Name}}{{end}}</span>
+        <span class="text-muted-foreground text-xs tabular-nums">{{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}</span>
+        <span class="badge" data-variant="{{if eq .Status "submitted"}}outline{{else}}secondary{{end}}">{{t (print "approval.status." .Status)}}</span>
+      </div>
+      {{if eq .Kind "period"}}<p class="text-muted-foreground text-xs tabular-nums">{{t "schedule.target"}} {{hours .Target}} · {{t "schedule.actual"}} {{hours .Actual}} · {{t "reports.balance"}} {{signed .Balance}}</p>{{end}}
+      {{if .Note}}<p class="text-xs">{{.Note}}</p>{{end}}
+      {{if .Reason}}<p class="text-xs" data-reason>{{t "approval.reason"}}: {{.Reason}}</p>{{end}}
+      {{if eq .Status "submitted"}}
+      <form method="post" action="/approval/{{.ID}}/withdraw" data-confirm="{{t "approval.withdraw.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
+        <button type="submit" class="btn" data-variant="ghost" data-size="sm">{{t "approval.withdraw"}}</button></form>
+      {{end}}
+      {{if .Correctable}}
+      <details data-correction>
+        <summary class="btn" data-variant="outline" data-size="sm">{{t "approval.correction"}}</summary>
+        <form method="post" action="/approval/submit" class="mt-2 grid gap-2"><input type="hidden" name="employer" value="{{$emp}}"><input type="hidden" name="back" value="{{$back}}">
+          <input type="hidden" name="kind" value="correction"><input type="hidden" name="supersedes" value="{{.ID}}">
+          <div class="field" role="group"><label for="why-{{.ID}}">{{t "approval.correction.note"}}</label><textarea class="textarea" id="why-{{.ID}}" name="note" maxlength="2000" required></textarea></div>
+          <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "approval.correction.submit"}}</button>
+        </form>
+      </details>
+      {{end}}
+    </div>
+    {{end}}
+  </section>
+</div>
 {{end}}
 
 {{define "mode-week-sum"}}
@@ -147,6 +192,7 @@
   {{if .IsToday}}<span class="badge" data-variant="outline">{{t "home.today"}}</span>{{end}}
   {{if .Holiday}}<span class="badge" data-variant="secondary">{{template "icon-calendar"}}{{.Holiday}}</span>{{end}}
   {{range .Absences}}<span class="badge" data-variant="secondary">{{.}}</span>{{end}}
+  {{if .Locked}}<span class="badge" data-variant="outline" data-locked>{{template "icon-check-small"}}{{t "approval.locked"}}</span>{{end}}
 </div>
 {{end}}
 
