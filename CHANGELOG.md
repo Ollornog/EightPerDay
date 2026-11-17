@@ -69,3 +69,13 @@ All notable changes to this project are documented in this file. The format foll
 - The data inventory (`DataInventory`, A21): every stored record and field with purpose, holder and deletion,
   generated into `docs/data-inventory.json` and held to the code by a test. Templates for employers in `docs/legal/`
   (works agreement skeleton, record of processing activities), marked as no legal advice and not checked by a lawyer.
+- A weekly total can be split into days ("Split this week into days"): by the targets of the schedule, Monday to
+  Friday evenly without one; from that week on the employer counts hours per day. Only who may change the settings may
+  split.
+
+### Changed
+
+- The web interface takes everything from C22 (vendored at `e8153c2`): the tab bar, the QR code, the key of an
+  authenticator app, the wrapped license texts and the collapsible cards are C22's own now, and `assets/app/app.css`
+  is gone. The week views follow C22's data-entry blocks; duration fields tell the accepted forms and refuse other
+  input already in the browser.

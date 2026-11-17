@@ -140,6 +140,7 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	signedIn.HandleFunc("POST /book/span", h.addSpan)
 	signedIn.HandleFunc("POST /book/line", h.freeText)
 	signedIn.HandleFunc("POST /book/exact", h.materializeWeek)
+	signedIn.HandleFunc("POST /book/spread", h.spreadWeek)
 	signedIn.HandleFunc("POST /book/absence", h.addAbsence)
 	signedIn.HandleFunc("POST /absences/{id}/remove", h.removeAbsence)
 	signedIn.HandleFunc("POST /entries/{id}/remove", h.removeEntry)
@@ -197,6 +198,7 @@ func (h *handler) parseTemplates() error {
 			"newEmployerForm": func() newEmployer { return newEmployerData(nil) },
 			"dateOf":          func(t *time.Time) core.Date { return core.DateOf(*t) },
 			"date":            func(t time.Time) string { return formatDate(lang, t) },
+			"durationPattern": func() string { return durationPattern },
 		}).ParseFS(templateFiles, "templates/layout.html")
 		if err != nil {
 			return err

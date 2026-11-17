@@ -281,7 +281,7 @@ func TestSecondFactorOverHTTP(t *testing.T) {
 	if a.status != http.StatusOK || !strings.Contains(a.body, `src="data:image/png;base64,`) {
 		t.Fatalf("%d %.500s", a.status, a.body)
 	}
-	secret := regexp.MustCompile(`epd-secret[^>]*>([A-Z2-7]+)<`).FindStringSubmatch(a.body)
+	secret := regexp.MustCompile(`secret-key[^>]*>([A-Z2-7]+)<`).FindStringSubmatch(a.body)
 	ceremony := regexp.MustCompile(`name="ceremony" value="([^"]+)"`).FindStringSubmatch(a.body)
 	if secret == nil || ceremony == nil {
 		t.Fatalf("no secret or ceremony: %.1500s", a.body)
@@ -568,14 +568,12 @@ func TestNothingFromThirdParties(t *testing.T) {
 			t.Errorf("%s: %q", name, found)
 		}
 	}
-	for _, file := range []string{"assets/c22/css/c22-vega.css", "assets/app/app.css"} {
-		css, err := assetFiles.ReadFile(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if found := regexp.MustCompile(`url\(["']?(?:https?:)?//[^)]*`).Find(css); found != nil {
-			t.Errorf("%s loads %s", file, found)
-		}
+	css, err := assetFiles.ReadFile("assets/c22/css/c22-vega.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found := regexp.MustCompile(`url\(["']?(?:https?:)?//[^)]*`).Find(css); found != nil {
+		t.Errorf("the stylesheet loads %s", found)
 	}
 }
 
@@ -588,16 +586,18 @@ func TestAboutNamesTheLogoAuthor(t *testing.T) {
 	}
 }
 
+// Every class comes from C22: the app has no stylesheet of its own.
 func TestEveryClassExistsInTheStylesheet(t *testing.T) {
 	known := map[string]bool{}
-	for _, file := range []string{"assets/c22/css/c22-vega.css", "assets/app/app.css"} {
-		css, err := assetFiles.ReadFile(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, match := range regexp.MustCompile(`\.((?:\\.|[\w-])+)`).FindAllStringSubmatch(string(css), -1) {
-			known[strings.ReplaceAll(match[1], `\`, "")] = true
-		}
+	css, err := assetFiles.ReadFile("assets/c22/css/c22-vega.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, match := range regexp.MustCompile(`\.((?:\\.|[\w-])+)`).FindAllStringSubmatch(string(css), -1) {
+		known[strings.ReplaceAll(match[1], `\`, "")] = true
+	}
+	if own, _ := fs.Glob(assetFiles, "assets/app/*.css"); len(own) > 0 {
+		t.Errorf("%v: styles belong in C22", own)
 	}
 	if len(known) < 500 {
 		t.Fatalf("only %d classes found, the check itself is broken", len(known))
@@ -630,21 +630,6 @@ func TestEveryClassExistsInTheStylesheet(t *testing.T) {
 	for class, where := range used {
 		if !known[class] {
 			t.Errorf("%s: class %q is not in the stylesheet", where, class)
-		}
-	}
-}
-
-func TestOwnStylesUseTokensOnly(t *testing.T) {
-	css, err := assetFiles.ReadFile("assets/app/app.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, forbidden := range []*regexp.Regexp{
-		regexp.MustCompile(`#[0-9a-fA-F]{3,8}\b`), regexp.MustCompile(`(?i)\b(?:rgb|hsl|oklch)a?\(`),
-		regexp.MustCompile(`font-size\s*:`), regexp.MustCompile(`font-family\s*:`),
-	} {
-		if found := forbidden.Find(css); found != nil {
-			t.Errorf("app.css has %q: colors and type come from C22's tokens", found)
 		}
 	}
 }
@@ -707,7 +692,6 @@ func TestAssetsArrive(t *testing.T) {
 	s := newSite(t)
 	for path, contentType := range map[string]string{
 		"/assets/c22/css/c22-vega.css":              "text/css",
-		"/assets/app/app.css":                       "text/css",
 		"/assets/c22/fonts/inter.woff2":             "font/woff2",
 		"/assets/app/app.js":                        "javascript",
 		"/assets/app/theme.js":                      "javascript",

@@ -47,9 +47,11 @@ func TestFirstAccountWithAPasskey(t *testing.T) {
 	b.shot("home")
 	b.reachable("home")
 
-	b.tap(`.epd-tabbar a[href="/account"]`)
+	b.tap(`.tab-bar a[href="/account"]`)
 	b.must(`location.pathname === '/account'`, "the tab bar leads to the account")
 	b.settle()
+	b.must(`document.querySelector('.tab-bar [aria-current=page]')?.getAttribute('href') === '/account' && getComputedStyle(document.querySelector('.tab-bar')).position === 'fixed' && Math.abs(document.querySelector('.tab-bar').getBoundingClientRect().bottom - innerHeight) < 1`,
+		"the tab bar sits at the bottom and marks the open page")
 	b.reachable("account")
 	b.shot("account")
 	b.tap(`form[action="/logout"] button`)
@@ -73,11 +75,11 @@ func TestPasswordAndAuthenticatorApp(t *testing.T) {
 	b.typeInto("#setup-password", password)
 	b.typeInto("#setup-password2", password)
 	b.tap("form[data-setup] button[type=submit]")
-	b.must(`!!document.querySelector('img.epd-qr') && document.querySelector('img.epd-qr').naturalWidth > 0`, "the QR code shows")
+	b.must(`!!document.querySelector('img.qr-code') && document.querySelector('img.qr-code').naturalWidth > 0`, "the QR code shows")
 	b.settle()
 	b.reachable("authenticator app")
 	b.shot("setup-totp")
-	secret := b.text(".epd-secret")
+	secret := b.text(".secret-key")
 	if !regexp.MustCompile(`^[A-Z2-7]{16,}$`).MatchString(secret) {
 		t.Fatalf("secret %q", secret)
 	}
@@ -87,7 +89,7 @@ func TestPasswordAndAuthenticatorApp(t *testing.T) {
 	b.must(`location.pathname === '/' && document.body.textContent.includes('Who do you work for?')`, "the code finished the setup")
 	b.settle()
 
-	b.tap(`.epd-tabbar a[href="/account"]`)
+	b.tap(`.tab-bar a[href="/account"]`)
 	b.must(`location.pathname === '/account'`, "account")
 	b.settle()
 	b.tap(`form[action="/logout"] button`)

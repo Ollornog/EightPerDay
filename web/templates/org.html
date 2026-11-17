@@ -72,7 +72,7 @@
           <div class="field" role="group"><label for="tpl-mode">{{t "employer.mode"}}</label>
             <select class="select w-full" id="tpl-mode" name="mode">{{range $d.Modes}}<option value="{{.}}">{{t (print "mode." .)}}</option>{{end}}</select></div>
           {{range $d.Weekdays}}
-          <div class="flex items-center gap-2"><label class="w-16 font-medium" for="tpl-hours-{{.}}">{{t (print "weekday." .)}}</label><input class="input w-24 tabular-nums" id="tpl-hours-{{.}}" name="hours-{{.}}" inputmode="decimal" placeholder="0:00"></div>
+          <div class="flex items-center gap-2"><label class="w-16 font-medium" for="tpl-hours-{{.}}">{{t (print "weekday." .)}}</label><input class="input w-24 tabular-nums" id="tpl-hours-{{.}}" pattern="{{durationPattern}}" name="hours-{{.}}" inputmode="decimal" placeholder="0:00"></div>
           {{end}}
           <div class="grid gap-2 sm:grid-cols-2">
             <div class="field" role="group"><label for="tpl-leave">{{t "employer.leavedays"}}</label><input class="input" id="tpl-leave" name="leave_days" inputmode="decimal" placeholder="30"></div>

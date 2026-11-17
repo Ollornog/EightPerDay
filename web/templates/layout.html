@@ -9,7 +9,6 @@
   <link rel="apple-touch-icon" href="/assets/logo.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/assets/c22/css/c22-vega.css?v={{.Version}}">
-  <link rel="stylesheet" href="/assets/app/app.css?v={{.Version}}">
   <script src="/assets/app/theme.js?v={{.Version}}"></script>
   <script defer src="/assets/c22/js/basecoat.all.min.js?v={{.Version}}"></script>
   <script defer src="/assets/app/app.js?v={{.Version}}"></script>
@@ -33,7 +32,7 @@
     </div>
   </header>
   {{if .Narrow}}
-  <main class="mx-auto w-full max-w-sm px-4 py-6">
+  <main class="mx-auto w-full max-w-sm px-4 py-6 pb-20">
     {{template "messages" .}}
     {{block "content" .}}{{end}}
     {{template "footer" .}}
@@ -46,11 +45,7 @@
   </main>
   {{end}}
   {{if .Account}}
-  <nav class="epd-tabbar border-t bg-card" aria-label="{{t "nav.label"}}">
-    <div class="mx-auto grid w-full max-w-3xl grid-cols-3 gap-1 px-2 py-2">
-      {{template "navlinks" .}}
-    </div>
-  </nav>
+  <nav class="tab-bar" aria-label="{{t "nav.label"}}">{{template "tablinks" .}}</nav>
   {{end}}
   {{template "about-dialog" .}}
   <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-dialog-title">
@@ -77,6 +72,12 @@
 {{if eq .Path "/account"}}<a href="/account" class="btn bg-accent text-accent-foreground" data-variant="ghost" data-size="sm" aria-current="page">{{else}}<a href="/account" class="btn" data-variant="ghost" data-size="sm">{{end}}{{template "icon-user"}}<span>{{t "nav.account"}}</span></a>
 {{end}}
 
+{{define "tablinks"}}
+<a href="/"{{if eq .Path "/"}} aria-current="page"{{end}}>{{template "icon-clock"}}<span>{{t "nav.time"}}</span></a>
+<a href="/reports"{{if eq .Path "/reports"}} aria-current="page"{{end}}>{{template "icon-chart"}}<span>{{t "nav.reports"}}</span></a>
+<a href="/account"{{if eq .Path "/account"}} aria-current="page"{{end}}>{{template "icon-user"}}<span>{{t "nav.account"}}</span></a>
+{{end}}
+
 {{define "footer"}}
 <footer class="mt-6 flex flex-wrap items-center justify-center gap-2 border-t pt-4 text-muted-foreground text-xs">
   <form method="post" action="/language" class="flex items-center gap-1">
@@ -92,9 +93,9 @@
 {{define "totp-enrollment"}}
 {{if .QR}}
 <div class="flex flex-col items-center gap-2">
-  <img src="{{dataURL .QR}}" alt="{{t "totp.qr.alt"}}" class="epd-qr rounded-md border bg-background p-2">
+  <img src="{{dataURL .QR}}" alt="{{t "totp.qr.alt"}}" class="qr-code">
   <p class="text-muted-foreground text-xs text-center">{{t "totp.manual"}}</p>
-  <code class="font-mono text-sm epd-secret text-center">{{.Secret}}</code>
+  <code class="secret-key text-center">{{.Secret}}</code>
 </div>
 {{end}}
 {{end}}
@@ -144,7 +145,7 @@
     {{end}}
   </fieldset>
   <div class="grid grid-cols-2 gap-2">
-    <div class="field" role="group"><label for="new-hours">{{t "start.hours"}}</label><input class="input tabular-nums" id="new-hours" name="weekday_hours" inputmode="decimal" placeholder="8:00"></div>
+    <div class="field" role="group"><label for="new-hours">{{t "start.hours"}}</label><input class="input tabular-nums" id="new-hours" pattern="{{durationPattern}}" name="weekday_hours" inputmode="decimal" placeholder="8:00"></div>
     <div class="field" role="group"><label for="new-leave">{{t "employer.leavedays"}}</label><input class="input tabular-nums" id="new-leave" name="leave_days" inputmode="decimal" placeholder="30"></div>
   </div>
   <p class="text-muted-foreground text-xs">{{t "start.hours.hint"}}</p>

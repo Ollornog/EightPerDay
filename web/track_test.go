@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -134,6 +135,43 @@ func TestWeeklyTotal(t *testing.T) {
 	}
 	if a := s.post("/book/week", url.Values{"employer": {emp.ID}, "week": {monday.String()}, "hours": {"lots"}}); a.status != http.StatusBadRequest {
 		t.Fatalf("%d", a.status)
+	}
+}
+
+func TestWeeklyTotalSplitIntoDays(t *testing.T) {
+	s, _ := trackSite(t)
+	me := s.me("mara", false)
+	emp := s.employer(me, "Workshop", core.ModeWeekSum, "")
+	if body := s.get("/?e=" + emp.ID).body; strings.Contains(body, "data-spread") {
+		t.Fatal("an empty week offers to be split")
+	}
+	if a := s.post("/book/spread", url.Values{"employer": {emp.ID}, "week": {monday.String()}}); a.status != http.StatusBadRequest {
+		t.Fatalf("an empty week split: %d", a.status)
+	}
+	s.mustPost("/book/week", url.Values{"employer": {emp.ID}, "week": {monday.String()}, "hours": {"38,5"}, "back": {"/"}})
+	if body := s.get("/?e=" + emp.ID).body; !strings.Contains(body, "data-spread") {
+		t.Fatal("the week does not offer to be split")
+	}
+	s.mustPost("/book/spread", url.Values{"employer": {emp.ID}, "week": {wednesday.String()}, "back": {"/"}})
+	// Without a schedule Monday to Friday, evenly; the sum stays.
+	entries := s.entries(me.ID)
+	slices.SortFunc(entries, func(a, b core.Entry) int { return a.Date.Compare(b.Date) })
+	want := []int{462, 462, 462, 462, 462}
+	if len(entries) != len(want) {
+		t.Fatalf("%d entries: %+v", len(entries), entries)
+	}
+	for i, e := range entries {
+		if e.Date != monday.AddDays(i) || e.Precision != core.PrecisionDay || e.Minutes != want[i] {
+			t.Errorf("day %d: %+v", i, e)
+		}
+	}
+	cat, _ := s.store.Catalog(context.Background(), me.ID)
+	if core.ModeAt(cat, emp.ID, monday) != core.ModeSchedule || core.ModeAt(cat, emp.ID, monday.AddDays(-1)) != core.ModeWeekSum {
+		t.Fatal("the mode did not switch from that week on")
+	}
+	// The day view shows the parts as hours per day, which can be changed one by one.
+	if body := s.get("/?e=" + emp.ID).body; !strings.Contains(body, `name="day-2026-11-16" inputmode="decimal" value="7:42"`) {
+		t.Fatalf("the days do not show their part: %s", regexp.MustCompile(`name="day-2026-11-16"[^>]*`).FindString(body))
 	}
 }
 
@@ -458,6 +496,13 @@ func TestOrganizations(t *testing.T) {
 	if page := worker.get("/employers/" + managed.ID).body; strings.Contains(page, `action="/employers/`+managed.ID+`/pay"`) {
 		t.Fatal("the member sees the form for the pay")
 	}
+	// Nor does the member split a week into days: that changes the mode, a setting.
+	worker.mustPost("/book/week", url.Values{"employer": {managed.ID}, "week": {monday.String()}, "hours": {"5"}, "back": {"/"}})
+	if a := worker.post("/book/spread", url.Values{"employer": {managed.ID}, "week": {monday.String()}}); a.status != http.StatusBadRequest ||
+		!strings.Contains(a.body, "may not") {
+		t.Fatalf("a member splits a week: %d %.200s", a.status, a.body)
+	}
+	worker.mustPost("/book/week", url.Values{"employer": {managed.ID}, "week": {monday.String()}, "hours": {""}, "back": {"/"}})
 	// The administrator sets it, for the member's employer.
 	s.mustPost("/employers/"+managed.ID+"/pay", url.Values{"owner": {w.ID}, "basis": {"hourly"}, "amount": {"21"}, "from": {"2026-01-01"},
 		"back": {"/"}})
@@ -509,6 +554,20 @@ func TestOrganizations(t *testing.T) {
 	cat, _ = s.store.Catalog(context.Background(), w.ID)
 	if e, _ := cat.Employer(managed.ID); !e.Archived {
 		t.Fatal("the employer of an ended membership is not archived")
+	}
+}
+
+// The pattern of a duration field lets through exactly what parseHours reads, so the browser never stops a value the
+// server would take, nor lets one pass the server refuses.
+func TestDurationPatternAgreesWithParseHours(t *testing.T) {
+	pattern := regexp.MustCompile(`^(?:` + durationPattern + `)$`)
+	for _, input := range []string{"8", "1,33", "0,01", "38:30", "38,5", "38.5", "38h30m", "38h", "90m", "90min", "90 MIN", "-2",
+		"- 1:30", "+1:30", " 2h 15m ", "2H", "100:00", "1000m", "7h30", "x", "1:75", "h", "m", "1.234", "--1", "8:", ":30", "+ 1:30",
+		"1234", "7 Stunden", "7,5h", "2h 15", "1:5", "+-1", "12345m"} {
+		_, err := parseHours(input)
+		if got, want := pattern.MatchString(input), err == nil; got != want {
+			t.Errorf("%q: pattern says %v, parseHours %v", input, got, want)
+		}
 	}
 }
 

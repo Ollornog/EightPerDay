@@ -415,5 +415,10 @@
   "done.started": "Die Stoppuhr läuft.",
   "done.stopped": "Die Zeit ist gebucht.",
   "done.archived": "Archiviert.",
-  "done.exact": "Diese Woche wird jetzt genau erfasst."
+  "done.exact": "Diese Woche wird jetzt genau erfasst.",
+  "duration.hint": "Als 38:30, 38,5 oder 38h30m.",
+  "weeksum.spread": "Woche auf Tage aufteilen",
+  "weeksum.spread.hint": "Verteilt die Summe nach dem Arbeitszeitplan auf die Arbeitstage (ohne Plan Montag bis Freitag). Ab dieser Woche trägst du Stunden pro Tag ein.",
+  "weeksum.spread.confirm": "Die Summe dieser Woche auf die Tage aufteilen? Ab dieser Woche trägst du Stunden pro Tag ein.",
+  "done.spread": "Die Woche ist auf die Tage aufgeteilt."
 }

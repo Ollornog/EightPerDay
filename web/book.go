@@ -446,6 +446,60 @@ func (h *handler) stopTimer(w http.ResponseWriter, r *http.Request) {
 	h.back(w, r, err, "stopped")
 }
 
+// spreadWeek splits the weekly total of the mode week_sum into hours per day (core.SpreadWeek, by the schedule's
+// targets) and switches the employer to the mode schedule from that week on, for "split this week into days". The sum
+// stays the same; the week entry goes through the history.
+func (h *handler) spreadWeek(w http.ResponseWriter, r *http.Request) {
+	cat, emp, ok := h.bookingContext(w, r)
+	if !ok {
+		return
+	}
+	if !core.MayChangeSettings(emp, core.Actor{Person: accountFrom(r.Context()).ID}) {
+		h.back(w, r, errForbidden, "")
+		return
+	}
+	week, err := formDate(r, "week")
+	if err != nil {
+		h.back(w, r, err, "")
+		return
+	}
+	from := week.StartOfWeek(emp.WeekStart)
+	ctx := r.Context()
+	owner := accountFrom(ctx).ID
+	entries, err := h.options.Store.Entries(ctx, core.EntryFilter{Owner: owner, EmployerID: emp.ID, From: from, To: from})
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	spread := 0
+	for _, e := range entries {
+		if e.DeletedAt != nil || e.Kind != core.EntryWork || e.Precision != core.PrecisionWeek || e.ProjectID != "" {
+			continue
+		}
+		parts, err := core.SpreadWeek(cat, e)
+		if err != nil {
+			h.back(w, r, err, "")
+			return
+		}
+		// The parts first, the week entry after: a failure in between counts the time twice, never not at all.
+		if err := h.book(r, cat, parts, "week to days"); err != nil {
+			h.back(w, r, err, "")
+			return
+		}
+		if err := h.options.Store.DeleteEntry(ctx, owner, e.ID, e.Version, change(r, "week to days")); err != nil {
+			h.back(w, r, err, "")
+			return
+		}
+		spread++
+	}
+	if spread == 0 {
+		h.back(w, r, core.ErrNotFound, "")
+		return
+	}
+	mc := core.ModeChange{ID: core.NewID(), Owner: emp.Owner, EmployerID: emp.ID, ValidFrom: from, Mode: core.ModeSchedule}
+	h.back(w, r, h.options.Store.Put(ctx, mc), "spread")
+}
+
 // materializeWeek turns the plan days of a week into entries and switches the employer to exact from that week on,
 // for "record this week exactly". The minutes per day stay the same.
 func (h *handler) materializeWeek(w http.ResponseWriter, r *http.Request) {

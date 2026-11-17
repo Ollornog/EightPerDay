@@ -70,7 +70,7 @@
           <div class="grid gap-2 rounded-md border p-2">
             <div class="flex items-center gap-2">
               <label class="w-16 font-medium" for="hours-{{.}}">{{t (print "weekday." .)}}</label>
-              <input class="input w-24 tabular-nums" id="hours-{{.}}" name="hours-{{.}}" inputmode="decimal" placeholder="0:00" autocomplete="off">
+              <input class="input w-24 tabular-nums" id="hours-{{.}}" pattern="{{durationPattern}}" name="hours-{{.}}" inputmode="decimal" placeholder="0:00" autocomplete="off">
             </div>
             <div class="grid grid-cols-2 gap-2">
               <label class="sr-only" for="start-{{.}}">{{t "span.start"}}</label><input class="input min-w-0" type="time" id="start-{{.}}" name="start-{{.}}" aria-label="{{t "span.start"}}">
