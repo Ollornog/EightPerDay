@@ -39,7 +39,7 @@ func TestFirstAccountWithAPasskey(t *testing.T) {
 	b.typeInto("#setup-name", "mara")
 	b.typeInto("#setup-display", "Mara Schmidt")
 	b.tap("form[data-setup] button[type=submit]")
-	b.must(`location.pathname === '/' && document.body.textContent.includes('Hello, Mara Schmidt')`, "the passkey created the account")
+	b.must(`location.pathname === '/' && document.body.textContent.includes('Who do you work for?')`, "the passkey created the account")
 	b.settle()
 	if n := b.credentials(authenticator); n != 1 {
 		t.Fatalf("the authenticator holds %d passkeys", n)
@@ -56,7 +56,7 @@ func TestFirstAccountWithAPasskey(t *testing.T) {
 	b.must(`location.pathname === '/login'`, "signed out")
 	b.settle()
 	b.tap("[data-passkey-login-start]")
-	b.must(`location.pathname === '/' && document.body.textContent.includes('Hello, Mara Schmidt')`, "the passkey signs in again")
+	b.must(`location.pathname === '/' && document.body.textContent.includes('Who do you work for?')`, "the passkey signs in again")
 	b.settle()
 }
 
@@ -84,7 +84,7 @@ func TestPasswordAndAuthenticatorApp(t *testing.T) {
 	code, _ := totp.GenerateCode(secret, time.Now())
 	b.typeInto("#code", code)
 	b.tap("form button[type=submit]")
-	b.must(`location.pathname === '/' && document.body.textContent.includes('Hello, tom')`, "the code finished the setup")
+	b.must(`location.pathname === '/' && document.body.textContent.includes('Who do you work for?')`, "the code finished the setup")
 	b.settle()
 
 	b.tap(`.epd-tabbar a[href="/account"]`)

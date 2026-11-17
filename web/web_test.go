@@ -4,6 +4,7 @@ package web
 
 import (
 	"context"
+	"html"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -22,6 +23,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pquerna/otp/totp"
 
+	"github.com/Ollornog/EightPerDay/core"
+	"github.com/Ollornog/EightPerDay/core/memstore"
 	"github.com/Ollornog/EightPerDay/internal/pgtest"
 	"github.com/Ollornog/EightPerDay/web/auth"
 )
@@ -34,6 +37,7 @@ type site struct {
 	t      *testing.T
 	server *httptest.Server
 	auth   *auth.Service
+	store  core.Store
 	client *http.Client
 	origin string
 }
@@ -51,12 +55,12 @@ func newSite(t *testing.T, options ...siteOption) *site {
 	// Passkeys need a host name, so the program is opened as localhost, as a person would on their own machine.
 	_, port, _ := net.SplitHostPort(server.Listener.Addr().String())
 	origin, _ := url.Parse("http://localhost:" + port)
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	log := slog.New(slog.NewTextHandler(testLog{t}, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	accounts, err := auth.Open(context.Background(), pool, auth.Config{Origin: origin}, log)
 	if err != nil {
 		t.Fatal(err)
 	}
-	o := Options{Auth: accounts, Origin: origin}
+	o := Options{Auth: accounts, Origin: origin, Store: memstore.New(), Now: func() time.Time { return testNow }}
 	for _, option := range options {
 		option(&o)
 	}
@@ -67,9 +71,17 @@ func newSite(t *testing.T, options ...siteOption) *site {
 	server.Config.Handler = handler
 	server.Start()
 	t.Cleanup(server.Close)
-	s := &site{t: t, server: server, auth: accounts, origin: origin.String()}
+	s := &site{t: t, server: server, auth: accounts, store: o.Store, origin: origin.String()}
 	s.client = s.newClient()
 	return s
+}
+
+// testLog shows what the program logs as a warning or worse next to the test that caused it.
+type testLog struct{ t *testing.T }
+
+func (l testLog) Write(p []byte) (int, error) {
+	l.t.Log(strings.TrimSpace(string(p)))
+	return len(p), nil
 }
 
 func (s *site) newClient() *http.Client {
@@ -112,7 +124,8 @@ func (s *site) do(client *http.Client, method, path string, form url.Values, hea
 	}
 	defer func() { _ = response.Body.Close() }()
 	raw, _ := io.ReadAll(response.Body)
-	return answer{status: response.StatusCode, header: response.Header, body: string(raw)}
+	// html/template writes some characters as references (+ as &#43;); the tests read the text as a person sees it.
+	return answer{status: response.StatusCode, header: response.Header, body: html.UnescapeString(string(raw))}
 }
 
 func (s *site) get(path string) answer { return s.do(s.client, http.MethodGet, path, nil, nil) }
@@ -122,6 +135,9 @@ func (s *site) post(path string, form url.Values) answer {
 }
 
 const password = "correct horse battery staple"
+
+// testNow is a Wednesday morning in Berlin: the week runs from Monday 2026-11-16 to Sunday 2026-11-22.
+var testNow = time.Date(2026, 11, 18, 9, 30, 0, 0, time.UTC)
 
 // account makes an account through an invitation and signs the site's client in with it.
 func (s *site) account(name string, admin bool) *auth.Account {
@@ -184,7 +200,7 @@ func TestFirstAccountThroughTheOneTimeLink(t *testing.T) {
 		t.Fatalf("%d %.500s", a.status, a.body)
 	}
 	home := s.get("/?done=welcome")
-	if home.status != http.StatusOK || !strings.Contains(home.body, "Hello, Mara S.") || !strings.Contains(home.body, "Your account is ready") {
+	if home.status != http.StatusOK || !strings.Contains(home.body, "Who do you work for?") || !strings.Contains(home.body, "Your account is ready") {
 		t.Fatalf("%d %.800s", home.status, home.body)
 	}
 	if again := s.get("/setup?token=" + token); again.status != http.StatusNotFound {
@@ -413,8 +429,8 @@ func TestGateHeadersOnlyFromTrustedProxies(t *testing.T) {
 		o.TrustedProxies = []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")}
 	}
 	s := newSite(t, gate)
-	a := s.do(s.newClient(), http.MethodGet, "/", nil, map[string]string{"Remote-User": "Gina", "Remote-Groups": "staff, time-admins"})
-	if a.status != http.StatusOK || !strings.Contains(a.body, "Hello, gina") {
+	a := s.do(s.newClient(), http.MethodGet, "/account", nil, map[string]string{"Remote-User": "Gina", "Remote-Groups": "staff, time-admins"})
+	if a.status != http.StatusOK || !strings.Contains(a.body, "You sign in as gina") {
 		t.Fatalf("%d %.300s", a.status, a.body)
 	}
 	if a := s.do(s.newClient(), http.MethodGet, "/admin", nil, map[string]string{"Remote-User": "gina", "Remote-Groups": "time-admins"}); a.status != http.StatusOK {
@@ -431,7 +447,7 @@ func TestGateHeadersOnlyFromTrustedProxies(t *testing.T) {
 	if a := untrusted.do(untrusted.newClient(), http.MethodGet, "/", nil, map[string]string{"Remote-User": "gina"}); a.status != http.StatusSeeOther {
 		t.Fatalf("the gate header was believed from anywhere: %d", a.status)
 	}
-	if _, err := New(slog.New(slog.NewTextHandler(io.Discard, nil)), Options{Auth: s.auth, Origin: &url.URL{Scheme: "http", Host: "x"}, Gate: &Gate{UserHeader: "Remote-User"}}); err == nil {
+	if _, err := New(slog.New(slog.NewTextHandler(io.Discard, nil)), Options{Auth: s.auth, Store: memstore.New(), Origin: &url.URL{Scheme: "http", Host: "x"}, Gate: &Gate{UserHeader: "Remote-User"}}); err == nil {
 		t.Fatal("a gate without trusted proxies was accepted")
 	}
 }
@@ -474,17 +490,39 @@ func TestSecurityHeadersOnEveryAnswer(t *testing.T) {
 // pages renders every page there is, in both languages, for the checks on markup.
 func pages(t *testing.T) map[string]string {
 	t.Helper()
-	s := newSite(t)
-	s.account("boss", true)
+	s, _ := trackSite(t)
+	boss := s.me("boss", true)
 	out := map[string]string{}
 	token, _ := s.auth.NewSetupLink(context.Background(), auth.SetupLink{}, auth.InviteTTL)
+	out["start"] = s.get("/").body
+	var employers []core.Employer
+	for _, mode := range core.Modes {
+		employers = append(employers, s.employer(boss, "Employer "+string(mode), mode, "8"))
+	}
+	s.mustPost("/employers/"+employers[3].ID+"/project", url.Values{"name": {"Roof"}, "back": {"/"}})
+	s.mustPost("/timer/start", url.Values{"employer": {employers[3].ID}, "back": {"/"}})
+	s.mustPost("/book/line", url.Values{"employer": {employers[1].ID}, "line": {"Mo 8-12 @Roof #x note"}, "back": {"/"}})
+	s.mustPost("/book/line", url.Values{"employer": {employers[2].ID}, "line": {"Di krank"}, "back": {"/"}})
+	s.mustPost("/employers/"+employers[0].ID+"/pay", url.Values{"basis": {"hourly"}, "amount": {"20"}, "from": {"2026-01-01"}, "back": {"/"}})
+	s.mustPost("/book/week", url.Values{"employer": {employers[0].ID}, "week": {monday.String()}, "hours": {"20"}, "back": {"/"}})
+	s.mustPost("/orgs", url.Values{"name": {"ACME"}, "back": {"/orgs"}})
+	memberships, _ := s.store.Memberships(context.Background(), "", boss.ID)
+	org := memberships[0].Organization
+	s.mustPost("/orgs/"+org+"/template", url.Values{"name": {"Full"}, "mode": {"plan"}, "hours-1": {"8"}, "back": {"/"}})
+	s.mustPost("/orgs/"+org+"/features", url.Values{"supervisor_view": {"on"}, "confirm": {"on"}, "agreement": {"BV"}, "back": {"/"}})
 	for _, lang := range languages {
 		s.post("/language", url.Values{"lang": {lang}, "back": {"/"}})
-		for _, path := range []string{"/", "/account", "/admin", "/about", "/licenses", "/nothing", "/setup?token=" + token, "/setup?token=bad"} {
+		paths := []string{"/account", "/admin", "/about", "/licenses", "/nothing", "/setup?token=" + token, "/setup?token=bad",
+			"/reports", "/reports?month=2026-10", "/orgs", "/orgs/" + org}
+		for _, e := range employers {
+			paths = append(paths, "/?e="+e.ID, "/employers/"+e.ID)
+		}
+		for _, path := range paths {
 			out[lang+" "+path] = s.get(path).body
 		}
 		out[lang+" totp"] = s.post("/account/totp", url.Values{}).body
 		out[lang+" invite"] = s.post("/admin/invite", url.Values{}).body
+		out[lang+" error"] = s.post("/book/line", url.Values{"employer": {employers[1].ID}, "line": {"@a @b"}}).body
 		anonymous := s.newClient()
 		s.do(anonymous, http.MethodPost, "/language", url.Values{"lang": {lang}}, nil)
 		out[lang+" /login"] = s.do(anonymous, http.MethodGet, "/login", nil, nil).body
@@ -586,7 +624,7 @@ func TestEveryClassExistsInTheStylesheet(t *testing.T) {
 			}
 		}
 	}
-	if len(used) < 40 {
+	if len(used) < 80 {
 		t.Fatalf("only %d classes in use, the check itself is broken", len(used))
 	}
 	for class, where := range used {
@@ -723,6 +761,8 @@ func TestHealth(t *testing.T) {
 			t.Errorf("ready %v: %d", isReady, response.StatusCode)
 		}
 	}
+	// The loop above ran over a map, in no fixed order: the probe needs a ready server of its own.
+	ready = true
 	if err := Probe(context.Background(), strings.TrimPrefix(server.URL, "http://")); err != nil {
 		t.Errorf("probe: %v", err)
 	}

@@ -1,4 +1,307 @@
+{{define "header"}}{{end}}
 {{define "content"}}
-<h1 class="text-2xl font-bold">{{t "home.hello" .Account.DisplayName}}</h1>
-<p class="mt-2 text-muted-foreground text-sm">{{t "home.lead"}}</p>
+{{$d := .Data}}
+<div class="grid gap-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <form method="get" action="/" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
+      <label class="sr-only" for="pick-employer">{{t "home.employer"}}</label>
+      <select class="select min-w-0 flex-1" id="pick-employer" name="e">
+        {{range $d.Employers}}<option value="{{.ID}}"{{if eq .ID $d.Employer.ID}} selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+      <noscript><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "action.show"}}</button></noscript>
+    </form>
+    <a href="/employers/{{$d.Employer.ID}}" class="btn" data-variant="outline" data-size="icon-sm" aria-label="{{t "home.settings"}}">{{template "icon-settings"}}</a>
+    <button type="button" class="btn" data-variant="outline" data-size="icon-sm" data-open-dialog="new-employer" aria-label="{{t "home.addemployer"}}">{{template "icon-plus"}}</button>
+  </div>
+  {{if $d.Org}}<p class="text-muted-foreground text-xs">{{t "home.managed" $d.Org}}</p>{{end}}
+
+  <div class="flex items-center justify-between gap-2">
+    <a class="btn" data-variant="ghost" data-size="icon-sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Prev}}" aria-label="{{t "home.prev"}}">{{template "icon-left"}}</a>
+    <div class="text-center">
+      <p class="font-semibold">{{if $d.ThisWeek}}{{t "home.thisweek"}}{{else}}{{t "home.week"}}{{end}}</p>
+      <p class="text-muted-foreground text-xs tabular-nums">{{day $d.Week}} – {{day $d.WeekEnd}} · {{t (print "mode." $d.Mode)}}</p>
+    </div>
+    <a class="btn" data-variant="ghost" data-size="icon-sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Next}}" aria-label="{{t "home.next"}}">{{template "icon-right"}}</a>
+  </div>
+
+  {{if and $d.HasTarget $d.HasSchedule}}
+  <div class="card" data-size="sm" data-summary>
+    <section class="grid grid-cols-3 gap-2 text-center">
+      <div><p class="text-muted-foreground text-xs">{{t "home.balance.week"}}</p><p class="font-semibold tabular-nums" data-week-balance>{{signed $d.Total.Balance}}</p></div>
+      <div><p class="text-muted-foreground text-xs">{{t "home.balance.account"}}</p><p class="font-semibold tabular-nums" data-account>{{signed $d.Account.Balance}}</p></div>
+      <div><p class="text-muted-foreground text-xs">{{t "home.leave"}}</p><p class="font-semibold tabular-nums" data-leave>{{if $d.HasLeave}}{{half $d.Leave.Remaining}} / {{half $d.Leave.Entitlement}}{{else}}–{{end}}</p></div>
+    </section>
+  </div>
+  {{end}}
+  {{if and (not $d.HasSchedule) (or (eq $d.Mode "schedule") (eq $d.Mode "plan"))}}
+  <div class="alert" data-variant="warning" role="note">{{template "icon-alert"}}<h2>{{t "home.noschedule"}}</h2>
+    <section><a class="underline underline-offset-4" href="/employers/{{$d.Employer.ID}}">{{t "home.noschedule.link"}}</a></section></div>
+  {{end}}
+
+  {{if eq $d.Mode "week_sum"}}{{template "mode-week-sum" $d}}{{end}}
+  {{if eq $d.Mode "schedule"}}{{template "mode-schedule" $d}}{{end}}
+  {{if eq $d.Mode "plan"}}{{template "mode-plan" $d}}{{end}}
+  {{if eq $d.Mode "exact"}}{{template "mode-exact" $d}}{{end}}
+  {{if eq $d.Mode "projects_only"}}{{template "mode-projects" $d}}{{end}}
+
+  {{if ne $d.Mode "week_sum"}}
+  <form method="post" action="/book/line" class="card" data-size="sm">
+    <header><h2 class="card-title">{{t "line.title"}}</h2><p class="card-description">{{t "line.lead"}}</p></header>
+    <section class="grid gap-2">
+      <input type="hidden" name="employer" value="{{$d.Employer.ID}}">
+      <input type="hidden" name="back" value="{{$d.Back}}">
+      <label class="sr-only" for="line">{{t "line.title"}}</label>
+      <input class="input" id="line" name="line" maxlength="500" autocomplete="off" autocapitalize="none" placeholder="{{t "line.placeholder"}}" data-line required>
+      <p class="text-muted-foreground text-xs" data-line-preview aria-live="polite"></p>
+      <button type="submit" class="btn">{{t "line.submit"}}</button>
+    </section>
+  </form>
+  {{end}}
+
+  {{if or (eq $d.Mode "schedule") (eq $d.Mode "plan") (eq $d.Mode "exact")}}
+  <details class="card" data-size="sm">
+    <summary class="cursor-pointer px-4 font-semibold">{{t "absence.title"}}</summary>
+    <form method="post" action="/book/absence" class="grid gap-3 px-4 pt-4">
+      <input type="hidden" name="employer" value="{{$d.Employer.ID}}">
+      <input type="hidden" name="back" value="{{$d.Back}}">
+      <div class="field" role="group"><label for="absence-type">{{t "absence.type"}}</label>
+        <select class="select w-full" id="absence-type" name="type">{{range $d.Types}}<option value="{{.Key}}">{{.Name}}</option>{{end}}</select></div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <div class="field" role="group"><label for="absence-from">{{t "absence.from"}}</label><input class="input" type="date" id="absence-from" name="from" value="{{$d.Today}}" required></div>
+        <div class="field" role="group"><label for="absence-to">{{t "absence.to"}}</label><input class="input" type="date" id="absence-to" name="to" value="{{$d.Today}}"></div>
+      </div>
+      <div class="field" data-orientation="horizontal" role="group"><input class="input" type="checkbox" id="absence-half" name="half"><label for="absence-half" class="font-normal">{{t "absence.half"}}</label></div>
+      <p class="text-muted-foreground text-xs">{{t "absence.health"}}</p>
+      <button type="submit" class="btn" data-variant="outline">{{t "absence.submit"}}</button>
+    </form>
+  </details>
+  {{end}}
+
+  {{if $d.Absences}}
+  <div class="card" data-size="sm">
+    <header><h2 class="card-title">{{t "absence.list"}}</h2></header>
+    <section class="grid gap-2">
+      {{range $d.Absences}}
+      <div class="flex items-center gap-2" data-absence>
+        <span class="badge" data-variant="secondary">{{.Name}}</span>
+        <span class="min-w-0 flex-1 text-sm tabular-nums">{{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}{{if .HalfDay}} · {{t "track.half"}}{{end}}{{if eq .Status "requested"}} · {{t "absence.requested"}}{{end}}</span>
+        <form method="post" action="/absences/{{.ID}}/remove" data-confirm="{{t "absence.remove.confirm"}}">
+          <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$d.Back}}">
+          <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
+        </form>
+      </div>
+      {{end}}
+    </section>
+  </div>
+  {{end}}
+</div>
+<dialog id="new-employer" class="dialog" aria-labelledby="new-employer-title">
+  <div>
+    <header><h2 id="new-employer-title">{{t "home.addemployer"}}</h2></header>
+    <section>{{template "employer-form" (newEmployerForm)}}</section>
+    <button type="button" class="btn btn-close" data-variant="ghost" aria-label="{{t "dialog.close"}}" data-close-dialog>{{template "icon-x"}}</button>
+  </div>
+</dialog>
+{{end}}
+
+{{define "mode-week-sum"}}
+<form method="post" action="/book/week" class="card">
+  <header><h2 class="card-title">{{t "weeksum.title"}}</h2><p class="card-description">{{t "weeksum.lead"}}</p></header>
+  <section class="grid gap-3">
+    <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+    <label class="label" for="week-hours">{{t "weeksum.hours"}}</label>
+    <input class="input text-2xl tabular-nums" id="week-hours" name="hours" inputmode="decimal" value="{{if .WeekMinutes}}{{hours .WeekMinutes}}{{end}}" placeholder="38:30" autocomplete="off">
+    <button type="submit" class="btn">{{t "action.save"}}</button>
+  </section>
+</form>
+{{if .Recent}}
+<div class="card" data-size="sm">
+  <header><h2 class="card-title">{{t "weeksum.recent"}}</h2></header>
+  <section class="grid gap-1">
+    {{range .Recent}}<div class="flex justify-between text-sm tabular-nums"><span>{{day .From}}</span><span>{{hours .Worked}}</span></div>{{end}}
+  </section>
+</div>
+{{end}}
+{{end}}
+
+{{define "day-head"}}
+<div class="flex flex-wrap items-center gap-2">
+  <span class="font-semibold">{{t (print "weekday." .Weekday)}}</span>
+  <span class="text-muted-foreground text-xs tabular-nums">{{day .Date}}</span>
+  {{if .IsToday}}<span class="badge" data-variant="outline">{{t "home.today"}}</span>{{end}}
+  {{if .Holiday}}<span class="badge" data-variant="secondary">{{template "icon-calendar"}}{{.Holiday}}</span>{{end}}
+  {{range .Absences}}<span class="badge" data-variant="secondary">{{.}}</span>{{end}}
+</div>
+{{end}}
+
+{{define "entries"}}
+{{if .Entries}}
+<ul class="grid gap-1">
+  {{range .Entries}}
+  <li class="flex items-center gap-2 text-sm" data-entry>
+    <span class="tabular-nums">{{if .Start}}{{.Start}}–{{.End}}{{else if eq .Kind "adjust"}}{{t "track.deviation"}} {{signed .Minutes}}{{else if eq .Kind "break"}}{{t "track.break"}} {{hours .Minutes}}{{else}}{{hours .Minutes}}{{end}}</span>
+    <span class="min-w-0 flex-1 truncate text-muted-foreground">{{.Project}}{{if .Note}} {{.Note}}{{end}}{{if .Tags}} {{.Tags}}{{end}}</span>
+    <form method="post" action="/entries/{{.ID}}/remove" data-confirm="{{t "entry.remove.confirm"}}">
+      <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$.Back}}">
+      <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
+    </form>
+  </li>
+  {{end}}
+</ul>
+{{end}}
+{{end}}
+
+{{define "mode-schedule"}}
+<form method="post" action="/book/days" class="card">
+  <header><h2 class="card-title">{{t "schedule.title"}}</h2><p class="card-description">{{t "schedule.lead"}}</p></header>
+  <section class="grid gap-3">
+    <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
+    {{$back := .Back}}
+    {{range .Days}}
+    <div class="grid gap-2 rounded-md border p-3" data-day="{{.Date}}">
+      {{template "day-head" .}}
+      <div class="flex items-center gap-2">
+        <label class="sr-only" for="day-{{.Date}}">{{t "schedule.hours"}}</label>
+        <input class="input w-24 tabular-nums" id="day-{{.Date}}" name="day-{{.Date}}" inputmode="decimal" value="{{.Input}}" placeholder="0:00" autocomplete="off">
+        <span class="min-w-0 flex-1 text-muted-foreground text-xs tabular-nums">{{t "schedule.target"}} {{hours .AdjustedTarget}} · {{t "schedule.actual"}} {{hours .Actual}}</span>
+        {{if not .Future}}<span class="font-semibold tabular-nums" data-balance>{{signed .Balance}}</span>{{end}}
+      </div>
+      {{template "entries" (entriesOf .Entries $back)}}
+    </div>
+    {{end}}
+    <div class="flex justify-between text-sm tabular-nums"><span>{{t "schedule.week"}}</span><span>{{hours .Total.Actual}} / {{hours .Total.AdjustedTarget}}</span></div>
+    <button type="submit" class="btn">{{t "action.save"}}</button>
+  </section>
+</form>
+{{end}}
+
+{{define "mode-plan"}}
+{{$d := .}}
+<div class="card">
+  <header><h2 class="card-title">{{t "plan.title"}}</h2><p class="card-description">{{t "plan.lead"}}</p></header>
+  <section class="grid gap-3">
+    {{range .Days}}
+    <div class="grid gap-2 rounded-md border p-3" data-day="{{.Date}}">
+      {{template "day-head" .}}
+      <p class="text-sm tabular-nums">{{if .FromPlan}}<span class="text-muted-foreground">{{t "plan.fromplan"}}</span> {{hours .Worked}}{{else}}{{t "schedule.actual"}} {{hours .Actual}}{{end}}{{if and .HasTarget (not .Future)}} · <span data-balance>{{signed .Balance}}</span>{{end}}{{if .Confirmed}} · {{template "icon-check-small"}} {{t "plan.confirmed"}}{{end}}</p>
+      {{template "entries" (entriesOf .Entries $d.Back)}}
+      {{if and .HasTarget (not .Future)}}
+      <div class="flex flex-wrap gap-2">
+        <form method="post" action="/book/absence"><input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="type" value="vacation"><input type="hidden" name="from" value="{{.Date}}">
+          <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "absence.vacation"}}</button></form>
+        <form method="post" action="/book/absence"><input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="type" value="sick"><input type="hidden" name="from" value="{{.Date}}">
+          <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "absence.sick"}}</button></form>
+        <details class="w-full" data-deviation>
+          <summary class="btn" data-variant="outline" data-size="sm">{{t "plan.deviation"}}</summary>
+          <form method="post" action="/book/adjust" class="mt-2 grid gap-2">
+            <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{.Date}}">
+            <div class="flex gap-2">
+              <label class="sr-only" for="dev-{{.Date}}">{{t "plan.howlong"}}</label>
+              <input class="input w-24 tabular-nums" id="dev-{{.Date}}" name="minutes" inputmode="decimal" placeholder="1:30" required autocomplete="off">
+              <label class="sr-only" for="dev-note-{{.Date}}">{{t "entry.note"}}</label>
+              <input class="input min-w-0 flex-1" id="dev-note-{{.Date}}" name="note" maxlength="200" placeholder="{{t "entry.note"}}">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="submit" name="direction" value="more" class="btn" data-variant="outline" data-size="sm" data-longer>{{t "plan.longer"}}</button>
+              <button type="submit" name="direction" value="less" class="btn" data-variant="outline" data-size="sm" data-earlier>{{t "plan.earlier"}}</button>
+            </div>
+          </form>
+        </details>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+  </section>
+  <footer class="flex-col gap-2">
+    {{if .Confirmed}}
+    <p class="text-sm" data-week-confirmed>{{template "icon-check-small"}} {{t "plan.week.confirmed"}}</p>
+    {{else if .PlanDays}}
+    <form method="post" action="/book/confirm" class="w-full"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+      <button type="submit" class="btn w-full" data-confirm-week>{{template "icon-check-small"}}{{t "plan.weekright"}}</button></form>
+    {{end}}
+    {{if .CanSettings}}
+    <form method="post" action="/book/exact" class="w-full" data-confirm="{{t "plan.exact.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+      <button type="submit" class="btn w-full" data-variant="ghost">{{t "plan.exact"}}</button></form>
+    {{end}}
+  </footer>
+</div>
+{{end}}
+
+{{define "mode-exact"}}
+{{$d := .}}
+<div class="card" data-timer>
+  <header><h2 class="card-title">{{t "timer.title"}}</h2></header>
+  <section class="grid gap-3">
+    {{if .Timer}}
+    <p class="text-3xl font-semibold tabular-nums" data-timer-elapsed data-started="{{.Timer.Started.Unix}}">{{hours .Timer.Elapsed}}</p>
+    <p class="text-muted-foreground text-sm">{{t "timer.since" .Timer.Since}}{{if .Timer.Project}} · {{.Timer.Project}}{{end}}{{if .Timer.Note}} · {{.Timer.Note}}{{end}}</p>
+    <form method="post" action="/timer/stop"><input type="hidden" name="back" value="{{.Back}}"><button type="submit" class="btn w-full" data-variant="destructive">{{t "timer.stop"}}</button></form>
+    {{else}}
+    <form method="post" action="/timer/start" class="grid gap-2">
+      <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
+      {{template "project-select" (projectChoice "timer-project" .AllProjects)}}
+      <label class="sr-only" for="timer-note">{{t "entry.note"}}</label>
+      <input class="input" id="timer-note" name="note" maxlength="200" placeholder="{{t "entry.note"}}">
+      <button type="submit" class="btn w-full">{{template "icon-play"}}{{t "timer.start"}}</button>
+    </form>
+    {{end}}
+  </section>
+</div>
+<details class="card" data-size="sm">
+  <summary class="cursor-pointer px-4 font-semibold">{{t "span.title"}}</summary>
+  <form method="post" action="/book/span" class="grid gap-3 px-4 pt-4">
+    <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
+    <div class="field" role="group"><label for="span-date">{{t "span.date"}}</label><input class="input" type="date" id="span-date" name="date" value="{{.Today}}" required></div>
+    <div class="grid gap-2 sm:grid-cols-3">
+      <div class="field" role="group"><label for="span-start">{{t "span.start"}}</label><input class="input" type="time" id="span-start" name="start" required></div>
+      <div class="field" role="group"><label for="span-end">{{t "span.end"}}</label><input class="input" type="time" id="span-end" name="end" required></div>
+      <div class="field" role="group"><label for="span-break">{{t "track.break"}}</label><input class="input" id="span-break" name="break" inputmode="decimal" placeholder="0:30"></div>
+    </div>
+    {{template "project-select" (projectChoice "span-project" .AllProjects)}}
+    <div class="field" role="group"><label for="span-note">{{t "entry.note"}}</label><input class="input" id="span-note" name="note" maxlength="200"></div>
+    <button type="submit" class="btn">{{t "span.submit"}}</button>
+  </form>
+</details>
+<div class="card" data-size="sm">
+  <header><h2 class="card-title">{{t "exact.week"}}</h2></header>
+  <section class="grid gap-3">
+    {{range .Days}}
+    {{if or .Entries .Holiday .Absences .IsToday}}
+    <div class="grid gap-1" data-day="{{.Date}}">
+      <div class="flex items-center justify-between gap-2">{{template "day-head" .}}<span class="font-semibold tabular-nums">{{hours .Actual}}</span></div>
+      {{template "entries" (entriesOf .Entries $d.Back)}}
+    </div>
+    {{end}}
+    {{end}}
+    <div class="flex justify-between border-t pt-2 text-sm tabular-nums"><span>{{t "schedule.week"}}</span><span>{{hours .Total.Actual}}{{if .HasTarget}} / {{hours .Total.AdjustedTarget}}{{end}}</span></div>
+    {{range .Projects}}{{if .Minutes}}<div class="flex justify-between text-muted-foreground text-xs tabular-nums"><span>{{.Project.Name}}</span><span>{{hours .Minutes}}</span></div>{{end}}{{end}}
+  </section>
+</div>
+{{end}}
+
+{{define "mode-projects"}}
+<form method="post" action="/book/projects" class="card">
+  <header><h2 class="card-title">{{t "projects.title"}}</h2><p class="card-description">{{t "projects.lead"}}</p></header>
+  <section class="grid gap-3">
+    <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+    {{range .Projects}}
+    <div class="flex items-center gap-2" data-project-row>
+      <label class="min-w-0 flex-1 truncate" for="project-{{.Project.ID}}">{{.Project.Name}}</label>
+      <input class="input w-24 tabular-nums" id="project-{{.Project.ID}}" name="project-{{.Project.ID}}" inputmode="decimal" value="{{.Input}}" placeholder="0:00" autocomplete="off">
+    </div>
+    {{else}}
+    <p class="text-muted-foreground text-sm">{{t "projects.none"}}</p>
+    {{end}}
+    <div class="flex justify-between border-t pt-2 text-sm tabular-nums"><span>{{t "schedule.week"}}</span><span>{{hours .Total.Worked}}</span></div>
+    {{if .Projects}}<button type="submit" class="btn">{{t "action.save"}}</button>{{end}}
+  </section>
+</form>
+<form method="post" action="/employers/{{.Employer.ID}}/project" class="card" data-size="sm">
+  <section class="flex items-center gap-2">
+    <input type="hidden" name="back" value="{{.Back}}">
+    <label class="sr-only" for="new-project">{{t "projects.new"}}</label>
+    <input class="input min-w-0 flex-1" id="new-project" name="name" maxlength="200" placeholder="{{t "projects.new"}}" required>
+    <button type="submit" class="btn" data-variant="outline">{{template "icon-plus"}}{{t "projects.add"}}</button>
+  </section>
+</form>
 {{end}}

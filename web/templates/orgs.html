@@ -1,0 +1,38 @@
+{{define "content"}}
+{{$d := .Data}}
+<h1 class="text-2xl font-bold">{{t "orgs.title"}}</h1>
+<p class="mt-2 text-muted-foreground text-sm">{{t "orgs.lead"}}</p>
+<div class="mt-4 grid gap-4">
+  {{range $d.Orgs}}
+  <div class="card" data-org="{{.Org.ID}}">
+    <header><h2 class="card-title">{{.Org.Name}}</h2><p class="card-description">{{if .Admin}}{{t "orgs.role.admin"}}{{else}}{{t "orgs.role.member"}}{{end}} · {{t "orgs.since" (day .Membership.From)}}</p></header>
+    <section class="grid gap-2 text-sm">
+      <p class="font-medium">{{t "orgs.info.title"}}</p>
+      <ul class="grid gap-1 text-muted-foreground">
+        <li>{{t "orgs.info.what"}}</li>
+        <li>{{t "orgs.info.who"}}</li>
+        <li>{{t "orgs.info.why"}}</li>
+        <li>{{t "orgs.info.private"}}</li>
+        {{if .Org.Features.SupervisorView}}<li class="font-medium">{{t "orgs.info.supervisor"}}</li>{{end}}
+      </ul>
+    </section>
+    {{if .Admin}}<footer><a class="btn" data-variant="outline" href="/orgs/{{.Org.ID}}">{{t "orgs.manage"}}</a></footer>{{end}}
+  </div>
+  {{else}}
+  <p class="text-muted-foreground text-sm">{{t "orgs.none"}}</p>
+  {{end}}
+  {{if $d.CanCreate}}
+  <form method="post" action="/orgs" class="card">
+    <header><h2 class="card-title">{{t "orgs.create"}}</h2><p class="card-description">{{t "orgs.create.lead"}}</p></header>
+    <section class="grid gap-4">
+      <input type="hidden" name="back" value="/orgs">
+      <div class="field" role="group"><label for="org-name">{{t "employer.name"}}</label><input class="input" id="org-name" name="name" maxlength="200" required></div>
+      <div class="field" role="group"><label for="org-region">{{t "employer.region"}}</label>
+        <select class="select w-full" id="org-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range $d.Regions}}<option value="{{.}}">{{.}}</option>{{end}}</select></div>
+    </section>
+    <footer><button type="submit" class="btn">{{t "orgs.create.submit"}}</button></footer>
+  </form>
+  {{end}}
+  <p class="text-center text-muted-foreground text-xs">{{t "legal.footer"}}</p>
+</div>
+{{end}}

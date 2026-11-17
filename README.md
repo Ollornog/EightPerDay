@@ -5,8 +5,8 @@
 
 **Time tracking that adapts to how you work, not the other way round.**
 
-> **Status: early.** The core library is there ([docs/core-api.md](docs/core-api.md)); the standalone program with its
-> web interface is being built, see [`backlog/`](backlog/).
+> **Status: early.** The core library is there ([docs/core-api.md](docs/core-api.md)), and the standalone program runs
+> with every mode in its web interface; no release yet, see [`backlog/`](backlog/).
 
 ## Why
 
@@ -55,6 +55,15 @@ screen. [`compose.yaml`](compose.yaml) is an example with the database. Configur
 | `EIGHTPERDAY_ADDR`, `EIGHTPERDAY_HEALTH_ADDR` | where the interface and the health endpoint listen (`127.0.0.1:8080`, `127.0.0.1:8081`) |
 | `EIGHTPERDAY_TRUSTED_PROXIES` | networks whose `X-Forwarded-For` and gate headers are believed |
 | `EIGHTPERDAY_GATE_USER_HEADER` and `…_NAME_HEADER`, `…_GROUPS_HEADER`, `…_ADMIN_GROUP` | optional: trust a sign-in gate in front |
+
+**Using it.** Each person adds employers, clients or private work and picks per employer how exactly to track; the week
+view follows the mode: one field for the weekly total, hours per day against the schedule, the plan with quick
+buttons for leave, sickness and deviations and "the week is right", a stopwatch and spans for exact time, or hours per
+project. A free-text line (`8-16:30 30m Pause`, `Fr -2h früher weg`, `Mo-Mi Urlaub`) works in every view and says
+what it understood while it is typed. Reports show balance, time account, leave and earnings per employer and month,
+and the person's own hints on the Working Hours Act; everything about a person can be exported as JSON or CSV.
+Organizations manage members, schedule templates and pay; they see only what belongs to them, never a member's
+private employers, and their company features are off unless switched on with a works agreement.
 
 **Signing in.** There is no sign-up. At its first start the program prints a one-time link for the first account,
 which administers the program; `eightperday link [--admin] [<name>]` prints an invitation at the console, and

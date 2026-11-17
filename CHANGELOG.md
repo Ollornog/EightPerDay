@@ -38,3 +38,11 @@ All notable changes to this project are documented in this file. The format foll
   installable, in English and German, with an about dialog that names the logo's author and a page with the licenses
   of everything inside the binary (`scripts/third-party-licenses.sh`).
 - A browser test in a real Chrome on the screen of a phone, with touch input and a virtual passkey authenticator.
+- The time tracking views (M-2, part two), on the core library and its PostgreSQL store: an employer switcher and a
+  start page; per mode a week view (weekly total; hours per day with target and balance; the plan with leave, sickness,
+  deviations, "the week is right" and the switch to exact for one week; a server-side stopwatch and spans for exact
+  time; hours per project); a free-text line with a live preview; absences; employer settings with mode changes,
+  schedules, pay rules and projects, each with a valid-from date; monthly reports with balance, time account, leave,
+  earnings and the person's own hints on the Working Hours Act; export as JSON and CSV; organizations with members,
+  roles, schedule templates and the presence view as a company feature that needs a works agreement and a
+  confirmation.

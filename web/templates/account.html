@@ -125,6 +125,7 @@
       <form method="post" action="/logout">
         <button type="submit" class="btn" data-variant="outline">{{template "icon-logout"}}{{t "account.logout"}}</button>
       </form>
+      <a href="/orgs" class="btn" data-variant="outline">{{template "icon-building"}}{{t "orgs.title"}}</a>
       {{if .Account.Admin}}
       <a href="/admin" class="btn" data-variant="outline">{{template "icon-users"}}{{t "admin.title"}}</a>
       {{end}}

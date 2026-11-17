@@ -5,8 +5,8 @@
 
 **Zeiterfassung, die sich nach deiner Arbeit richtet, nicht umgekehrt.**
 
-> **Stand: früh.** Die Kernbibliothek steht ([docs/core-api.md](../docs/core-api.md), Englisch); das eigenständige
-> Programm mit Weboberfläche entsteht, siehe [`backlog/`](../backlog/).
+> **Stand: früh.** Die Kernbibliothek steht ([docs/core-api.md](../docs/core-api.md), Englisch), und das eigenständige
+> Programm läuft mit allen Betriebsarten in seiner Weboberfläche; noch kein Release, siehe [`backlog/`](../backlog/).
 
 ## Warum
 
@@ -58,6 +58,16 @@ Umgebung:
 | `EIGHTPERDAY_ADDR`, `EIGHTPERDAY_HEALTH_ADDR` | wo Oberfläche und Gesundheitsprüfung lauschen (`127.0.0.1:8080`, `127.0.0.1:8081`) |
 | `EIGHTPERDAY_TRUSTED_PROXIES` | Netze, deren `X-Forwarded-For` und Gateway-Kopfzeilen geglaubt werden |
 | `EIGHTPERDAY_GATE_USER_HEADER` und `…_NAME_HEADER`, `…_GROUPS_HEADER`, `…_ADMIN_GROUP` | wahlweise: einem Anmelde-Gateway davor vertrauen |
+
+**Bedienung.** Jede Person legt Arbeitgeber, Auftraggeber oder Privates an und wählt je Arbeitgeber, wie genau sie
+erfasst; die Wochenansicht folgt der Betriebsart: ein Feld für die Wochensumme, Stunden je Tag gegen die Vorlage, der
+Plan mit Schnellknöpfen für Urlaub, Krankheit und Abweichungen und „Woche stimmt“, Stoppuhr und Zeitspannen für die
+genaue Erfassung oder Stunden je Projekt. Eine Freitext-Zeile (`8-16:30 30m Pause`, `Fr -2h früher weg`, `Mo-Mi
+Urlaub`) geht in jeder Ansicht und sagt beim Tippen, was sie verstanden hat. Berichte zeigen Saldo, Zeitkonto, Urlaub
+und Verdienst je Arbeitgeber und Monat sowie die eigenen Hinweise zum Arbeitszeitgesetz; alles über eine Person lässt
+sich als JSON oder CSV exportieren. Organisationen verwalten Mitglieder, Zeitmodell-Vorlagen und Vergütung; sie sehen
+nur, was ihnen gehört, nie die privaten Arbeitgeber eines Mitglieds, und ihre Firmenfunktionen sind aus, bis sie mit
+Betriebsvereinbarung eingeschaltet werden.
 
 **Anmeldung.** Es gibt keine Selbstregistrierung. Beim ersten Start schreibt das Programm einen Einmal-Link für das erste
 Konto, das das Programm verwaltet; `eightperday link [--admin] [<name>]` erzeugt an der Konsole eine Einladung, und

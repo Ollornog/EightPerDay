@@ -4,6 +4,8 @@
 #   docker compose up -d && docker compose logs eightperday    # the first start prints the link for the first account
 #
 # scripts/check-image.sh starts the image against the database image named here, so Dependabot's update of it is tested.
+# The program has one tenant, so row-level security separates nothing here; it matters when the core library is
+# embedded with several tenants (docs/core-api.md).
 services:
   eightperday:
     build: .

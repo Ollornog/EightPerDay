@@ -1,0 +1,119 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="flex items-center gap-2">
+  <a class="btn" data-variant="ghost" data-size="icon-sm" href="/orgs" aria-label="{{t "action.back"}}">{{template "icon-left"}}</a>
+  <h1 class="min-w-0 flex-1 truncate text-2xl font-bold">{{$d.Org.Name}}</h1>
+</div>
+<div class="mt-4 grid gap-4">
+  {{if $d.ShowPresence}}
+  <div class="card" data-presence>
+    <header><h2 class="card-title">{{t "org.presence"}}</h2><p class="card-description">{{t "org.presence.lead"}}</p></header>
+    <section class="grid gap-1 text-sm">
+      {{range $d.Presence}}<div class="flex justify-between"><span>{{.Name}}</span><span>{{if .Absent}}{{t "org.absent"}}{{else if .Present}}{{t "org.present"}}{{else}}–{{end}}</span></div>{{else}}<p class="text-muted-foreground">{{t "org.members.none"}}</p>{{end}}
+    </section>
+  </div>
+  {{end}}
+
+  <div class="card">
+    <header><h2 class="card-title">{{t "org.members"}}</h2><p class="card-description">{{t "org.members.lead"}}</p></header>
+    <section class="grid gap-3">
+      {{range $d.Members}}
+      <div class="grid gap-2 rounded-md border p-3" data-member="{{.Person}}">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-medium">{{.Name}}</span>
+          {{if eq .Role "admin"}}<span class="badge" data-variant="secondary">{{t "orgs.role.admin"}}</span>{{end}}
+          {{if not .Active}}<span class="badge" data-variant="outline">{{t "org.ended" (day .Until)}}</span>{{end}}
+        </div>
+        <p class="text-muted-foreground text-xs">{{t "orgs.since" (day .From)}}{{if not .EmployerID}} · {{t "org.norecords"}}{{end}}</p>
+        {{if .Active}}
+        <div class="flex flex-wrap gap-2">
+          {{if .EmployerID}}<a class="btn" data-variant="outline" data-size="sm" href="/employers/{{.EmployerID}}?owner={{.Person}}">{{t "org.member.settings"}}</a>{{end}}
+          <form method="post" action="/orgs/{{$d.Org.ID}}/role"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="membership" value="{{.ID}}">
+            {{if eq .Role "admin"}}<input type="hidden" name="role" value="member"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.member"}}</button>{{else}}<input type="hidden" name="role" value="admin"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.admin"}}</button>{{end}}</form>
+          <form method="post" action="/orgs/{{$d.Org.ID}}/end" data-confirm="{{t "org.end.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="membership" value="{{.ID}}"><input type="hidden" name="until" value="{{$d.Today}}">
+            <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "org.end"}}</button></form>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+      {{if $d.Candidates}}
+      <details>
+        <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "org.add"}}</summary>
+        <form method="post" action="/orgs/{{$d.Org.ID}}/member" class="mt-3 grid gap-3">
+          <input type="hidden" name="back" value="{{$d.Back}}">
+          <div class="field" role="group"><label for="member-person">{{t "org.add.person"}}</label>
+            <select class="select w-full" id="member-person" name="person">{{range $d.Candidates}}<option value="{{.ID}}">{{.DisplayName}} ({{.Username}})</option>{{end}}</select>
+            <p class="text-muted-foreground text-xs">{{t "org.add.hint"}}</p></div>
+          <div class="field" role="group"><label for="member-role">{{t "org.add.role"}}</label>
+            <select class="select w-full" id="member-role" name="role"><option value="member">{{t "orgs.role.member"}}</option><option value="admin">{{t "orgs.role.admin"}}</option></select></div>
+          <div class="field" role="group"><label for="member-template">{{t "org.add.template"}}</label>
+            <select class="select w-full" id="member-template" name="template"><option value="">{{t "org.add.notemplate"}}</option>{{range $d.Org.Templates}}<option value="{{.Name}}">{{.Name}}</option>{{end}}</select></div>
+          <div class="field" role="group"><label for="member-from">{{t "employer.validfrom"}}</label><input class="input" type="date" id="member-from" name="from" value="{{$d.Today}}"></div>
+          <div class="field" data-orientation="horizontal" role="group"><input class="input" type="checkbox" id="member-records" name="records" checked><label for="member-records" class="font-normal">{{t "org.add.records"}}</label></div>
+          <button type="submit" class="btn">{{t "org.add.submit"}}</button>
+        </form>
+      </details>
+      {{end}}
+    </section>
+  </div>
+
+  <div class="card">
+    <header><h2 class="card-title">{{t "org.templates"}}</h2><p class="card-description">{{t "org.templates.lead"}}</p></header>
+    <section class="grid gap-3">
+      {{range $d.Org.Templates}}
+      <div class="flex items-center gap-2 text-sm" data-template><span class="min-w-0 flex-1">{{.Name}} · {{t (print "mode." .Mode)}}</span>
+        <form method="post" action="/orgs/{{$d.Org.ID}}/remove-template" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="name" value="{{.Name}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form></div>
+      {{end}}
+      <details>
+        <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "org.templates.add"}}</summary>
+        <form method="post" action="/orgs/{{$d.Org.ID}}/template" class="mt-3 grid gap-3">
+          <input type="hidden" name="back" value="{{$d.Back}}">
+          <div class="field" role="group"><label for="tpl-name">{{t "employer.name"}}</label><input class="input" id="tpl-name" name="name" maxlength="200" placeholder="{{t "org.templates.example"}}" required></div>
+          <div class="field" role="group"><label for="tpl-mode">{{t "employer.mode"}}</label>
+            <select class="select w-full" id="tpl-mode" name="mode">{{range $d.Modes}}<option value="{{.}}">{{t (print "mode." .)}}</option>{{end}}</select></div>
+          {{range $d.Weekdays}}
+          <div class="flex items-center gap-2"><label class="w-16 font-medium" for="tpl-hours-{{.}}">{{t (print "weekday." .)}}</label><input class="input w-24 tabular-nums" id="tpl-hours-{{.}}" name="hours-{{.}}" inputmode="decimal" placeholder="0:00"></div>
+          {{end}}
+          <div class="grid gap-2 sm:grid-cols-2">
+            <div class="field" role="group"><label for="tpl-leave">{{t "employer.leavedays"}}</label><input class="input" id="tpl-leave" name="leave_days" inputmode="decimal" placeholder="30"></div>
+            <div class="field" role="group"><label for="tpl-basis">{{t "employer.basis"}}</label><select class="select w-full" id="tpl-basis" name="basis"><option value="week">{{t "basis.week"}}</option><option value="day">{{t "basis.day"}}</option><option value="month">{{t "basis.month"}}</option></select></div>
+          </div>
+          <button type="submit" class="btn">{{t "org.templates.save"}}</button>
+        </form>
+      </details>
+    </section>
+  </div>
+
+  <form method="post" action="/orgs/{{$d.Org.ID}}/features" class="card" data-features>
+    <header><h2 class="card-title">{{t "org.features"}}</h2><p class="card-description">{{if $d.Org.Features.Any}}{{t "org.features.on"}}{{else}}{{t "org.features.off"}}{{end}}</p></header>
+    <section class="grid gap-3 text-sm">
+      <input type="hidden" name="back" value="{{$d.Back}}">
+      <p>{{t "legal.activate.lead"}}</p>
+      <ul class="grid gap-1 text-muted-foreground">
+        <li>{{t "legal.activate.council"}}</li>
+        <li>{{t "legal.activate.informed"}}</li>
+        <li>{{t "legal.activate.documented"}}</li>
+        <li>{{t "legal.activate.processor"}}</li>
+      </ul>
+      <div class="field" data-orientation="horizontal" role="group"><input class="input" type="checkbox" id="feature-supervisor" name="supervisor_view"{{if $d.Org.Features.SupervisorView}} checked{{end}}><label for="feature-supervisor" class="font-normal">{{t "org.features.supervisor"}}</label></div>
+      <p class="text-muted-foreground text-xs">{{t "legal.supervisor"}}</p>
+      <div class="field" role="group"><label for="feature-agreement">{{t "org.features.agreement"}}</label><input class="input" id="feature-agreement" name="agreement" value="{{$d.Org.Features.Agreement}}" maxlength="500" placeholder="{{t "org.features.agreement.placeholder"}}"></div>
+      <div class="field" data-orientation="horizontal" role="group"><input class="input" type="checkbox" id="feature-confirm" name="confirm"><label for="feature-confirm" class="font-normal">{{t "legal.activate.confirm"}}</label></div>
+      {{if $d.Org.Features.ConfirmedAt}}<p class="text-muted-foreground text-xs">{{t "org.features.confirmed" (day (dateOf $d.Org.Features.ConfirmedAt))}}</p>{{end}}
+    </section>
+    <footer><button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button></footer>
+  </form>
+
+  <form method="post" action="/orgs/{{$d.Org.ID}}/details" class="card">
+    <header><h2 class="card-title">{{t "employer.details"}}</h2></header>
+    <section class="grid gap-4">
+      <input type="hidden" name="back" value="{{$d.Back}}">
+      <div class="field" role="group"><label for="org-name">{{t "employer.name"}}</label><input class="input" id="org-name" name="name" value="{{$d.Org.Name}}" maxlength="200" required></div>
+      <div class="field" role="group"><label for="org-region">{{t "employer.region"}}</label>
+        <select class="select w-full" id="org-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range $d.Regions}}<option value="{{.}}"{{if eq . $d.Org.Region}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+    </section>
+    <footer><button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button></footer>
+  </form>
+  <p class="text-center text-muted-foreground text-xs">{{t "legal.footer"}}</p>
+</div>
+{{end}}

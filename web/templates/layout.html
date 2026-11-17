@@ -47,7 +47,7 @@
   {{end}}
   {{if .Account}}
   <nav class="epd-tabbar border-t bg-card" aria-label="{{t "nav.label"}}">
-    <div class="mx-auto grid w-full max-w-3xl grid-cols-2 gap-1 px-2 py-2">
+    <div class="mx-auto grid w-full max-w-3xl grid-cols-3 gap-1 px-2 py-2">
       {{template "navlinks" .}}
     </div>
   </nav>
@@ -73,6 +73,7 @@
 
 {{define "navlinks"}}
 {{if eq .Path "/"}}<a href="/" class="btn bg-accent text-accent-foreground" data-variant="ghost" data-size="sm" aria-current="page">{{else}}<a href="/" class="btn" data-variant="ghost" data-size="sm">{{end}}{{template "icon-clock"}}<span>{{t "nav.time"}}</span></a>
+{{if eq .Path "/reports"}}<a href="/reports" class="btn bg-accent text-accent-foreground" data-variant="ghost" data-size="sm" aria-current="page">{{else}}<a href="/reports" class="btn" data-variant="ghost" data-size="sm">{{end}}{{template "icon-chart"}}<span>{{t "nav.reports"}}</span></a>
 {{if eq .Path "/account"}}<a href="/account" class="btn bg-accent text-accent-foreground" data-variant="ghost" data-size="sm" aria-current="page">{{else}}<a href="/account" class="btn" data-variant="ghost" data-size="sm">{{end}}{{template "icon-user"}}<span>{{t "nav.account"}}</span></a>
 {{end}}
 
@@ -122,6 +123,44 @@
 </dialog>
 {{end}}
 
+{{define "project-select"}}
+<div class="field" role="group"><label for="{{.ID}}">{{t "entry.project"}}</label>
+  <select class="select w-full" id="{{.ID}}" name="project"><option value="">{{t "entry.noproject"}}</option>{{range .Projects}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></div>
+{{end}}
+
+{{define "employer-form"}}
+<form method="post" action="/employers" class="grid gap-4" data-employer-form>
+  <input type="hidden" name="back" value="/">
+  <div class="field" role="group"><label for="new-name">{{t "employer.name"}}</label><input class="input" id="new-name" name="name" maxlength="200" placeholder="{{t "start.name.placeholder"}}" required></div>
+  <div class="field" role="group"><label for="new-kind">{{t "employer.kind"}}</label>
+    <select class="select w-full" id="new-kind" name="kind">{{range .Kinds}}<option value="{{.}}">{{t (print "kind." .)}}</option>{{end}}</select></div>
+  <fieldset class="grid gap-3">
+    <legend class="label mb-2">{{t "employer.mode.choose"}}</legend>
+    {{range .Modes}}
+    <label class="flex items-start gap-3" for="new-mode-{{.}}">
+      <input class="input" type="radio" id="new-mode-{{.}}" name="mode" value="{{.}}"{{if eq . "plan"}} checked{{end}}>
+      <span class="grid gap-0.5"><span class="font-medium">{{t (print "mode." .)}}</span><span class="text-muted-foreground text-xs">{{t (print "mode." . ".hint")}}</span></span>
+    </label>
+    {{end}}
+  </fieldset>
+  <div class="grid grid-cols-2 gap-2">
+    <div class="field" role="group"><label for="new-hours">{{t "start.hours"}}</label><input class="input tabular-nums" id="new-hours" name="weekday_hours" inputmode="decimal" placeholder="8:00"></div>
+    <div class="field" role="group"><label for="new-leave">{{t "employer.leavedays"}}</label><input class="input tabular-nums" id="new-leave" name="leave_days" inputmode="decimal" placeholder="30"></div>
+  </div>
+  <p class="text-muted-foreground text-xs">{{t "start.hours.hint"}}</p>
+  <div class="field" role="group"><label for="new-region">{{t "employer.region"}}</label>
+    <select class="select w-full" id="new-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range .Regions}}<option value="{{.}}">{{.}}</option>{{end}}</select></div>
+  <button type="submit" class="btn">{{t "start.submit"}}</button>
+</form>
+{{end}}
+
+{{define "icon-settings"}}<svg data-icon-lu="settings-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>{{end}}
+{{define "icon-left"}}<svg data-icon-lu="chevron-left" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>{{end}}
+{{define "icon-right"}}<svg data-icon-lu="chevron-right" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>{{end}}
+{{define "icon-calendar"}}<svg data-icon-lu="calendar" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>{{end}}
+{{define "icon-check-small"}}<svg data-icon-lu="check" class="inline size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>{{end}}
+{{define "icon-play"}}<svg data-icon-lu="play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>{{end}}
+{{define "icon-building"}}<svg data-icon-lu="building-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>{{end}}
 {{define "icon-x"}}<svg data-icon-lu="x" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>{{end}}
 {{define "icon-info"}}<svg data-icon-lu="info" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>{{end}}
 {{define "icon-check"}}<svg data-icon-lu="circle-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>{{end}}

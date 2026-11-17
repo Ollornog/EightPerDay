@@ -210,6 +210,47 @@
     });
   }
 
+  // ---- A form that shows something else as soon as a choice changes, such as the employer of the week.
+  document.addEventListener("change", (event) => {
+    const form = event.target.closest?.("form[data-autosubmit]");
+    if (form) form.requestSubmit();
+  });
+
+  // ---- The free-text line says what it understood while it is typed. The server parses; this only shows it.
+  for (const input of document.querySelectorAll("input[data-line]")) {
+    const preview = input.form.querySelector("[data-line-preview]");
+    let timer = null;
+    let asked = 0;
+    input.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const line = input.value.trim();
+        const mine = ++asked;
+        if (!line) {
+          preview.textContent = "";
+          return;
+        }
+        try {
+          const answer = await fetch("/api/parse?line=" + encodeURIComponent(line), { credentials: "same-origin" });
+          const data = await answer.json();
+          if (mine === asked) preview.textContent = data.error || data.text || "";
+        } catch { /* offline: the line is checked when it is sent */ }
+      }, 250);
+    });
+  }
+
+  // ---- The stopwatch runs on the server; the page only counts along.
+  const elapsed = document.querySelector("[data-timer-elapsed]");
+  if (elapsed) {
+    const started = Number(elapsed.dataset.started) * 1000;
+    const tick = () => {
+      const minutes = Math.max(0, Math.floor((Date.now() - started) / 60000));
+      elapsed.textContent = Math.floor(minutes / 60) + ":" + String(minutes % 60).padStart(2, "0");
+    };
+    tick();
+    setInterval(tick, 15000);
+  }
+
   // ---- Installable on a phone: the service worker keeps the assets of this build.
   if ("serviceWorker" in navigator && window.isSecureContext) {
     navigator.serviceWorker.register("/sw.js").catch(() => { /* a browser that refuses still works */ });

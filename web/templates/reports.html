@@ -1,0 +1,50 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="flex items-center justify-between gap-2">
+  <a class="btn" data-variant="ghost" data-size="icon-sm" href="/reports?month={{printf "%04d-%02d" $d.Prev.Year $d.Prev.Month}}" aria-label="{{t "reports.prev"}}">{{template "icon-left"}}</a>
+  <h1 class="text-xl font-bold tabular-nums">{{t (print "month." (printf "%d" $d.From.Month))}} {{$d.From.Year}}</h1>
+  <a class="btn" data-variant="ghost" data-size="icon-sm" href="/reports?month={{printf "%04d-%02d" $d.Next.Year $d.Next.Month}}" aria-label="{{t "reports.next"}}">{{template "icon-right"}}</a>
+</div>
+<div class="mt-4 grid gap-4">
+  {{if $d.Hints}}
+  <div class="alert" data-variant="warning" role="note" data-hints>
+    {{template "icon-alert"}}<h2>{{t "reports.hints.title"}}</h2>
+    <section class="grid gap-1">
+      <p class="text-xs">{{t "reports.hints.lead"}}</p>
+      <ul class="grid gap-1 text-sm">{{range $d.Hints}}<li>{{day .Date}}: {{t (print "hint." .Code) (hours .Minutes)}}</li>{{end}}</ul>
+    </section>
+  </div>
+  {{end}}
+  {{range $d.Employers}}
+  <div class="card" data-report="{{.Employer.ID}}">
+    <header><h2 class="card-title">{{.Employer.Name}}</h2><p class="card-description">{{t (print "mode." .Mode)}}</p></header>
+    <section class="grid gap-2 text-sm">
+      <div class="flex justify-between tabular-nums"><span>{{t "reports.worked"}}</span><span data-worked>{{hours .Total.Worked}}</span></div>
+      {{if .HasTarget}}
+      <div class="flex justify-between tabular-nums"><span>{{t "reports.target"}}</span><span>{{hours .Total.AdjustedTarget}}</span></div>
+      <div class="flex justify-between tabular-nums"><span>{{t "reports.balance"}}</span><span class="font-semibold">{{signed .Total.Balance}}</span></div>
+      <div class="flex justify-between tabular-nums"><span>{{t "reports.account"}}</span><span>{{signed .Account.Balance}}</span></div>
+      {{end}}
+      {{if .HasLeave}}<div class="flex justify-between tabular-nums"><span>{{t "reports.leave"}}</span><span>{{half .Leave.Taken}} / {{half .Leave.Entitlement}} · {{t "reports.remaining"}} {{half .Leave.Remaining}}</span></div>{{end}}
+      {{range .Projects}}<div class="flex justify-between text-muted-foreground tabular-nums"><span>{{.Project.Name}}</span><span>{{hours .Minutes}}</span></div>{{end}}
+      {{if .Earnings}}
+      <div class="mt-2 border-t pt-2">
+        <p class="font-medium">{{t "reports.earnings"}}</p>
+        {{range .Earnings}}<div class="flex justify-between text-muted-foreground tabular-nums"><span>{{t (print "pay." .Basis)}}{{if .Project}} · {{.Project}}{{end}}</span><span>{{.Amount}}</span></div>{{end}}
+        {{range .Totals}}<div class="flex justify-between font-semibold tabular-nums" data-earnings><span>{{t "reports.total"}}</span><span>{{money .Cents .Currency}}</span></div>{{end}}
+      </div>
+      {{end}}
+    </section>
+  </div>
+  {{else}}
+  <p class="text-muted-foreground text-sm">{{t "reports.none"}}</p>
+  {{end}}
+  <div class="card" data-size="sm">
+    <header><h2 class="card-title">{{t "reports.export"}}</h2><p class="card-description">{{t "reports.export.lead"}}</p></header>
+    <section class="flex flex-wrap gap-2">
+      <a class="btn" data-variant="outline" href="/export/json" download>JSON</a>
+      <a class="btn" data-variant="outline" href="/export/csv" download>CSV</a>
+    </section>
+  </div>
+</div>
+{{end}}
