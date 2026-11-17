@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"net/http"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Ollornog/EightPerDay/core"
@@ -40,6 +42,8 @@ type earningView struct {
 	Project string
 	Amount  string
 	Rate    string
+	// Label says what the line pays for: the basis, and for a paid absence or a surcharge its reason.
+	Label string
 }
 
 type moneyTotal struct {
@@ -100,7 +104,8 @@ func (h *handler) reports(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, line := range earnings.Lines {
 			e.Earnings = append(e.Earnings, earningView{EarningLine: line, Project: projectName(cat, line.ProjectID),
-				Amount: formatMoney(lang, line.Amount, line.Currency), Rate: formatMoney(lang, line.Rate, line.Currency)})
+				Amount: formatMoney(lang, line.Amount, line.Currency), Rate: formatMoney(lang, line.Rate, line.Currency),
+				Label: h.earningLabel(r, cat, emp.ID, line)})
 		}
 		for _, p := range projectsOf(cat, emp.ID) {
 			if minutes := e.Total.Projects[p.ID]; minutes > 0 {
@@ -118,6 +123,40 @@ func (h *handler) reports(w http.ResponseWriter, r *http.Request) {
 		d.MaxWeek = max(d.MaxWeek, week.Worked)
 	}
 	h.render(w, r, http.StatusOK, "reports", view{Title: h.t(r, "reports.title"), Data: d})
+}
+
+// earningLabel names a line of the earnings: "Hourly", "Paid absence: Leave", "Surcharge night 25 %".
+func (h *handler) earningLabel(r *http.Request, cat core.Catalog, employerID string, line core.EarningLine) string {
+	label := h.t(r, "pay."+string(line.Basis))
+	switch line.Basis {
+	case core.PayAbsence:
+		name := h.t(r, "absence.public_holiday")
+		if line.Reason != core.PublicHolidayPay {
+			name = line.Reason
+			for _, t := range cat.AbsenceTypesFor(employerID) {
+				if t.Key == line.Reason {
+					name = h.absenceName(r, t)
+				}
+			}
+		}
+		label += ": " + name
+	case core.PaySurcharge:
+		label += ": " + h.t(r, "surcharge."+line.Reason) + " " + formatPercent(h.lang(r), line.BasisPoints)
+	}
+	return label
+}
+
+// formatPercent writes basis points as a percentage: 2500 is "25 %", 1250 "12,5 %" in German.
+func formatPercent(lang string, basisPoints int) string {
+	whole, rest := strconv.Itoa(basisPoints/100), basisPoints%100
+	if rest != 0 {
+		separator := "."
+		if lang == "de" {
+			separator = ","
+		}
+		whole += separator + strings.TrimRight(leftPad(rest), "0")
+	}
+	return whole + " %"
 }
 
 // totals sums the earnings of a report per currency, for the line at the bottom.

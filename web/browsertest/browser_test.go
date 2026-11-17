@@ -446,15 +446,22 @@ func (b *browser) rect(selector string) box {
 // and the topmost thing at that point: a covered control cannot be tapped.
 func (b *browser) tap(selector string) {
 	b.t.Helper()
-	// A thumb waits until what it aims at has come to rest, such as a section that opens with an animation.
-	var r box
+	// A thumb waits until the page has come to rest, such as a section that opens with an animation (C22 lets details
+	// grow): no transition running, the same place twice in a row, and on top there. A field that still slides would
+	// take the touch somewhere else.
+	var r, before box
 	for deadline := time.Now().Add(2 * time.Second); ; time.Sleep(50 * time.Millisecond) {
+		if b.eval(`document.getAnimations().some(a => a.playState === 'running')`) == "true" && time.Now().Before(deadline) {
+			continue
+		}
 		r = b.rect(selector)
 		if r.Width < 1 || r.Height < 1 {
 			b.t.Fatalf("%s is not visible", selector)
 		}
 		top := b.eval(fmt.Sprintf(`(() => { const e = document.elementFromPoint(%f, %f), t = document.querySelector(%s); return !!e && (e === t || t.contains(e)); })()`, r.X, r.Y, strconv.Quote(selector)))
-		if top == "true" {
+		resting := r == before
+		before = r
+		if top == "true" && resting {
 			break
 		}
 		if time.Now().After(deadline) {

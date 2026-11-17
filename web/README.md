@@ -27,3 +27,19 @@ Parts used beyond the plain components:
 
 A duration field carries `pattern` from `durationPattern` (Go, `track.go`), which a test keeps in step with
 `parseHours`: the browser refuses early what the server would refuse, and nothing it would take.
+
+## Company features, access log, pay
+
+- Approval (`approval.go`): when an organization switches it on, a member hands in a week with a tap; leave (and
+  absence types that need approval) is booked as requested and handed in at once. Handed-in days show as such and
+  refuse changes; a correction with a reason opens an approved week again once approved. Administrators decide on the
+  organization's page, never their own, and a rejection needs a reason. The rules are the core library's
+  (`core.Submit`, `core.Decide`, `core.Withdraw`, `core.LeaveDecision`, `core.ReviewData`).
+- Access log: every read of an organization goes through `core.ReadManaged`; decisions, membership and role changes,
+  and an administrator's reads and changes of a member's settings go through `LogAccess`. The person sees the log on
+  `/access` (linked from the reports), with a note whether the chain holds (`core.VerifyAccesses`). `Options.AccessLog`
+  defaults to the store's own.
+- Pay beyond time worked: the employer settings take paid absences (`core.AbsencePay`) and surcharges
+  (`core.Surcharge`), and how shifts past midnight count (`Employer.DaySplit`); the reports name every line by its
+  reason.
+

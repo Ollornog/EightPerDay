@@ -43,6 +43,11 @@ type homeData struct {
 	CanSettings bool
 	Back        string
 	Regions     []string
+	// Approval: the organization of the managed employer approves periods and leave.
+	Approval    bool
+	Submissions []submissionView
+	// WeekLocked: the week is handed in or approved; its records cannot change.
+	WeekLocked bool
 }
 
 type dayView struct {
@@ -54,6 +59,8 @@ type dayView struct {
 	Absences []string
 	// Input is the hours typed for the day in the mode schedule (the manual day value).
 	Input string
+	// Locked: the day lies in a period that is handed in or approved.
+	Locked bool
 }
 
 type entryView struct {
@@ -187,7 +194,10 @@ func (h *handler) week(r *http.Request, cat core.Catalog, emp core.Employer) (ho
 	}
 	for _, day := range days {
 		v := dayView{Day: day, Weekday: int(day.Date.Weekday()), IsToday: day.Date == today, Future: day.Date.After(today),
-			Entries: byDay[day.Date]}
+			Entries: byDay[day.Date], Locked: cat.SubmittedLocked(emp.ID, day.Date)}
+		if v.Locked {
+			d.WeekLocked = true
+		}
 		if minutes := manual[day.Date]; minutes > 0 {
 			v.Input = formatMinutes(minutes)
 		}
@@ -213,6 +223,12 @@ func (h *handler) week(r *http.Request, cat core.Catalog, emp core.Employer) (ho
 			!a.To.Before(week) && !a.From.After(end) {
 			d.Absences = append(d.Absences, absenceView{Absence: a, Name: names[a.Type]})
 		}
+	}
+	if _, on, err := h.approvalOrg(ctx, emp); err != nil {
+		return d, err
+	} else if on {
+		d.Approval = true
+		d.Submissions = submissionsOf(cat, emp.ID, names, data.Absences)
 	}
 	if d.HasSchedule {
 		if d.Account, err = core.Overtime(data, emp.ID, start, minDate(today, end)); err != nil {

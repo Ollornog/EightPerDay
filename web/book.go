@@ -191,7 +191,7 @@ func (h *handler) adjust(w http.ResponseWriter, r *http.Request) {
 
 // addAbsence books leave, sickness or another absence for the employer of the form.
 func (h *handler) addAbsence(w http.ResponseWriter, r *http.Request) {
-	_, emp, ok := h.bookingContext(w, r)
+	cat, emp, ok := h.bookingContext(w, r)
 	if !ok {
 		return
 	}
@@ -209,8 +209,7 @@ func (h *handler) addAbsence(w http.ResponseWriter, r *http.Request) {
 	}
 	a := core.Absence{Owner: emp.Owner, EmployerID: emp.ID, Type: r.PostFormValue("type"), From: from, To: to,
 		HalfDay: r.PostFormValue("half") == "on", Note: strings.TrimSpace(r.PostFormValue("note"))}
-	_, err = h.options.Store.CreateAbsence(r.Context(), a, change(r, ""))
-	h.back(w, r, err, "saved")
+	h.back(w, r, h.createAbsence(r, cat, emp, a), "saved")
 }
 
 // removeAbsence marks an absence as deleted; the history keeps it.
@@ -256,7 +255,7 @@ func (h *handler) bookParsed(w http.ResponseWriter, r *http.Request, cat core.Ca
 	if p.Absence != "" {
 		a, err := p.AbsenceRecord(emp.Owner, emp.ID, today)
 		if err == nil {
-			_, err = h.options.Store.CreateAbsence(r.Context(), a, change(r, ""))
+			err = h.createAbsence(r, cat, emp, a)
 		}
 		h.back(w, r, err, "saved")
 		return

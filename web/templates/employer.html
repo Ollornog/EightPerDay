@@ -16,6 +16,9 @@
         <select class="select w-full" id="emp-kind" name="kind">{{range $d.Kinds}}<option value="{{.}}"{{if eq . $d.Employer.Kind}} selected{{end}}>{{t (print "kind." .)}}</option>{{end}}</select></div>
       <div class="field" role="group"><label for="emp-region">{{t "employer.region"}}</label>
         <select class="select w-full" id="emp-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range $d.Regions}}<option value="{{.}}"{{if eq . $d.Employer.Region}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+      <div class="field" role="group"><label for="emp-split">{{t "employer.daysplit"}}</label>
+        <select class="select w-full" id="emp-split" name="day_split"><option value="start_day">{{t "daysplit.start_day"}}</option><option value="midnight"{{if eq $d.Employer.DaySplit "midnight"}} selected{{end}}>{{t "daysplit.midnight"}}</option></select>
+        <p class="text-muted-foreground text-xs">{{t "employer.daysplit.hint"}}</p></div>
       <div class="field" role="group"><label for="emp-tz">{{t "employer.timezone"}}</label><input class="input" id="emp-tz" name="time_zone" value="{{$d.Employer.TimeZone}}" placeholder="Europe/Berlin" maxlength="64"></div>
     </section>
     {{if $d.CanChange}}<footer><button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button></footer>{{end}}
@@ -120,6 +123,75 @@
           {{template "project-select" (projectChoice "pay-project" $d.Projects)}}
           <div class="field" role="group"><label for="pay-from">{{t "employer.validfrom"}}</label><input class="input" type="date" id="pay-from" name="from" value="{{$d.Today}}" required></div>
           <button type="submit" class="btn">{{t "employer.pay.save"}}</button>
+        </form>
+      </details>
+      {{end}}
+    </section>
+  </div>
+
+  <div class="card" data-absence-pay>
+    <header><h2 class="card-title">{{t "employer.absencepay"}}</h2><p class="card-description">{{t "employer.absencepay.lead"}}</p></header>
+    <section class="grid gap-4">
+      {{range $d.AbsencePays}}
+      <div class="flex items-center gap-2 rounded-md border p-3 text-sm" data-absencepay>
+        <span class="min-w-0 flex-1">{{$type := .Type}}{{if eq .Type "public_holiday"}}{{t "absence.public_holiday"}}{{else}}{{range $d.Types}}{{if eq .Key $type}}{{.Name}}{{end}}{{end}}{{end}} · {{t (print "absencepay." .Method)}}{{if eq .Method "average"}} ({{if .Weeks}}{{.Weeks}}{{else}}13{{end}} {{t "absencepay.weeks.unit"}}){{end}} · {{t "employer.mode.from" (day .ValidFrom)}}</span>
+        {{if $d.CanChange}}<form method="post" action="/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="absence-pay"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
+      </div>
+      {{else}}
+      <p class="text-muted-foreground text-sm">{{t "employer.absencepay.none"}}</p>
+      {{end}}
+      {{if $d.CanChange}}
+      <details>
+        <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "employer.absencepay.add"}}</summary>
+        <form method="post" action="/employers/{{$d.Employer.ID}}/absence-pay" class="mt-3 grid gap-3">
+          <input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}">
+          <div class="field" role="group"><label for="ap-type">{{t "absence.type"}}</label>
+            <select class="select w-full" id="ap-type" name="type"><option value="public_holiday">{{t "absence.public_holiday"}}</option>{{range $d.Types}}<option value="{{.Key}}">{{.Name}}</option>{{end}}</select></div>
+          <div class="field" role="group"><label for="ap-method">{{t "absencepay.method"}}</label>
+            <select class="select w-full" id="ap-method" name="method"><option value="target">{{t "absencepay.target"}}</option><option value="average">{{t "absencepay.average"}}</option></select>
+            <p class="text-muted-foreground text-xs">{{t "absencepay.method.hint"}}</p></div>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <div class="field" role="group"><label for="ap-weeks">{{t "absencepay.weeks"}}</label><input class="input tabular-nums" id="ap-weeks" name="weeks" inputmode="numeric" placeholder="13"></div>
+            <div class="field" role="group"><label for="ap-from">{{t "employer.validfrom"}}</label><input class="input" type="date" id="ap-from" name="from" value="{{$d.Today}}" required></div>
+          </div>
+          <button type="submit" class="btn">{{t "employer.absencepay.save"}}</button>
+        </form>
+      </details>
+      {{end}}
+    </section>
+  </div>
+
+  <div class="card" data-surcharges>
+    <header><h2 class="card-title">{{t "employer.surcharges"}}</h2><p class="card-description">{{t "employer.surcharges.lead"}}</p></header>
+    <section class="grid gap-4">
+      {{range $d.Surcharges}}
+      <div class="flex items-center gap-2 rounded-md border p-3 text-sm" data-surcharge>
+        <span class="min-w-0 flex-1">{{t (print "surcharge." .Kind)}} <span class="tabular-nums">{{percent .BasisPoints}}</span>{{if eq .Kind "night"}} · <span class="tabular-nums">{{clock .WindowStart}}–{{clock .WindowEnd}}</span>{{end}}{{if .BaseAmount}} · {{t "surcharge.base"}} <span class="tabular-nums">{{money .BaseAmount .Currency}}</span>{{end}} · {{t "employer.mode.from" (day .ValidFrom)}}</span>
+        {{if $d.CanChange}}<form method="post" action="/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="surcharge"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
+      </div>
+      {{else}}
+      <p class="text-muted-foreground text-sm">{{t "employer.surcharges.none"}}</p>
+      {{end}}
+      {{if $d.CanChange}}
+      <details>
+        <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "employer.surcharges.add"}}</summary>
+        <form method="post" action="/employers/{{$d.Employer.ID}}/surcharge" class="mt-3 grid gap-3">
+          <input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}">
+          <div class="grid gap-2 sm:grid-cols-2">
+            <div class="field" role="group"><label for="sc-kind">{{t "surcharge.kind"}}</label>
+              <select class="select w-full" id="sc-kind" name="kind"><option value="night">{{t "surcharge.night"}}</option><option value="sunday">{{t "surcharge.sunday"}}</option><option value="holiday">{{t "surcharge.holiday"}}</option><option value="overtime">{{t "surcharge.overtime"}}</option></select></div>
+            <div class="field" role="group"><label for="sc-percent">{{t "surcharge.percent"}}</label><input class="input tabular-nums" id="sc-percent" name="percent" inputmode="decimal" placeholder="25" required></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="field" role="group"><label for="sc-start">{{t "surcharge.window.start"}}</label><input class="input tabular-nums" id="sc-start" name="window_start" inputmode="numeric" placeholder="20:00"></div>
+            <div class="field" role="group"><label for="sc-end">{{t "surcharge.window.end"}}</label><input class="input tabular-nums" id="sc-end" name="window_end" inputmode="numeric" placeholder="6:00"></div>
+          </div>
+          <p class="text-muted-foreground text-xs">{{t "surcharge.window.hint"}}</p>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <div class="field" role="group"><label for="sc-base">{{t "surcharge.base"}}</label><input class="input tabular-nums" id="sc-base" name="base" inputmode="decimal" placeholder="20,00"><p class="text-muted-foreground text-xs">{{t "surcharge.base.hint"}}</p></div>
+            <div class="field" role="group"><label for="sc-from">{{t "employer.validfrom"}}</label><input class="input" type="date" id="sc-from" name="from" value="{{$d.Today}}" required></div>
+          </div>
+          <button type="submit" class="btn">{{t "employer.surcharges.save"}}</button>
         </form>
       </details>
       {{end}}

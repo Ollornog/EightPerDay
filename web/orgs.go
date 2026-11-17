@@ -40,7 +40,9 @@ type orgData struct {
 	Presence   []presenceView
 	// ShowPresence: the company feature is on, so the page shows who is present today.
 	ShowPresence bool
-	Back         string
+	// Reviews are the open submissions of the members, when approval is on.
+	Reviews []reviewView
+	Back    string
 }
 
 type memberView struct {
@@ -172,10 +174,20 @@ func (h *handler) orgData(r *http.Request, org core.Organization, members []core
 			d.Candidates = append(d.Candidates, a)
 		}
 	}
+	actor := core.ActorFor(accountFrom(ctx).ID, org.ID, members, today)
+	if org.Features.Approval {
+		people := map[string]string{}
+		for _, a := range accounts {
+			people[a.ID] = a.DisplayName
+		}
+		if d.Reviews, err = h.reviews(r, org, actor, people); err != nil {
+			return d, err
+		}
+	}
 	// The supervisor view: present or absent today, without reasons and without history, only when switched on.
 	if org.Features.SupervisorView {
 		d.ShowPresence = true
-		data, err := h.options.Store.Managed(ctx, org.ID, today, today)
+		data, err := core.ReadManaged(ctx, h.options.Store, h.options.AccessLog, actor, org.ID, today, today, "presence view")
 		if err != nil {
 			return d, err
 		}
@@ -217,11 +229,23 @@ func (h *handler) changeOrg(w http.ResponseWriter, r *http.Request) {
 			err = h.options.Store.PutOrganization(ctx, org)
 		}
 	case "member":
-		err = h.addMember(r, org, members)
+		if err = h.addMember(r, org, members); err == nil {
+			err = h.logAccess(ctx, account.ID, org.ID, r.PostFormValue("person"), "", core.AccessRole, "joined as "+r.PostFormValue("role"),
+				core.Date{}, core.Date{})
+		}
 	case "role":
 		err = h.setRole(r, org, members)
 	case "end":
-		err = h.endMember(r, members)
+		if err = h.endMember(r, members); err == nil {
+			m, _ := findMembership(members, r.PostFormValue("membership"))
+			err = h.logAccess(ctx, account.ID, org.ID, m.Person, m.EmployerID, core.AccessRole, "membership ended", core.Date{}, core.Date{})
+		}
+	case "decide":
+		err = h.decide(r, org, core.ActorFor(account.ID, org.ID, members, h.today(nil)))
+		if err == nil {
+			h.back(w, r, nil, "decided")
+			return
+		}
 	case "template":
 		t := core.ScheduleTemplate{Name: strings.TrimSpace(r.PostFormValue("name")), Mode: core.Mode(r.PostFormValue("mode")),
 			OvertimeBasis: core.OvertimeBasis(r.PostFormValue("basis"))}
@@ -246,7 +270,7 @@ func (h *handler) changeOrg(w http.ResponseWriter, r *http.Request) {
 		err = h.options.Store.PutOrganization(ctx, org)
 	case "features":
 		features := core.CompanyFeatures{SupervisorView: r.PostFormValue("supervisor_view") == "on",
-			Agreement: strings.TrimSpace(r.PostFormValue("agreement"))}
+			Approval: r.PostFormValue("approval") == "on", Agreement: strings.TrimSpace(r.PostFormValue("agreement"))}
 		if features.Any() {
 			// Switching on needs the reference and the confirmation of the person who does it (A1, A5, A11).
 			if r.PostFormValue("confirm") != "on" || features.Agreement == "" {
@@ -332,7 +356,11 @@ func (h *handler) setRole(r *http.Request, org core.Organization, members []core
 	if m.Role != core.RoleAdmin && h.lastAdmin(members, m.ID) {
 		return errLastOrgAdmin
 	}
-	return h.options.Store.PutMembership(r.Context(), m)
+	if err := h.options.Store.PutMembership(r.Context(), m); err != nil {
+		return err
+	}
+	return h.logAccess(r.Context(), accountFrom(r.Context()).ID, org.ID, m.Person, m.EmployerID, core.AccessRole, "role "+string(m.Role),
+		core.Date{}, core.Date{})
 }
 
 var errLastOrgAdmin = errors.New("the organization would have no administrator")

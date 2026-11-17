@@ -72,6 +72,11 @@ All notable changes to this project are documented in this file. The format foll
 - A weekly total can be split into days ("Split this week into days"): by the targets of the schedule, Monday to
   Friday evenly without one; from that week on the employer counts hours per day. Only who may change the settings may
   split.
+- The web interface for the company features and pay: members hand in weeks and leave, administrators approve or
+  reject them with a reason on the organization's page, handed-in days are marked and locked, an approved week can be
+  opened again by a correction; a page for the person shows who of an organization read, changed or decided what of
+  their data (the access log, also written for settings and memberships); the employer settings take paid absences,
+  surcharges and how shifts past midnight count, and the reports name each earning by its reason.
 
 ### Changed
 
@@ -79,3 +84,8 @@ All notable changes to this project are documented in this file. The format foll
   authenticator app, the wrapped license texts and the collapsible cards are C22's own now, and `assets/app/app.css`
   is gone. The week views follow C22's data-entry blocks; duration fields tell the accepted forms and refuse other
   input already in the browser.
+
+### Fixed
+
+- A form without a date (such as a pay rule or a surcharge) answers that the date is missing instead of failing.
+- The browser test taps only once the page has come to rest; a section that still grew moved the touch elsewhere.

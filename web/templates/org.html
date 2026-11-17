@@ -5,6 +5,38 @@
   <h1 class="min-w-0 flex-1 truncate text-2xl font-bold">{{$d.Org.Name}}</h1>
 </div>
 <div class="mt-4 grid gap-4">
+  {{if $d.Org.Features.Approval}}
+  <div class="card" data-reviews>
+    <header><h2 class="card-title">{{t "org.reviews"}}</h2><p class="card-description">{{t "org.reviews.lead"}}</p></header>
+    <section class="grid gap-3">
+      {{range $d.Reviews}}
+      <div class="grid gap-2 rounded-md border p-3 text-sm" data-review="{{.ID}}">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-medium">{{.Member}}</span>
+          <span class="badge" data-variant="outline">{{t (print "approval.kind." .Kind)}}{{if .Type}}: {{.Type}}{{end}}</span>
+          <span class="text-muted-foreground text-xs tabular-nums">{{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}</span>
+        </div>
+        {{if eq .Kind "period"}}<p class="text-muted-foreground text-xs tabular-nums">{{t "schedule.target"}} {{hours .Target}} · {{t "schedule.actual"}} {{hours .Actual}} · {{t "reports.balance"}} {{signed .Balance}}</p>{{end}}
+        {{if .Absence}}{{if .Absence.HalfDay}}<p class="text-muted-foreground text-xs">{{t "track.half"}}</p>{{end}}{{end}}
+        {{if .Note}}<p class="text-xs">{{.Note}}</p>{{end}}
+        <div class="flex flex-wrap gap-2">
+          <form method="post" action="/orgs/{{$d.Org.ID}}/decide"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="submission" value="{{.ID}}"><input type="hidden" name="decision" value="approve">
+            <button type="submit" class="btn" data-size="sm" data-approve>{{template "icon-check-small"}}{{t "org.reviews.approve"}}</button></form>
+          <details class="w-full" data-reject>
+            <summary class="btn" data-variant="outline" data-size="sm">{{t "org.reviews.reject"}}</summary>
+            <form method="post" action="/orgs/{{$d.Org.ID}}/decide" class="mt-2 grid gap-2"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="submission" value="{{.ID}}"><input type="hidden" name="decision" value="reject">
+              <div class="field" role="group"><label for="reason-{{.ID}}">{{t "approval.reason"}}</label><textarea class="textarea" id="reason-{{.ID}}" name="reason" maxlength="2000" required></textarea></div>
+              <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "org.reviews.reject.submit"}}</button>
+            </form>
+          </details>
+        </div>
+      </div>
+      {{else}}
+      <p class="text-muted-foreground text-sm" data-reviews-none>{{t "org.reviews.none"}}</p>
+      {{end}}
+    </section>
+  </div>
+  {{end}}
   {{if $d.ShowPresence}}
   <div class="card" data-presence>
     <header><h2 class="card-title">{{t "org.presence"}}</h2><p class="card-description">{{t "org.presence.lead"}}</p></header>
@@ -97,6 +129,8 @@
       </ul>
       <div class="field" data-orientation="horizontal" role="group"><input class="input" type="checkbox" id="feature-supervisor" name="supervisor_view"{{if $d.Org.Features.SupervisorView}} checked{{end}}><label for="feature-supervisor" class="font-normal">{{t "org.features.supervisor"}}</label></div>
       <p class="text-muted-foreground text-xs">{{t "legal.supervisor"}}</p>
+      <div class="field" data-orientation="horizontal" role="group"><input class="input" type="checkbox" id="feature-approval" name="approval"{{if $d.Org.Features.Approval}} checked{{end}}><label for="feature-approval" class="font-normal">{{t "org.features.approval"}}</label></div>
+      <p class="text-muted-foreground text-xs">{{t "legal.approval"}}</p>
       <div class="field" role="group"><label for="feature-agreement">{{t "org.features.agreement"}}</label><input class="input" id="feature-agreement" name="agreement" value="{{$d.Org.Features.Agreement}}" maxlength="500" placeholder="{{t "org.features.agreement.placeholder"}}"></div>
       <div class="field" data-orientation="horizontal" role="group"><input class="input" type="checkbox" id="feature-confirm" name="confirm"><label for="feature-confirm" class="font-normal">{{t "legal.activate.confirm"}}</label></div>
       {{if $d.Org.Features.ConfirmedAt}}<p class="text-muted-foreground text-xs">{{t "org.features.confirmed" (day (dateOf $d.Org.Features.ConfirmedAt))}}</p>{{end}}

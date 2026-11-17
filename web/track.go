@@ -113,9 +113,13 @@ func weekOf(r *http.Request, emp core.Employer, today core.Date) core.Date {
 	return day.StartOfWeek(emp.WeekStart)
 }
 
-// formDate reads a date field.
+// formDate reads a date field. A missing or malformed date is the person's to fix (core.ErrInvalid), not a failure.
 func formDate(r *http.Request, name string) (core.Date, error) {
-	return core.ParseDate(strings.TrimSpace(r.PostFormValue(name)))
+	d, err := core.ParseDate(strings.TrimSpace(r.PostFormValue(name)))
+	if err != nil {
+		return d, fmt.Errorf("%w: %v", core.ErrInvalid, err)
+	}
+	return d, nil
 }
 
 var (
@@ -266,6 +270,8 @@ func (h *handler) storeError(r *http.Request, err error) string {
 		return h.t(r, "track.error.timer")
 	case errors.Is(err, errLastOrgAdmin):
 		return h.t(r, "org.error.lastadmin")
+	case errors.Is(err, errReasonNeeded):
+		return h.t(r, "approval.reason.needed")
 	}
 	return ""
 }
