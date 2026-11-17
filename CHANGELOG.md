@@ -27,3 +27,14 @@ All notable changes to this project are documented in this file. The format foll
     JSON and CSV, erasure of the private part, import of the private part.
   - The storage interface with an in-memory store and a PostgreSQL store (embedded migrations with table prefix,
     tenant column, row-level security on a configurable setting), both held to one conformance test.
+- The standalone program `cmd/eightperday` (M-2, part one): one binary with embedded assets, a strict CSP, a health
+  endpoint, configuration from the environment, PostgreSQL, and a container image with its check
+  (`scripts/check-image.sh`, `compose.yaml` as an example).
+- Signing in without sign-up: the first account through a one-time link printed at the first start or by
+  `eightperday link`, invitations and reset links from the administration; a passkey (the default), a password with an
+  authenticator app, or a password alone; Argon2id, a throttle per name and address, sessions in HTTP-only cookies, and
+  optionally the headers of a trusted sign-in gate.
+- The web interface's frame in the design system C22 (vendored by `scripts/vendor-c22.sh`), phone first and
+  installable, in English and German, with an about dialog that names the logo's author and a page with the licenses
+  of everything inside the binary (`scripts/third-party-licenses.sh`).
+- A browser test in a real Chrome on the screen of a phone, with touch input and a virtual passkey authenticator.

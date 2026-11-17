@@ -37,8 +37,21 @@ jobs:
           go version
           python3 --version
           ls /usr/lib/postgresql/*/bin/initdb
+          google-chrome --version
       - name: check.sh
         run: scripts/check.sh
       # A test that fails on the second run is broken. Proven here, not claimed.
       - name: Second run, repeatability
         run: scripts/check.sh
+
+  image:
+    name: Container image
+    runs-on: ubuntu-latest   # public repository, so never self-hosted
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      # Built and started hardened next to the database image of compose.yaml; nothing is published.
+      - name: Check the image
+        run: scripts/check-image.sh

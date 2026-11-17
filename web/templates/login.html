@@ -1,0 +1,31 @@
+{{define "content"}}
+<div class="card w-full">
+  <header>
+    <h1 class="card-title">{{t "login.title"}}</h1>
+    <p class="card-description">{{t "login.lead"}}</p>
+  </header>
+  <section class="grid gap-6">
+    {{if .Data.NoAccount}}
+    <div class="alert" role="note">{{template "icon-info"}}<h2>{{t "login.noaccount.title"}}</h2><section>{{t "login.noaccount.text"}}</section></div>
+    {{end}}
+    <div class="grid gap-2" data-passkey-login data-next="{{.Data.Next}}">
+      <button type="button" class="btn w-full" data-passkey-login-start>{{template "icon-key"}}{{t "login.passkey"}}</button>
+      <p class="text-destructive text-xs" role="alert" data-passkey-error hidden></p>
+      <noscript><p class="text-muted-foreground text-xs">{{t "login.passkey.noscript"}}</p></noscript>
+    </div>
+    <div class="field-separator"><hr role="separator"><span>{{t "login.or"}}</span></div>
+    <form method="post" action="/login" class="grid gap-4">
+      <input type="hidden" name="next" value="{{.Data.Next}}">
+      <div class="field" role="group">
+        <label for="login-name">{{t "login.username"}}</label>
+        <input class="input" id="login-name" name="username" value="{{.Data.Username}}" autocomplete="username webauthn" autocapitalize="none" spellcheck="false" required>
+      </div>
+      <div class="field" role="group">
+        <label for="login-password">{{t "login.password"}}</label>
+        <input class="input" id="login-password" type="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn w-full" data-variant="outline">{{t "login.withpassword"}}</button>
+    </form>
+  </section>
+</div>
+{{end}}

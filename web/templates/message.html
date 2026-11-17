@@ -1,0 +1,11 @@
+{{define "content"}}
+<div class="card w-full">
+  <header>
+    <h1 class="card-title">{{.Title}}</h1>
+  </header>
+  <section><p class="text-muted-foreground text-sm">{{.Data}}</p></section>
+  <footer>
+    <a href="/" class="btn w-full" data-variant="outline">{{t "error.home"}}</a>
+  </footer>
+</div>
+{{end}}

@@ -1,0 +1,66 @@
+{{define "content"}}
+<h1 class="text-2xl font-bold">{{t "admin.title"}}</h1>
+<div class="mt-4 grid gap-4">
+  {{if .Data.Link}}
+  <div class="alert" role="status">
+    {{template "icon-check"}}
+    <h2>{{if .Data.LinkFor}}{{t "admin.link.for" .Data.LinkFor}}{{else}}{{t "admin.link"}}{{end}}</h2>
+    <section class="grid gap-2">
+      <p>{{t "admin.link.once" .Data.LinkDays}}</p>
+      <input class="input font-mono" value="{{.Data.Link}}" readonly aria-label="{{t "admin.link"}}" data-select-on-focus>
+    </section>
+  </div>
+  {{end}}
+  <form method="post" action="/admin/invite" class="card">
+    <header>
+      <h2 class="card-title">{{t "admin.invite"}}</h2>
+      <p class="card-description">{{t "admin.invite.lead"}}</p>
+    </header>
+    <section class="grid gap-4">
+      <div class="field" role="group">
+        <label for="invite-name">{{t "setup.username"}}</label>
+        <input class="input" id="invite-name" name="username" autocapitalize="none" spellcheck="false" maxlength="64" aria-describedby="invite-name-hint">
+        <p id="invite-name-hint" class="text-muted-foreground text-xs">{{t "admin.invite.name.hint"}}</p>
+      </div>
+      <div class="field" data-orientation="horizontal" role="group">
+        <input class="input" type="checkbox" id="invite-admin" name="admin">
+        <label for="invite-admin" class="font-normal">{{t "admin.invite.admin"}}</label>
+      </div>
+    </section>
+    <footer><button type="submit" class="btn">{{t "admin.invite.submit"}}</button></footer>
+  </form>
+
+  <div class="card">
+    <header><h2 class="card-title">{{t "admin.accounts"}}</h2></header>
+    <section class="grid gap-3">
+      {{$me := .Account.ID}}
+      {{range .Data.Accounts}}
+      <div class="grid gap-2 rounded-md border p-3" data-account="{{.Username}}">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-medium">{{.DisplayName}}</span>
+          <span class="text-muted-foreground text-sm">{{.Username}}</span>
+          {{if .Admin}}<span class="badge" data-variant="secondary">{{t "admin.role.admin"}}</span>{{end}}
+          {{if .Disabled}}<span class="badge" data-variant="destructive">{{t "admin.disabled"}}</span>{{end}}
+        </div>
+        <p class="text-muted-foreground text-xs">{{t "admin.methods"}}: {{if .Passkeys}}{{t "admin.method.passkey"}} ({{len .Passkeys}}) {{end}}{{if .HasPassword}}{{t "admin.method.password"}}{{if .HasTOTP}} + {{t "admin.method.totp"}}{{end}}{{end}}{{if and (not .Passkeys) (not .HasPassword)}}{{t "admin.method.gate"}}{{end}}</p>
+        {{if ne .ID $me}}
+        <div class="flex flex-wrap gap-2">
+          <form method="post" action="/admin/accounts/{{.ID}}/reset"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.reset"}}</button></form>
+          {{if .Disabled}}
+          <form method="post" action="/admin/accounts/{{.ID}}/enable"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.enable"}}</button></form>
+          {{else}}
+          <form method="post" action="/admin/accounts/{{.ID}}/disable" data-confirm="{{t "admin.disable.confirm"}}"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.disable"}}</button></form>
+          {{end}}
+          {{if .Admin}}
+          <form method="post" action="/admin/accounts/{{.ID}}/member"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.member"}}</button></form>
+          {{else}}
+          <form method="post" action="/admin/accounts/{{.ID}}/admin"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.admin"}}</button></form>
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+    </section>
+  </div>
+</div>
+{{end}}

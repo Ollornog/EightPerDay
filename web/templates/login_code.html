@@ -1,0 +1,19 @@
+{{define "content"}}
+<form method="post" action="/login/code" class="card w-full">
+  <header>
+    <h1 class="card-title">{{t "code.title"}}</h1>
+    <p class="card-description">{{t "code.lead"}}</p>
+  </header>
+  <section class="grid gap-4">
+    <input type="hidden" name="next" value="{{.Data.Next}}">
+    <div class="field" role="group">
+      <label for="code">{{t "code.label"}}</label>
+      <input class="input" id="code" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" autofocus required>
+    </div>
+  </section>
+  <footer class="flex-col gap-2">
+    <button type="submit" class="btn w-full">{{t "code.submit"}}</button>
+    <a href="/login" class="btn w-full" data-variant="ghost">{{t "code.back"}}</a>
+  </footer>
+</form>
+{{end}}

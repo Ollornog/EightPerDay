@@ -1,0 +1,23 @@
+/* SPDX-License-Identifier: MIT
+   What the design system C22 does not have yet, kept as small as possible and only from its tokens. Each rule is on the
+   list of things to bring to C22 (see web/README.md). */
+
+/* The tab bar of a phone: fixed to the bottom edge, above the home indicator, and gone where the header has room. */
+.epd-tabbar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 10;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@media (min-width: 48rem) {
+  .epd-tabbar { display: none; }
+}
+.epd-tabbar .btn { flex-direction: column; height: auto; gap: calc(var(--spacing) * 0.5); }
+
+/* The QR code of an authenticator app: square, at a size a phone camera reads well. */
+.epd-qr { width: calc(var(--spacing) * 60); height: calc(var(--spacing) * 60); image-rendering: pixelated; }
+
+/* Long unbroken strings: a TOTP secret, the license texts. */
+.epd-secret { overflow-wrap: anywhere; letter-spacing: 0.1em; }
+.epd-licenses { max-height: 60vh; white-space: pre-wrap; overflow-wrap: anywhere; }
