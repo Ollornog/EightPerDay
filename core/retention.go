@@ -14,6 +14,9 @@ const (
 	ClassTimeRecords Class = "time_records"
 	// ClassLeaveNotices: the notices about lapsing leave, which decide whether leave lapses.
 	ClassLeaveNotices Class = "leave_notices"
+	// ClassAccessLog: the access log (Access), by the subject. It shows the person who read or changed their data; the
+	// default keeps it as long as the time records.
+	ClassAccessLog Class = "access_log"
 )
 
 // Retention says how long a class is kept: YearsAfterYearEnd full calendar years after the end of the year a record
@@ -27,18 +30,19 @@ type Retention struct {
 // MinimumYears is the lower bound for time records.
 const MinimumYears = 2
 
-// DefaultRetention returns the default classes: three years for both.
+// DefaultRetention returns the default classes: three years for each.
 func DefaultRetention() []Retention {
 	return []Retention{
 		{Class: ClassTimeRecords, YearsAfterYearEnd: 3},
 		{Class: ClassLeaveNotices, YearsAfterYearEnd: 3},
+		{Class: ClassAccessLog, YearsAfterYearEnd: 3},
 	}
 }
 
 // Validate checks the retention: a known class, and at least MinimumYears.
 func (r Retention) Validate() error {
 	switch r.Class {
-	case ClassTimeRecords, ClassLeaveNotices:
+	case ClassTimeRecords, ClassLeaveNotices, ClassAccessLog:
 	default:
 		return invalid("deletion class %q", r.Class)
 	}

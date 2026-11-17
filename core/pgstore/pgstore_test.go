@@ -178,7 +178,7 @@ func TestOptions(t *testing.T) {
 		t.Fatalf("migrations: %v %+v", err, steps)
 	}
 	for _, m := range steps {
-		if strings.Contains(m.SQL, "{{") || !strings.Contains(m.SQL, "time_entries") ||
+		if strings.Contains(m.SQL, "{{") || !strings.Contains(m.SQL, "CREATE TABLE time_") ||
 			!strings.Contains(m.SQL, "current_setting('underdoc.tenant', true)") {
 			t.Fatalf("migration %d not rendered: %s", m.Version, m.SQL[:200])
 		}
@@ -207,8 +207,8 @@ func TestEmbeddedMigrationFlow(t *testing.T) {
 	if err := conn.QueryRow(ctx, "SELECT count(*) FROM pg_tables WHERE tablename LIKE 'ud_time_%' AND rowsecurity").Scan(&n); err != nil {
 		t.Fatal(err)
 	}
-	if n != 4 {
-		t.Fatalf("%d tables with row-level security, want 4", n)
+	if n != 5 {
+		t.Fatalf("%d tables with row-level security, want 5", n)
 	}
 	if _, err := conn.Exec(ctx, "SELECT set_config('underdoc.tenant', 'main', false)"); err != nil {
 		t.Fatal(err)
@@ -241,5 +241,42 @@ func TestConnect(t *testing.T) {
 	var tenant string
 	if err := p.QueryRow(ctx, "SELECT tenant FROM epd_records WHERE id = 't1'").Scan(&tenant); err != nil || tenant != "main" {
 		t.Fatalf("tenant %q %v", tenant, err)
+	}
+}
+
+func TestAccessLog(t *testing.T) {
+	o := pgstore.Options{Prefix: "time_", TenantSetting: "app.tenant"}
+	storetest.RunAccessLog(t, func(t *testing.T) storetest.AccessLogStore {
+		return store(t, pool(t, database(t, o), o.TenantSetting, "main"), o)
+	})
+}
+
+// The access log only grows: the app role can neither change a row nor delete a young one, and tenants are separate.
+func TestAccessLogOnlyGrows(t *testing.T) {
+	o := pgstore.Options{TenantSetting: "eightperday.tenant"}
+	url := database(t, o)
+	p := pool(t, url, o.TenantSetting, "acme")
+	a := store(t, p, o)
+	b := store(t, pool(t, url, o.TenantSetting, "globex"), o)
+	e, err := a.LogAccess(ctx, core.Access{Actor: "boss", Subject: "alice", Action: core.AccessRead, What: "entries"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tag, err := p.Exec(ctx, "UPDATE epd_access_log SET doc = jsonb_set(doc, '{what}', '\"nothing\"')"); err != nil || tag.RowsAffected() != 0 {
+		t.Fatalf("update: %v rows, %v", tag.RowsAffected(), err)
+	}
+	if tag, err := p.Exec(ctx, "DELETE FROM epd_access_log"); err != nil || tag.RowsAffected() != 0 {
+		t.Fatalf("delete: %v rows, %v", tag.RowsAffected(), err)
+	}
+	log, err := a.Accesses(ctx, "alice")
+	if err != nil || len(log) != 1 || log[0].Hash != e.Hash || log[0].What != "entries" {
+		t.Fatalf("after the attempts: %+v %v", log, err)
+	}
+	if other, err := b.Accesses(ctx, "alice"); err != nil || len(other) != 0 {
+		t.Fatalf("tenant globex reads acme's log: %+v %v", other, err)
+	}
+	// The other tenant starts a chain of its own.
+	if x, err := b.LogAccess(ctx, core.Access{Actor: "boss", Subject: "alice", Action: core.AccessRead, What: "entries"}); err != nil || x.Prev != "" {
+		t.Fatalf("globex chain: %+v %v", x, err)
 	}
 }

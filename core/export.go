@@ -25,9 +25,11 @@ type Export struct {
 	Entries    []Entry    `json:"entries"`
 	Absences   []Absence  `json:"absences"`
 	Revisions  []Revision `json:"revisions"`
+	// Accesses is the person's access log, if the store keeps one (AccessLog).
+	Accesses []Access `json:"accesses,omitempty"`
 }
 
-// ExportOwner collects the export of the owner from the store.
+// ExportOwner collects the export of the owner from the store, with the access log if the store keeps one.
 func ExportOwner(ctx context.Context, s Store, owner string) (Export, error) {
 	cat, err := s.Catalog(ctx, owner)
 	if err != nil {
@@ -45,8 +47,14 @@ func ExportOwner(ctx context.Context, s Store, owner string) (Export, error) {
 	if err != nil {
 		return Export{}, err
 	}
-	return Export{Format: ExportFormat, ExportedAt: time.Now().UTC(), Owner: owner, Catalog: cat, Entries: entries,
-		Absences: absences, Revisions: revs}, nil
+	x := Export{Format: ExportFormat, ExportedAt: time.Now().UTC(), Owner: owner, Catalog: cat, Entries: entries,
+		Absences: absences, Revisions: revs}
+	if log, ok := s.(AccessLog); ok {
+		if x.Accesses, err = log.Accesses(ctx, owner); err != nil {
+			return Export{}, err
+		}
+	}
+	return x, nil
 }
 
 // WriteJSON writes the export as indented JSON.

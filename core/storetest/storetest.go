@@ -683,3 +683,85 @@ func approval(t *testing.T, s core.Store) {
 		t.Fatalf("the organization sees %d submissions", len(org2.Catalog.Submissions))
 	}
 }
+
+// AccessLogStore is a store with an access log.
+type AccessLogStore interface {
+	core.Store
+	core.AccessLog
+}
+
+// RunAccessLog runs the conformance test of core.AccessLog against fresh stores from newStore.
+func RunAccessLog(t *testing.T, newStore func(t *testing.T) AccessLogStore) {
+	s := newStore(t)
+	old := time.Now().AddDate(-5, 0, 0)
+	var alice []core.Access
+	for i, a := range []core.Access{
+		{At: old, Actor: "boss", Organization: "acme", Subject: "alice", Action: core.AccessRead, What: "entries"},
+		{Actor: "boss", Organization: "acme", Subject: "alice", Action: core.AccessChange, What: "schedule",
+			EmployerID: "m1"},
+		{Actor: "boss", Organization: "acme", Subject: "bob", Action: core.AccessExport, What: "export"},
+		{Actor: "hr", Organization: "acme", Subject: "alice", Action: core.AccessRead, What: "entries",
+			From: core.MustDate("2026-03-01"), To: core.MustDate("2026-03-31")},
+	} {
+		got, err := s.LogAccess(ctx, a)
+		must(t, err)
+		if got.ID == "" || got.Hash == "" || got.At.IsZero() {
+			t.Fatalf("entry %d not sealed: %+v", i, got)
+		}
+		if a.Subject == "alice" {
+			alice = append(alice, got)
+		}
+	}
+	_, err := s.LogAccess(ctx, core.Access{Actor: "boss", Subject: "alice", Action: "peek", What: "x"})
+	wantErr(t, err, core.ErrInvalid)
+
+	log, err := s.Accesses(ctx, "alice")
+	must(t, err)
+	if len(log) != 3 || log[0].Prev != "" || log[1].Prev != log[0].Hash || log[2].Prev != log[1].Hash {
+		t.Fatalf("alice's chain: %+v", log)
+	}
+	for i := range log {
+		if log[i].Hash != alice[i].Hash || log[i].What != alice[i].What || !log[i].At.Equal(alice[i].At) ||
+			log[i].To != alice[i].To {
+			t.Fatalf("entry %d came back as %+v, written %+v", i, log[i], alice[i])
+		}
+	}
+	must(t, core.VerifyAccesses(log))
+	bob, err := s.Accesses(ctx, "bob")
+	must(t, err)
+	if len(bob) != 1 || bob[0].Prev != "" {
+		t.Fatalf("bob has his own chain: %+v", bob)
+	}
+
+	// The person sees it in the export; erasing the private part leaves it to the retention.
+	x, err := core.ExportOwner(ctx, s, "alice")
+	must(t, err)
+	if len(x.Accesses) != 3 {
+		t.Fatalf("export holds %d accesses", len(x.Accesses))
+	}
+	must(t, s.Erase(ctx, "alice"))
+	log, err = s.Accesses(ctx, "alice")
+	must(t, err)
+	if len(log) != 3 {
+		t.Fatal("erase took the access log")
+	}
+
+	// The purge removes only what is older than the minimum retention, even with a cutoff in the future.
+	n, err := s.Purge(ctx, "alice", core.ClassAccessLog, core.MustDate("2100-01-01"))
+	must(t, err)
+	log, err = s.Accesses(ctx, "alice")
+	must(t, err)
+	if n != 1 || len(log) != 2 || log[0].Action != core.AccessChange {
+		t.Fatalf("purge removed %d, left %+v", n, log)
+	}
+	// What stays still holds together; the first entry points to the purged one.
+	must(t, core.VerifyAccesses(log))
+	if bob, _ := s.Accesses(ctx, "bob"); len(bob) != 1 {
+		t.Fatal("the purge of alice took bob's log")
+	}
+	c, err := s.Catalog(ctx, "alice")
+	must(t, err)
+	if len(c.PurgeLogs) != 1 || c.PurgeLogs[0].Class != core.ClassAccessLog {
+		t.Fatalf("purge log: %+v", c.PurgeLogs)
+	}
+}
