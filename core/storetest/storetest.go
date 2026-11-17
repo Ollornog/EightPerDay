@@ -31,6 +31,7 @@ func Run(t *testing.T, newStore func(t *testing.T) core.Store) {
 		{"erase", erase},
 		{"managed and private are separate", managedSeparate},
 		{"organizations", organizations},
+		{"approval", approval},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) { c.fn(t, newStore(t)) })
@@ -576,5 +577,109 @@ func organizations(t *testing.T, s core.Store) {
 	must(t, err)
 	if len(mine) != 1 || mine[0].Until != core.MustDate("2026-06-30") || core.ActorFor("alice", "acme", mine, core.MustDate("2026-07-01")).Organization != "" {
 		t.Fatalf("ended membership: %+v", mine)
+	}
+}
+
+// approval: handed-in periods and leave requests lock their records, decided submissions stay as they are, and an
+// approved correction opens them again.
+func approval(t *testing.T, s core.Store) {
+	at := time.Date(2026, 3, 9, 8, 0, 0, 0, time.UTC)
+	org := core.Organization{ID: "acme", Name: "ACME", Features: core.CompanyFeatures{Approval: true,
+		Agreement: "BV 2026-01", ConfirmedBy: "boss", ConfirmedAt: &at}}
+	must(t, s.PutOrganization(ctx, org))
+	emp := managed("alice", "m1", "acme")
+	must(t, s.Put(ctx, emp))
+	boss := core.Actor{Person: "boss", Organization: "acme", Admin: true}
+	e, err := s.CreateEntry(ctx, entry("alice", "m1", "2026-03-03", 480), core.Change{By: "alice"})
+	must(t, err)
+	load := func() core.Data {
+		d, err := core.Load(ctx, s, "alice", core.MustDate("2026-01-01"), core.MustDate("2026-12-31"))
+		must(t, err)
+		return d
+	}
+
+	sub, err := core.Submit(org, load(), core.SubmitRequest{Kind: core.SubmitPeriod, EmployerID: "m1",
+		From: core.MustDate("2026-03-02"), To: core.MustDate("2026-03-08"), At: at})
+	must(t, err)
+	must(t, s.Put(ctx, sub))
+	e.Minutes = 420
+	_, err = s.UpdateEntry(ctx, e, core.Change{By: "alice"})
+	wantErr(t, err, core.ErrLocked)
+	_, err = s.CreateEntry(ctx, entry("alice", "m1", "2026-03-04", 60), core.Change{})
+	wantErr(t, err, core.ErrLocked)
+	_, err = s.CreateAbsence(ctx, core.Absence{Owner: "alice", EmployerID: "m1", Type: core.AbsenceVacation,
+		From: core.MustDate("2026-03-06"), To: core.MustDate("2026-03-09")}, core.Change{})
+	wantErr(t, err, core.ErrLocked)
+	// Outside the period, and for another person, nothing is locked.
+	_, err = s.CreateEntry(ctx, entry("alice", "m1", "2026-03-09", 60), core.Change{})
+	must(t, err)
+
+	// Nobody takes the submission over, and it is never deleted.
+	stolen := sub
+	stolen.Owner = "mallory"
+	wantErr(t, s.Put(ctx, stolen), core.ErrNotFound)
+	wantErr(t, s.Delete(ctx, core.RecSubmission, "alice", sub.ID), core.ErrLocked)
+
+	approved, err := core.Decide(sub, emp, boss, true, "", at)
+	must(t, err)
+	must(t, s.Put(ctx, approved))
+	// Decided is final: neither another decision nor a withdrawal is stored.
+	again := approved
+	again.Status, again.Reason = core.SubmissionRejected, "changed my mind"
+	wantErr(t, s.Put(ctx, again), core.ErrLocked)
+	wantErr(t, s.Delete(ctx, core.RecSubmission, "alice", sub.ID), core.ErrLocked)
+	_, err = s.UpdateEntry(ctx, e, core.Change{By: "alice"})
+	wantErr(t, err, core.ErrLocked)
+
+	// A correction, once approved, opens the period again.
+	fix, err := core.Submit(org, load(), core.SubmitRequest{Kind: core.SubmitCorrection, EmployerID: "m1",
+		Supersedes: sub.ID, Note: "the doctor on Tuesday", At: at})
+	must(t, err)
+	must(t, s.Put(ctx, fix))
+	_, err = s.UpdateEntry(ctx, e, core.Change{By: "alice"})
+	wantErr(t, err, core.ErrLocked)
+	fixed, err := core.Decide(fix, emp, boss, true, "", at)
+	must(t, err)
+	must(t, s.Put(ctx, fixed))
+	_, err = s.UpdateEntry(ctx, e, core.Change{By: "alice", Reason: "the doctor"})
+	must(t, err)
+
+	// Leave: the request locks the absence, the approval writes only the decision.
+	a, err := s.CreateAbsence(ctx, core.Absence{Owner: "alice", EmployerID: "m1", Type: core.AbsenceVacation,
+		From: core.MustDate("2026-08-03"), To: core.MustDate("2026-08-07"), Status: core.StatusRequested}, core.Change{})
+	must(t, err)
+	req, err := core.Submit(org, load(), core.SubmitRequest{Kind: core.SubmitLeave, EmployerID: "m1", AbsenceID: a.ID, At: at})
+	must(t, err)
+	must(t, s.Put(ctx, req))
+	longer := a
+	longer.To = core.MustDate("2026-08-14")
+	_, err = s.UpdateAbsence(ctx, longer, core.Change{})
+	wantErr(t, err, core.ErrLocked)
+	wantErr(t, s.DeleteAbsence(ctx, "alice", a.ID, a.Version, core.Change{}), core.ErrLocked)
+	yes, err := core.Decide(req, emp, boss, true, "", at)
+	must(t, err)
+	must(t, s.Put(ctx, yes))
+	decided, err := core.LeaveDecision(yes, a)
+	must(t, err)
+	a2, err := s.UpdateAbsence(ctx, decided, core.Change{By: "boss", Reason: "approved"})
+	must(t, err)
+	if a2.Status != core.StatusApproved || a2.ApprovedBy != "boss" {
+		t.Fatalf("decided absence: %+v", a2)
+	}
+	longer = a2
+	longer.To = core.MustDate("2026-08-14")
+	_, err = s.UpdateAbsence(ctx, longer, core.Change{})
+	wantErr(t, err, core.ErrLocked)
+	wantErr(t, s.DeleteAbsence(ctx, "alice", a2.ID, a2.Version, core.Change{}), core.ErrLocked)
+
+	c, err := s.Catalog(ctx, "alice")
+	must(t, err)
+	if len(c.Submissions) != 3 {
+		t.Fatalf("submissions: %+v", c.Submissions)
+	}
+	org2, err := s.Managed(ctx, "acme", core.MustDate("2026-01-01"), core.MustDate("2026-12-31"))
+	must(t, err)
+	if len(org2.Catalog.Submissions) != 3 {
+		t.Fatalf("the organization sees %d submissions", len(org2.Catalog.Submissions))
 	}
 }
