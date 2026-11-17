@@ -46,3 +46,7 @@ All notable changes to this project are documented in this file. The format foll
   earnings and the person's own hints on the Working Hours Act; export as JSON and CSV; organizations with members,
   roles, schedule templates and the presence view as a company feature that needs a works agreement and a
   confirmation.
+- Public holidays of parts of a state, as data with their legal source: the Augsburg Peace Festival
+  (`DE-BY-AUGSBURG`), Bavarian municipalities without Assumption Day (`DE-BY-PROTESTANT`), and Corpus Christi in
+  the Catholic municipalities of Saxony (`DE-SN-CATHOLIC`) and Thuringia (`DE-TH-CATHOLIC`). Rules can now leave
+  regions out (`HolidayRule.Except`).
