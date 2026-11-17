@@ -21,10 +21,10 @@ application that embeds it. The reasons are in [ADR-1](../backlog/ADR-1-library-
 - `Employer` with `Holder` `private` or `managed` (+ `Organization`), `Mode`, time zone, holiday region.
 - Catalog records, filed by `Store.Put` and read as a whole with `Store.Catalog(owner)`: `ModeChange`, `Schedule`,
   `PayRule`, `Client`, `Project`, `Activity`, `Tag`, `AbsenceType`, `Confirmation`, `Adjustment`, `PeriodClose`,
-  `Holiday`, `LeaveNotice`, `PurgeLog`, `AbsencePay`, `Surcharge`.
+  `Holiday`, `LeaveNotice`, `PurgeLog`, `AbsencePay`, `Surcharge`, `Submission`.
 - Time records with history: `Entry` (`work`, `break`, `adjust`; `Minutes` always, `Start`/`End` optional) and
   `Absence`. Every create, update and delete writes a `Revision`; updates need the current `Version`
-  (`ErrConflict`), closed periods refuse changes (`ErrLocked`).
+  (`ErrConflict`), closed periods and periods handed in for approval refuse changes (`ErrLocked`).
 
 ## Modes
 
@@ -98,6 +98,26 @@ caller resolves `Parsed.Project` to a project ID.
   do what. The store does not know who acts: ask these before calling it.
 - `Store.Managed(ctx, organization, from, to)` is the only way an organization reads data: its managed employers and
   the records bound to them, never anything private.
+
+## Approval (company feature)
+
+Only for an organization with `Features.Approval` on; without it there are no submissions and nothing changes.
+
+- `Submit(org, data, SubmitRequest)` makes a `Submission` of a managed employer: `period` (the days `From` to `To`,
+  with target, actual and balance at handing in; no overlap with another binding period), `leave` (a requested
+  absence) or `correction` (asks to open an approved submission again; `Note` says why). The caller stores it.
+- `Decide(sub, employer, actor, approve, reason, at)`: an administrator of the organization, never on their own
+  submission (`MayDecide`); a rejection needs a reason. `Withdraw(sub, person, at)` while it is open, by the person.
+- Locks, in both stores: the days of a period that is handed in or approved refuse entries and absences
+  (`Catalog.Locked`, `Catalog.AbsenceLocked`); a leave request locks its absence, and after its approval only the
+  decision itself is written (`LeaveDecision` then `UpdateAbsence`; `Catalog.LeaveLocked`). An approved correction
+  opens the period or the absence again; the person changes it and hands it in anew.
+- A submission is replaced only while it is open and never deleted (`ErrLocked`); decided ones stay as they are.
+- `ReviewData(org, data)` is what a reviewer sees of `Store.Managed`: the days handed in and the absences asked for,
+  nothing else.
+- `LeaveReminders(data, employerID, today, warnDays)`: open leave of the year within `warnDays` (92 by default)
+  before 31 December, with whether the employer recorded its notice (`LeaveNotice`, BAG 9 AZR 266/20). The person
+  sees it as a reminder, the organization on its managed data as the notices it still owes.
 
 ## Personal rights and retention
 

@@ -57,3 +57,8 @@ All notable changes to this project are documented in this file. The format foll
   minutes or at the average of the reference weeks) and surcharges (`Surcharge`: night window, Sunday, holiday,
   overtime, in basis points, valid from a date, with an hourly base for salaried staff). The earnings list them by
   reason (`EarningLine.Reason`, `Earnings.Reasons`).
+- Approval as a company feature: periods and leave requests handed in (`Submit`), approved or rejected with a reason
+  by an administrator who is not the person (`Decide`), withdrawn while open; handed-in and approved records are
+  locked in both stores, a correction is a new request that opens them again once approved; a reviewer sees only what
+  was handed in (`ReviewData`). Leave reminders before the end of the year with the employer's notice as a data
+  point (`LeaveReminders`).

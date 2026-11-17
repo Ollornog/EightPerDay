@@ -429,6 +429,8 @@ func TestEveryKindRoundTrips(t *testing.T) {
 		RecPurgeLog:     PurgeLog{ID: "x", Owner: owner},
 		RecAbsencePay:   absencePay("x", AbsenceVacation, PayTarget),
 		RecSurcharge:    surcharge("x", SurchargeSunday, 5000),
+		RecSubmission: Submission{ID: "x", Owner: owner, EmployerID: "e1", Kind: SubmitPeriod, From: d("2026-01-01"),
+			To: d("2026-01-31"), Status: SubmissionSubmitted, SubmittedAt: time.Now()},
 	}
 	if len(samples) != len(Kinds) {
 		t.Fatalf("%d samples for %d kinds", len(samples), len(Kinds))

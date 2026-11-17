@@ -162,11 +162,17 @@ func PrepareAbsenceDeletion(old Absence, owner string, version int, c Change) (A
 }
 
 // AbsenceLocked reports whether any day of the absence lies in a closed period of its employer (or of any private
-// employer, for an absence that covers all of them).
+// employer, for an absence that covers all of them), or in a period of its employer handed in for approval.
 func (c Catalog) AbsenceLocked(a Absence) bool {
 	for _, p := range c.PeriodCloses {
 		emp, _ := c.Employer(p.EmployerID)
 		if appliesTo(emp, a.EmployerID) && !a.To.Before(p.From) && !a.From.After(p.To) {
+			return true
+		}
+	}
+	for _, s := range c.Submissions {
+		if s.Kind == SubmitPeriod && s.EmployerID == a.EmployerID && a.EmployerID != "" && !a.To.Before(s.From) &&
+			!a.From.After(s.To) && c.binding(s) {
 			return true
 		}
 	}

@@ -53,11 +53,15 @@ func (s *Store) Put(_ context.Context, r core.Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	k := key{m.Kind, m.ID}
-	if old, ok := s.meta[k]; ok && old.Owner != m.Owner {
-		return core.ErrNotFound
-	}
-	if m.Kind == core.RecPeriodClose || m.Kind == core.RecPurgeLog {
-		if _, ok := s.meta[k]; ok {
+	if old, ok := s.meta[k]; ok {
+		if old.Owner != m.Owner {
+			return core.ErrNotFound
+		}
+		stored, err := core.DecodeRecord(k.kind, s.records[k])
+		if err != nil {
+			return err
+		}
+		if !core.Replaceable(stored) {
 			return core.ErrLocked
 		}
 	}
@@ -74,7 +78,7 @@ func (s *Store) Delete(_ context.Context, kind core.Kind, owner, id string) erro
 	if !ok || m.Owner != owner {
 		return core.ErrNotFound
 	}
-	if kind == core.RecPeriodClose || kind == core.RecPurgeLog {
+	if core.Fixed(kind) {
 		return core.ErrLocked
 	}
 	delete(s.records, k)
@@ -302,7 +306,7 @@ func (s *Store) UpdateAbsence(_ context.Context, a core.Absence, c core.Change) 
 	if err != nil {
 		return core.Absence{}, err
 	}
-	if cat.AbsenceLocked(old) || cat.AbsenceLocked(next) {
+	if cat.AbsenceLocked(old) || cat.AbsenceLocked(next) || cat.LeaveLocked(old, &next) {
 		return core.Absence{}, core.ErrLocked
 	}
 	s.absences[a.ID] = next
@@ -326,7 +330,7 @@ func (s *Store) DeleteAbsence(_ context.Context, owner, id string, version int, 
 	if err != nil {
 		return err
 	}
-	if cat.AbsenceLocked(old) {
+	if cat.AbsenceLocked(old) || cat.LeaveLocked(old, nil) {
 		return core.ErrLocked
 	}
 	s.absences[id] = next

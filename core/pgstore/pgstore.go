@@ -92,6 +92,33 @@ func (s *Store) Put(ctx context.Context, r core.Record) error {
 		return err
 	}
 	var tag pgconn.CommandTag
+	if m.Kind == core.RecSubmission {
+		return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			var owner string
+			var old []byte
+			err := tx.QueryRow(ctx, "SELECT owner, doc FROM "+s.records+" WHERE kind = $1 AND id = $2 FOR UPDATE",
+				m.Kind, m.ID).Scan(&owner, &old)
+			switch {
+			case errors.Is(err, pgx.ErrNoRows):
+			case err != nil:
+				return err
+			case owner != m.Owner:
+				return core.ErrNotFound
+			default:
+				stored, err := core.DecodeRecord(m.Kind, old)
+				if err != nil {
+					return err
+				}
+				if !core.Replaceable(stored) {
+					return core.ErrLocked
+				}
+			}
+			_, err = tx.Exec(ctx, "INSERT INTO "+s.records+` (kind, id, owner, employer_id, doc) VALUES ($1, $2, $3, $4, $5)
+				ON CONFLICT (tenant, kind, id) DO UPDATE SET employer_id = EXCLUDED.employer_id, doc = EXCLUDED.doc`,
+				m.Kind, m.ID, m.Owner, m.EmployerID, doc)
+			return err
+		})
+	}
 	if m.Kind == core.RecPeriodClose || m.Kind == core.RecPurgeLog {
 		tag, err = s.db.Exec(ctx, "INSERT INTO "+s.records+` (kind, id, owner, employer_id, doc) VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (tenant, kind, id) DO NOTHING`, m.Kind, m.ID, m.Owner, m.EmployerID, doc)
@@ -111,7 +138,7 @@ func (s *Store) Put(ctx context.Context, r core.Record) error {
 
 // Delete removes a catalog record.
 func (s *Store) Delete(ctx context.Context, kind core.Kind, owner, id string) error {
-	if kind == core.RecPeriodClose || kind == core.RecPurgeLog {
+	if core.Fixed(kind) {
 		var n int
 		if err := s.db.QueryRow(ctx, "SELECT count(*) FROM "+s.records+" WHERE kind = $1 AND owner = $2 AND id = $3",
 			kind, owner, id).Scan(&n); err != nil {
@@ -400,7 +427,7 @@ func (s *Store) UpdateAbsence(ctx context.Context, a core.Absence, c core.Change
 		if err != nil {
 			return err
 		}
-		if cat.AbsenceLocked(old) || cat.AbsenceLocked(n) {
+		if cat.AbsenceLocked(old) || cat.AbsenceLocked(n) || cat.LeaveLocked(old, &n) {
 			return core.ErrLocked
 		}
 		if err := s.writeAbsence(ctx, tx, n, false); err != nil {
@@ -430,7 +457,7 @@ func (s *Store) DeleteAbsence(ctx context.Context, owner, id string, version int
 		if err != nil {
 			return err
 		}
-		if cat.AbsenceLocked(old) {
+		if cat.AbsenceLocked(old) || cat.LeaveLocked(old, nil) {
 			return core.ErrLocked
 		}
 		if err := s.writeAbsence(ctx, tx, n, false); err != nil {

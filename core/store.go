@@ -31,12 +31,13 @@ const (
 	RecPurgeLog     Kind = "purge_log"
 	RecAbsencePay   Kind = "absence_pay"
 	RecSurcharge    Kind = "surcharge"
+	RecSubmission   Kind = "submission"
 )
 
 // Kinds lists every catalog kind.
 var Kinds = []Kind{RecEmployer, RecModeChange, RecSchedule, RecPayRule, RecClient, RecProject, RecActivity,
 	RecTag, RecAbsenceType, RecConfirmation, RecAdjustment, RecPeriodClose, RecHoliday, RecLeaveNotice, RecPurgeLog,
-	RecAbsencePay, RecSurcharge}
+	RecAbsencePay, RecSurcharge, RecSubmission}
 
 // Meta is what a store needs to know about a catalog record to file it.
 type Meta struct {
@@ -91,6 +92,7 @@ type Catalog struct {
 	PurgeLogs     []PurgeLog     `json:"purge_logs"`
 	AbsencePays   []AbsencePay   `json:"absence_pays,omitempty"`
 	Surcharges    []Surcharge    `json:"surcharges,omitempty"`
+	Submissions   []Submission   `json:"submissions,omitempty"`
 }
 
 // Add files a record into the catalog. Stores use it to build a catalog from stored records.
@@ -130,6 +132,8 @@ func (c *Catalog) Add(r Record) {
 		c.AbsencePays = append(c.AbsencePays, v)
 	case Surcharge:
 		c.Surcharges = append(c.Surcharges, v)
+	case Submission:
+		c.Submissions = append(c.Submissions, v)
 	}
 }
 
@@ -172,6 +176,8 @@ func DecodeRecord(kind Kind, data []byte) (Record, error) {
 		r, err = decode[AbsencePay](data)
 	case RecSurcharge:
 		r, err = decode[Surcharge](data)
+	case RecSubmission:
+		r, err = decode[Submission](data)
 	default:
 		return nil, invalid("record kind %q", kind)
 	}
@@ -227,14 +233,33 @@ func appliesTo(emp Employer, recordEmployer string) bool {
 	return recordEmployer == emp.ID
 }
 
-// Locked reports whether the day of the employer lies in a closed period.
+// Locked reports whether the day of the employer lies in a closed period, or in a period handed in for approval or
+// approved (see Submission).
 func (c Catalog) Locked(employerID string, d Date) bool {
 	for _, p := range c.PeriodCloses {
 		if (p.EmployerID == employerID || employerID == "") && d.Within(p.From, p.To) {
 			return true
 		}
 	}
-	return false
+	return c.SubmittedLocked(employerID, d)
+}
+
+// Fixed reports whether a catalog record of the kind can never be deleted, and replaced only as the kind allows:
+// period closes and purge logs never, submissions only while they are submitted.
+func Fixed(kind Kind) bool {
+	return kind == RecPeriodClose || kind == RecPurgeLog || kind == RecSubmission
+}
+
+// Replaceable reports whether the stored record old may be replaced: not a period close or purge log, and a
+// submission only while it is submitted.
+func Replaceable(old Record) bool {
+	switch v := old.(type) {
+	case PeriodClose, PurgeLog:
+		return false
+	case Submission:
+		return !v.Final()
+	}
+	return true
 }
 
 // Change says who changes a time record and why. Both go into the correction history.
@@ -317,9 +342,10 @@ var (
 // Time records (entries, absences) are never overwritten: every change writes a Revision with the previous state, and
 // a deletion only marks the record. Changes in a closed period fail with ErrLocked, stale versions with ErrConflict.
 type Store interface {
-	// Put inserts or replaces a catalog record.
+	// Put inserts or replaces a catalog record. Period closes and purge logs are never replaced, submissions only while
+	// they are submitted (ErrLocked).
 	Put(ctx context.Context, r Record) error
-	// Delete removes a catalog record. Period closes and purge logs cannot be deleted (ErrLocked).
+	// Delete removes a catalog record. Period closes, purge logs and submissions cannot be deleted (ErrLocked).
 	Delete(ctx context.Context, kind Kind, owner, id string) error
 	// Catalog returns every catalog record of the owner.
 	Catalog(ctx context.Context, owner string) (Catalog, error)
