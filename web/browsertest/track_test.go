@@ -81,6 +81,12 @@ func TestStopwatchAndLineOnAPhone(t *testing.T) {
 	b.tap(`form[action="/timer/stop"] button`)
 	b.must(`location.search.includes('done=stopped') && !document.querySelector('[data-timer-elapsed]')`, "the stopwatch stops")
 	b.settle()
+	// A collapsible card opens with a tap on its head.
+	b.tap(`[data-span-form] summary`)
+	b.must(`document.querySelector('[data-span-form]').open && document.querySelector('#span-start').getClientRects().length > 0`, "the card opens")
+	b.settle()
+	b.shot("exact-span")
+	b.reachable("span card")
 	b.typeInto("#line", "8-12:30 30m Pause @Website #meeting")
 	b.must(`document.querySelector('[data-line-preview]').textContent.includes('8:00–12:30') && document.querySelector('[data-line-preview]').textContent.includes('@Website')`,
 		"the line says what it understood")
@@ -95,7 +101,11 @@ func TestOtherModesAndReportsOnAPhone(t *testing.T) {
 	b := setup(t)
 	b.signUp("ina", true)
 	b.addEmployer("Cleaning", "week_sum", "")
+	// The browser knows a duration from the field's pattern (also: the pattern compiles in the browser's syntax).
+	b.typeInto("#week-hours", "7 Stunden")
+	b.must(`!document.querySelector('#week-hours').checkValidity()`, "the field says early that this is no duration")
 	b.typeInto("#week-hours", "12,5")
+	b.must(`document.querySelector('#week-hours').checkValidity()`, "the field takes a duration")
 	b.tap(`form[action="/book/week"] button[type=submit]`)
 	b.must(`location.search.includes('done=saved') && document.querySelector('#week-hours').value === '12:30'`, "the week total is kept")
 	b.settle()
@@ -124,8 +134,16 @@ func TestOtherModesAndReportsOnAPhone(t *testing.T) {
 	b.eval(`(() => { const s = document.querySelector('#pick-employer'); s.value = [...s.options].find(o => o.text === 'Cleaning').value; s.dispatchEvent(new Event('change', {bubbles: true})); })()`)
 	b.must(`!!document.querySelector('#week-hours')`, "the switcher shows the other employer")
 	b.settle()
+	// The weekly total split into days, after the question: Monday to Friday 2:30 each.
+	b.tap(`[data-spread]`)
+	b.must(`document.querySelector('#confirm-dialog').open`, "splitting asks first")
+	b.tap(`#confirm-dialog [data-confirm-ok]`)
+	b.must(`location.search.includes('done=spread') && document.querySelector('[data-day="2026-11-16"] input').value === '2:30'`, "the week is split into days")
+	b.settle()
+	b.reachable("week split into days")
+	b.shot("week-split")
 
-	b.tap(`.epd-tabbar a[href="/reports"]`)
+	b.tap(`.tab-bar a[href="/reports"]`)
 	b.must(`location.pathname === '/reports' && document.querySelectorAll('[data-report]').length === 2`, "the report lists both employers")
 	b.settle()
 	b.reachable("reports")

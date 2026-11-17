@@ -11,16 +11,19 @@ lockfile and no build step for JavaScript.
 - `i18n/en.json` and `i18n/de.json` hold every text; a test keeps their keys and placeholders in step.
 - `auth/` holds the accounts; `browsertest/` runs the program in a real Chrome (`go test -tags browser`).
 
-## What C22 does not have yet
+## Everything from C22
 
-`assets/app/app.css` holds the few rules C22 lacks, from its tokens only. Each belongs in C22 eventually:
+The app has no stylesheet of its own: every class is one of C22's, and a test (`TestEveryClassExistsInTheStylesheet`)
+fails on a class C22 lacks or on any CSS file in `assets/app/`. What the app needs and C22 lacks goes to C22 first.
+Parts used beyond the plain components:
 
-| Rule | Needed for |
+| Part | Where |
 |---|---|
-| `.epd-tabbar` | a tab bar fixed to the bottom of a phone's screen, above the home indicator, hidden from 48rem on |
-| `.epd-qr` | a QR code at a size a camera reads well, without smoothing |
-| `.epd-secret`, `.epd-licenses` | long unbroken strings (a TOTP key, license texts) that wrap anywhere |
+| Tab bar (`nav.tab-bar`, the open page `aria-current="page"`; the page keeps `pb-20` below its content) | `layout.html` |
+| QR code (`img.qr-code`) and key to type off (`code.secret-key`) | setting up an authenticator app |
+| Code block with wrapped lines (`pre.code-block[data-wrap]` with `max-h-96`) | the licenses page |
+| Collapsible card (`details.card`, `<summary><h3>`, `<section>`) | absence, span |
+| Blocks of the category "Data entry": day row, stat row, duration field | the week views |
 
-Composed from C22's parts, but worth a pattern of their own there: a day row (weekday, date, chips for holiday and
-absence, value and balance), a row of three figures (week, account, leave), a duration field (`7:30`, `7,5`, `7h30m`)
-and a collapsible card (`details.card` with its summary as the header).
+A duration field carries `pattern` from `durationPattern` (Go, `track.go`), which a test keeps in step with
+`parseHours`: the browser refuses early what the server would refuse, and nothing it would take.

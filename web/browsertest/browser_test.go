@@ -529,6 +529,14 @@ const unreachable = `(() => {
 		const r = e.getBoundingClientRect();
 		if (r.left < -1 || r.right > W + 1) bad.push('outside the screen: ' + e.outerHTML.slice(0, 80));
 	}
+	// Scrolled to the end, the last part of the page stays above the tab bar.
+	const bar = document.querySelector('.tab-bar'), main = document.querySelector('main');
+	if (bar && bar.getClientRects().length && main && main.lastElementChild) {
+		const y = scrollY;
+		scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'});
+		if (main.lastElementChild.getBoundingClientRect().bottom > bar.getBoundingClientRect().top + 1) bad.push('the end of the page hides behind the tab bar');
+		scrollTo({top: y, behavior: 'instant'});
+	}
 	return JSON.stringify(bad);
 })()`
 

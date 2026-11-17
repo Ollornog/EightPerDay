@@ -25,6 +25,7 @@
   </div>
 
   {{if and $d.HasTarget $d.HasSchedule}}
+  <!-- C22 block data-entry/stat-row -->
   <div class="card" data-size="sm" data-summary>
     <section class="grid grid-cols-3 gap-2 text-center">
       <div><p class="text-muted-foreground text-xs">{{t "home.balance.week"}}</p><p class="font-semibold tabular-nums" data-week-balance>{{signed $d.Total.Balance}}</p></div>
@@ -59,9 +60,10 @@
   {{end}}
 
   {{if or (eq $d.Mode "schedule") (eq $d.Mode "plan") (eq $d.Mode "exact")}}
-  <details class="card" data-size="sm">
-    <summary class="cursor-pointer px-4 font-semibold">{{t "absence.title"}}</summary>
-    <form method="post" action="/book/absence" class="grid gap-3 px-4 pt-4">
+  <details class="card" data-size="sm" data-absence-form>
+    <summary><h3>{{t "absence.title"}}</h3></summary>
+    <section>
+    <form method="post" action="/book/absence" class="grid gap-3">
       <input type="hidden" name="employer" value="{{$d.Employer.ID}}">
       <input type="hidden" name="back" value="{{$d.Back}}">
       <div class="field" role="group"><label for="absence-type">{{t "absence.type"}}</label>
@@ -74,6 +76,7 @@
       <p class="text-muted-foreground text-xs">{{t "absence.health"}}</p>
       <button type="submit" class="btn" data-variant="outline">{{t "absence.submit"}}</button>
     </form>
+    </section>
   </details>
   {{end}}
 
@@ -105,15 +108,28 @@
 {{end}}
 
 {{define "mode-week-sum"}}
-<form method="post" action="/book/week" class="card">
+<div class="card">
   <header><h2 class="card-title">{{t "weeksum.title"}}</h2><p class="card-description">{{t "weeksum.lead"}}</p></header>
-  <section class="grid gap-3">
-    <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
-    <label class="label" for="week-hours">{{t "weeksum.hours"}}</label>
-    <input class="input text-2xl tabular-nums" id="week-hours" name="hours" inputmode="decimal" value="{{if .WeekMinutes}}{{hours .WeekMinutes}}{{end}}" placeholder="38:30" autocomplete="off">
-    <button type="submit" class="btn">{{t "action.save"}}</button>
+  <section>
+    <form method="post" action="/book/week" class="grid gap-3">
+      <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+      <!-- C22 block data-entry/duration-field -->
+      <div class="field" role="group">
+        <label for="week-hours">{{t "weeksum.hours"}}</label>
+        <input class="input text-2xl tabular-nums" id="week-hours" pattern="{{durationPattern}}" name="hours" inputmode="decimal" value="{{if .WeekMinutes}}{{hours .WeekMinutes}}{{end}}" placeholder="38:30" autocomplete="off" aria-describedby="week-hours-hint">
+        <p id="week-hours-hint">{{t "duration.hint"}}</p>
+      </div>
+      <button type="submit" class="btn">{{t "action.save"}}</button>
+    </form>
   </section>
-</form>
+  {{if and .WeekMinutes .CanSettings}}
+  <footer class="flex-col gap-2">
+    <form method="post" action="/book/spread" class="w-full" data-confirm="{{t "weeksum.spread.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+      <button type="submit" class="btn w-full" data-variant="ghost" data-spread>{{t "weeksum.spread"}}</button></form>
+    <p class="text-muted-foreground text-xs">{{t "weeksum.spread.hint"}}</p>
+  </footer>
+  {{end}}
+</div>
 {{if .Recent}}
 <div class="card" data-size="sm">
   <header><h2 class="card-title">{{t "weeksum.recent"}}</h2></header>
@@ -152,6 +168,7 @@
 {{end}}
 
 {{define "mode-schedule"}}
+<!-- C22 block data-entry/day-row: one per day -->
 <form method="post" action="/book/days" class="card">
   <header><h2 class="card-title">{{t "schedule.title"}}</h2><p class="card-description">{{t "schedule.lead"}}</p></header>
   <section class="grid gap-3">
@@ -162,7 +179,7 @@
       {{template "day-head" .}}
       <div class="flex items-center gap-2">
         <label class="sr-only" for="day-{{.Date}}">{{t "schedule.hours"}}</label>
-        <input class="input w-24 tabular-nums" id="day-{{.Date}}" name="day-{{.Date}}" inputmode="decimal" value="{{.Input}}" placeholder="0:00" autocomplete="off">
+        <input class="input w-24 tabular-nums" id="day-{{.Date}}" pattern="{{durationPattern}}" name="day-{{.Date}}" inputmode="decimal" value="{{.Input}}" placeholder="0:00" autocomplete="off">
         <span class="min-w-0 flex-1 text-muted-foreground text-xs tabular-nums">{{t "schedule.target"}} {{hours .AdjustedTarget}} · {{t "schedule.actual"}} {{hours .Actual}}</span>
         {{if not .Future}}<span class="font-semibold tabular-nums" data-balance>{{signed .Balance}}</span>{{end}}
       </div>
@@ -197,7 +214,7 @@
             <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{.Date}}">
             <div class="flex gap-2">
               <label class="sr-only" for="dev-{{.Date}}">{{t "plan.howlong"}}</label>
-              <input class="input w-24 tabular-nums" id="dev-{{.Date}}" name="minutes" inputmode="decimal" placeholder="1:30" required autocomplete="off">
+              <input class="input w-24 tabular-nums" id="dev-{{.Date}}" pattern="{{durationPattern}}" name="minutes" inputmode="decimal" placeholder="1:30" required autocomplete="off">
               <label class="sr-only" for="dev-note-{{.Date}}">{{t "entry.note"}}</label>
               <input class="input min-w-0 flex-1" id="dev-note-{{.Date}}" name="note" maxlength="200" placeholder="{{t "entry.note"}}">
             </div>
@@ -247,20 +264,22 @@
     {{end}}
   </section>
 </div>
-<details class="card" data-size="sm">
-  <summary class="cursor-pointer px-4 font-semibold">{{t "span.title"}}</summary>
-  <form method="post" action="/book/span" class="grid gap-3 px-4 pt-4">
+<details class="card" data-size="sm" data-span-form>
+  <summary><h3>{{t "span.title"}}</h3></summary>
+  <section>
+  <form method="post" action="/book/span" class="grid gap-3">
     <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
     <div class="field" role="group"><label for="span-date">{{t "span.date"}}</label><input class="input" type="date" id="span-date" name="date" value="{{.Today}}" required></div>
     <div class="grid gap-2 sm:grid-cols-3">
       <div class="field" role="group"><label for="span-start">{{t "span.start"}}</label><input class="input" type="time" id="span-start" name="start" required></div>
       <div class="field" role="group"><label for="span-end">{{t "span.end"}}</label><input class="input" type="time" id="span-end" name="end" required></div>
-      <div class="field" role="group"><label for="span-break">{{t "track.break"}}</label><input class="input" id="span-break" name="break" inputmode="decimal" placeholder="0:30"></div>
+      <div class="field" role="group"><label for="span-break">{{t "track.break"}}</label><input class="input" id="span-break" pattern="{{durationPattern}}" name="break" inputmode="decimal" placeholder="0:30"></div>
     </div>
     {{template "project-select" (projectChoice "span-project" .AllProjects)}}
     <div class="field" role="group"><label for="span-note">{{t "entry.note"}}</label><input class="input" id="span-note" name="note" maxlength="200"></div>
     <button type="submit" class="btn">{{t "span.submit"}}</button>
   </form>
+  </section>
 </details>
 <div class="card" data-size="sm">
   <header><h2 class="card-title">{{t "exact.week"}}</h2></header>
@@ -287,7 +306,7 @@
     {{range .Projects}}
     <div class="flex items-center gap-2" data-project-row>
       <label class="min-w-0 flex-1 truncate" for="project-{{.Project.ID}}">{{.Project.Name}}</label>
-      <input class="input w-24 tabular-nums" id="project-{{.Project.ID}}" name="project-{{.Project.ID}}" inputmode="decimal" value="{{.Input}}" placeholder="0:00" autocomplete="off">
+      <input class="input w-24 tabular-nums" id="project-{{.Project.ID}}" pattern="{{durationPattern}}" name="project-{{.Project.ID}}" inputmode="decimal" value="{{.Input}}" placeholder="0:00" autocomplete="off">
     </div>
     {{else}}
     <p class="text-muted-foreground text-sm">{{t "projects.none"}}</p>

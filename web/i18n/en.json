@@ -415,5 +415,10 @@
   "done.started": "The stopwatch runs.",
   "done.stopped": "The time is booked.",
   "done.archived": "Archived.",
-  "done.exact": "This week is now recorded exactly."
+  "done.exact": "This week is now recorded exactly.",
+  "duration.hint": "As 38:30, 38,5 or 38h30m.",
+  "weeksum.spread": "Split this week into days",
+  "weeksum.spread.hint": "Spreads the total over the working days by the schedule (Monday to Friday without one). From this week on you enter hours per day.",
+  "weeksum.spread.confirm": "Split the total of this week into days? From this week on you enter hours per day.",
+  "done.spread": "The week is split into days."
 }
