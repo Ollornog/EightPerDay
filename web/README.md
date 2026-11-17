@@ -47,7 +47,13 @@ A duration field carries `pattern` from `durationPattern` (Go, `track.go`), whic
   defaults to the store's own.
 - Leave reminders: the week view shows `core.LeaveReminders` for the person while the year's data are loaded (the
   week shown lies in this year or next to it), with the employer's notice when there is one; the note on lapsing
-  leave is only given for German employers.
+  leave is only given for German employers (`core.LeaveNoticeApplies`).
+- Notices on lapsing leave: the settings of a German employer list its `core.LeaveNotice`s and take a new one
+  (`POST /employers/{id}/notice`, checked by `core.MayRecordLeaveNotice`: the person on a private employer, an
+  administrator of the organization on a managed one; the day not after today, kept as noon UTC). Within the last
+  92 days of the year the organization's page lists the notices it still owes (`core.NoticesOwed`) with the same form;
+  the year read for it goes through `core.ReadManagedDaily` ("leave notices"), and a recorded notice into the member's
+  access log as a change.
 - Legal templates: `/legal` shows the files of `docs/legal` (embedded by the package `docs`) with their downloads
   and the kinds of data from `core.DataInventory`, with `docs/data-inventory.json` to download; the page says first
   that none of it is legal advice or checked by a lawyer.

@@ -190,13 +190,15 @@ func TestValidation(t *testing.T) {
 			s.Days[1].Start, s.Days[1].End = ip(600), ip(500)
 			return s
 		}(),
-		"unknown region":          Employer{ID: "e", Owner: owner, Name: "X", Kind: KindEmployer, Mode: ModeExact, Region: "DE-XX"},
-		"unknown time zone":       Employer{ID: "e", Owner: owner, Name: "X", Kind: KindEmployer, Mode: ModeExact, TimeZone: "Mars/Olympus"},
-		"adjustment w/o reason":   Adjustment{ID: "a", Owner: owner, EmployerID: "e1", Date: d("2026-01-01"), Kind: AdjustOvertime},
-		"holiday fraction 0":      Holiday{ID: "h", Owner: owner, Date: d("2026-01-01"), Name: "X"},
-		"mode change w/o date":    ModeChange{ID: "m", Owner: owner, EmployerID: "e1", Mode: ModePlan},
-		"confirmation reversed":   Confirmation{ID: "c", Owner: owner, EmployerID: "e1", From: d("2026-01-02"), To: d("2026-01-01")},
-		"leave notice w/o time":   LeaveNotice{ID: "n", Owner: owner, EmployerID: "e1", Year: 2026},
+		"unknown region":        Employer{ID: "e", Owner: owner, Name: "X", Kind: KindEmployer, Mode: ModeExact, Region: "DE-XX"},
+		"unknown time zone":     Employer{ID: "e", Owner: owner, Name: "X", Kind: KindEmployer, Mode: ModeExact, TimeZone: "Mars/Olympus"},
+		"adjustment w/o reason": Adjustment{ID: "a", Owner: owner, EmployerID: "e1", Date: d("2026-01-01"), Kind: AdjustOvertime},
+		"holiday fraction 0":    Holiday{ID: "h", Owner: owner, Date: d("2026-01-01"), Name: "X"},
+		"mode change w/o date":  ModeChange{ID: "m", Owner: owner, EmployerID: "e1", Mode: ModePlan},
+		"confirmation reversed": Confirmation{ID: "c", Owner: owner, EmployerID: "e1", From: d("2026-01-02"), To: d("2026-01-01")},
+		"leave notice w/o time": LeaveNotice{ID: "n", Owner: owner, EmployerID: "e1", Year: 2026},
+		"leave notice too long": LeaveNotice{ID: "n", Owner: owner, EmployerID: "e1", Year: 2026, NotifiedAt: time.Now(),
+			Text: strings.Repeat("x", 2001)},
 		"absence type bad effect": AbsenceType{ID: "t", Owner: owner, Key: "x", Name: "X", Effect: "maybe"},
 	} {
 		if err := r.Validate(); !errors.Is(err, ErrInvalid) {

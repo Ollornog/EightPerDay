@@ -41,6 +41,27 @@
     </section>
   </div>
   {{end}}
+  {{if $d.NoticeWindow}}
+  <div class="card" data-owed-notices>
+    <header><h2 class="card-title">{{t "org.notices"}}</h2><p class="card-description">{{t "org.notices.lead"}}</p></header>
+    <section class="grid gap-3">
+      {{range $d.Owed}}
+      <div class="grid gap-2 rounded-md border p-3 text-sm" data-owed="{{.EmployerID}}">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-medium">{{.Name}}</span>
+          <span class="text-muted-foreground text-xs tabular-nums">{{t "org.notices.open" (half .Remaining) .Year}}</span>
+        </div>
+        <details data-notice-add>
+          <summary class="btn" data-variant="outline" data-size="sm">{{t "notice.add"}}</summary>
+          {{template "notice-fields" (noticeForm .EmployerID .Person $d.Back $d.Today)}}
+        </details>
+      </div>
+      {{else}}
+      <p class="text-muted-foreground text-sm" data-owed-none>{{t "org.notices.none"}}</p>
+      {{end}}
+    </section>
+  </div>
+  {{end}}
   {{if $d.ShowPresence}}
   <div class="card" data-presence>
     <header><h2 class="card-title">{{t "org.presence"}}</h2><p class="card-description">{{t "org.presence.lead"}}</p></header>

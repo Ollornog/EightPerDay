@@ -2,7 +2,11 @@
 
 package core
 
-import "time"
+import (
+	"slices"
+	"strings"
+	"time"
+)
 
 // LeaveReminder points out leave that is still open towards the end of the year.
 //
@@ -56,4 +60,43 @@ func LeaveReminders(d Data, employerID string, today Date, warnDays int) ([]Leav
 	}
 	r.Lapses = r.NoticeGiven
 	return []LeaveReminder{r}, nil
+}
+
+// LeaveNoticeApplies reports whether the notice on lapsing leave matters for the employer: an employment (kind
+// employer, not a client or private work) that is German, by its region ("DE" or a German state), or that names no
+// region, whose default time zone is German as well. An Austrian employer ("AT") is not asked for it here.
+func LeaveNoticeApplies(e Employer) bool {
+	german := e.Region == "" || e.Region == "DE" || strings.HasPrefix(e.Region, "DE-")
+	return german && (e.Kind == KindEmployer || e.Kind == "")
+}
+
+// MayRecordLeaveNotice reports whether the actor may record the employer's notice on lapsing leave: whoever stands
+// for the employer, so the person on a private employer and an administrator of the organization on a managed one
+// (as MayChangeSettings), and only where the notice applies (LeaveNoticeApplies).
+func MayRecordLeaveNotice(e Employer, a Actor) bool {
+	return LeaveNoticeApplies(e) && MayChangeSettings(e, a)
+}
+
+// NoticesOwed returns, for every employer in the data that the notice applies to and that is not archived, the
+// reminder of open leave of the current year that has no notice yet (LeaveReminders without NoticeGiven): on an
+// organization's managed data, the notices it still owes its members. The data must hold the whole year's absences.
+// The result is ordered by employer ID.
+func NoticesOwed(d Data, today Date, warnDays int) ([]LeaveReminder, error) {
+	var out []LeaveReminder
+	for _, e := range d.Catalog.Employers {
+		if e.Archived || !LeaveNoticeApplies(e) {
+			continue
+		}
+		reminders, err := LeaveReminders(d, e.ID, today, warnDays)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range reminders {
+			if !r.NoticeGiven {
+				out = append(out, r)
+			}
+		}
+	}
+	slices.SortFunc(out, func(a, b LeaveReminder) int { return strings.Compare(a.EmployerID, b.EmployerID) })
+	return out, nil
 }

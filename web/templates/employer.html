@@ -198,6 +198,28 @@
     </section>
   </div>
 
+  {{if $d.NoticeApplies}}
+  <div class="card" id="notices" data-leave-notices>
+    <header><h2 class="card-title">{{t "notice.title"}}</h2><p class="card-description">{{t "notice.lead"}}</p></header>
+    <section class="grid gap-4">
+      {{range $d.Notices}}
+      <div class="grid gap-1 rounded-md border p-3 text-sm" data-leave-notice>
+        <span class="font-medium tabular-nums">{{t "notice.for" .Year}} · {{t "notice.given" (date .NotifiedAt)}}</span>
+        {{if .Text}}<p class="text-muted-foreground text-xs">{{.Text}}</p>{{end}}
+      </div>
+      {{else}}
+      <p class="text-muted-foreground text-sm" data-leave-notices-none>{{t "notice.none"}}</p>
+      {{end}}
+      {{if $d.CanNotice}}
+      <details data-notice-add>
+        <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "notice.add"}}</summary>
+        {{template "notice-fields" (noticeForm $d.Employer.ID $d.Owner $d.Back $d.Today)}}
+      </details>
+      {{end}}
+    </section>
+  </div>
+  {{end}}
+
   <div class="card">
     <header><h2 class="card-title">{{t "employer.projects"}}</h2></header>
     <section class="grid gap-2">

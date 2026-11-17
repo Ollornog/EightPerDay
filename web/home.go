@@ -256,7 +256,7 @@ func (h *handler) week(r *http.Request, cat core.Catalog, emp core.Employer) (ho
 			}
 			lang := h.lang(r)
 			for _, rem := range reminders {
-				v := reminderView{LeaveReminder: rem, Germany: emp.Region == "" || strings.HasPrefix(emp.Region, "DE")}
+				v := reminderView{LeaveReminder: rem, Germany: core.LeaveNoticeApplies(emp)}
 				if rem.NotifiedAt != nil {
 					v.Notice = formatDate(lang, *rem.NotifiedAt)
 				}

@@ -82,6 +82,12 @@ All notable changes to this project are documented in this file. The format foll
 - A page with the templates for employers (`/legal`, linked from the about dialog and the organization's page): the
   texts of `docs/legal` (embedded as the package `docs`) to read and download, and the kinds of data with the data
   inventory as a download, marked first as no legal advice and not checked by a lawyer.
+- The employer's notice on lapsing leave in the interface: the settings of a German employer list the notices and
+  take a new one (year, day given, not after today, and its wording), recorded by whoever stands for the employer:
+  the person on a private employer, an administrator of the organization on a managed one
+  (`MayRecordLeaveNotice`, `LeaveNoticeApplies`, both new). Towards the end of the year the organization's page lists
+  the members with open leave who have no notice yet (`NoticesOwed`, new) and records it there; reading the year for
+  that list goes into each member's access log once a day, and a recorded notice as a change.
 - The backlog names the next milestone, the first release (M-4), with publishing the container image as its open task
   (T-5).
 
@@ -113,3 +119,6 @@ All notable changes to this project are documented in this file. The format foll
 
 - A form without a date (such as a pay rule or a surcharge) answers that the date is missing instead of failing.
 - The browser test taps only once the page has come to rest; a section that still grew moved the touch elsewhere.
+- The browser test of an own leave request tapped the first leave button of the page, the quick button of Monday in
+  the plan, instead of the absence form's; the request showed Monday instead of the day the form proposed. It now taps
+  the form's button and checks the day on the week view and on the organization's page. The program was right.
