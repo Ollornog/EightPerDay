@@ -1,7 +1,7 @@
 ---
 id: T-4
 type: Task
-title: "Loose ends: first link, region names, reviews, reads once a day, reminders, legal templates"
+title: "Loose ends: first link, region names, reviews, reads once a day, reminders, legal templates, leave notices"
 status: erledigt
 milestone: M-3
 tags: [security, ui, company-features, privacy]
@@ -18,5 +18,7 @@ created: 2026-11-17
 - Leave reminders (`core.LeaveReminders`) on the person's week view; the page `/legal` shows and hands out the
   templates of `docs/legal` and the data inventory, marked as no legal advice and not checked by a lawyer.
 
-Not covered: recording the employer's notice on lapsing leave in the interface (`LeaveNotice` comes from the core
-library so far), and the organization's list of the notices it still owes.
+- The employer's notice on lapsing leave in the interface (added 2026-11-17): the settings of a German employer list
+  and take it (`core.MayRecordLeaveNotice`: the person on a private employer, an administrator on a managed one), and
+  the organization's page lists the notices it still owes towards the end of the year (`core.NoticesOwed`), its read
+  in the members' access log.

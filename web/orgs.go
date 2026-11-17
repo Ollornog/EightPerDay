@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Ollornog/EightPerDay/core"
 	"github.com/Ollornog/EightPerDay/web/auth"
@@ -40,7 +41,18 @@ type orgData struct {
 	ShowPresence bool
 	// Reviews are the open submissions of the members, when approval is on.
 	Reviews []reviewView
-	Back    string
+	// NoticeWindow: the end of the year is near (core.DefaultReminderDays), so the page lists the notices on lapsing
+	// leave the organization still owes (Owed, from core.NoticesOwed).
+	NoticeWindow bool
+	Owed         []owedView
+	Back         string
+}
+
+// owedView is a member to whom the organization still owes the notice on lapsing leave.
+type owedView struct {
+	core.LeaveReminder
+	Name   string
+	Person string
 }
 
 type memberView struct {
@@ -182,6 +194,9 @@ func (h *handler) orgData(r *http.Request, org core.Organization, members []core
 			return d, err
 		}
 	}
+	if d.Owed, d.NoticeWindow, err = h.owedNotices(r, org, actor, today, d.Members); err != nil {
+		return d, err
+	}
 	// The supervisor view: present or absent today, without reasons and without history, only when switched on.
 	if org.Features.SupervisorView {
 		d.ShowPresence = true
@@ -209,6 +224,38 @@ func (h *handler) orgData(r *http.Request, org core.Organization, members []core
 		}
 	}
 	return d, nil
+}
+
+// owedNotices lists the members with open leave of this year to whom the organization has not recorded the notice
+// that it lapses (core.NoticesOwed). Only towards the end of the year does it read the year of every member, and the
+// read goes into each member's access log once a day (core.ReadManagedDaily).
+func (h *handler) owedNotices(r *http.Request, org core.Organization, actor core.Actor, today core.Date,
+	members []memberView) ([]owedView, bool, error) {
+	first, last := core.NewDate(today.Year, time.January, 1), core.NewDate(today.Year, time.December, 31)
+	if today.DaysUntil(last) > core.DefaultReminderDays {
+		return nil, false, nil
+	}
+	data, err := core.ReadManagedDaily(r.Context(), h.options.Store, h.options.AccessLog, actor, org.ID, first, last,
+		"leave notices", h.now(), orgLocation(org))
+	if err != nil {
+		return nil, true, err
+	}
+	owed, err := core.NoticesOwed(data, today, 0)
+	if err != nil {
+		return nil, true, err
+	}
+	var out []owedView
+	for _, o := range owed {
+		v := owedView{LeaveReminder: o}
+		for _, m := range members {
+			if m.EmployerID == o.EmployerID {
+				v.Name, v.Person = m.Name, m.Person
+			}
+		}
+		out = append(out, v)
+	}
+	slices.SortFunc(out, func(a, b owedView) int { return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)) })
+	return out, true, nil
 }
 
 // changeOrg acts on an organization: its details, members, templates and company features.

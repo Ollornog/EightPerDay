@@ -3,6 +3,7 @@
 package web
 
 import (
+	"fmt"
 	"math"
 	"net/http"
 	"slices"
@@ -34,7 +35,12 @@ type employerData struct {
 	Kinds       []core.EmployerKind
 	Weekdays    []int
 	Bases       []core.PayBasis
-	Back        string
+	// NoticeApplies: the employer is German (core.LeaveNoticeApplies), so the page shows its notices on lapsing
+	// leave; CanNotice: the viewer stands for the employer and records them (core.MayRecordLeaveNotice).
+	NoticeApplies bool
+	CanNotice     bool
+	Notices       []core.LeaveNotice
+	Back          string
 }
 
 type scheduleView struct {
@@ -48,7 +54,8 @@ var weekdays = []int{1, 2, 3, 4, 5, 6, 0}
 
 // employerTarget finds the employer of a settings address and checks who acts: the person on a private employer, an
 // administrator of the organization on a managed one, and the person reads the settings of their managed employer.
-func (h *handler) employerTarget(w http.ResponseWriter, r *http.Request) (core.Catalog, core.Employer, string, bool, bool) {
+// The actor it returns decides what the viewer may change (core.MayChangeSettings, core.MayRecordLeaveNotice).
+func (h *handler) employerTarget(w http.ResponseWriter, r *http.Request) (core.Catalog, core.Employer, string, core.Actor, bool) {
 	ctx := r.Context()
 	account := accountFrom(ctx)
 	owner := r.URL.Query().Get("owner")
@@ -61,30 +68,29 @@ func (h *handler) employerTarget(w http.ResponseWriter, r *http.Request) (core.C
 	cat, err := h.options.Store.Catalog(ctx, owner)
 	if err != nil {
 		h.failed(w, r, err)
-		return cat, core.Employer{}, owner, false, false
+		return cat, core.Employer{}, owner, core.Actor{}, false
 	}
 	emp, found := cat.Employer(r.PathValue("id"))
 	if !found {
 		h.notFound(w, r)
-		return cat, emp, owner, false, false
+		return cat, emp, owner, core.Actor{}, false
 	}
 	memberships, err := h.options.Store.Memberships(ctx, emp.Organization, account.ID)
 	if err != nil {
 		h.failed(w, r, err)
-		return cat, emp, owner, false, false
+		return cat, emp, owner, core.Actor{}, false
 	}
 	actor := core.ActorFor(account.ID, emp.Organization, memberships, h.today(&emp))
-	canChange := core.MayChangeSettings(emp, actor)
 	// Someone else's employer: only an administrator of its organization, never a private one.
-	if owner != account.ID && !canChange {
+	if owner != account.ID && !core.MayChangeSettings(emp, actor) {
 		h.notFound(w, r)
-		return cat, emp, owner, false, false
+		return cat, emp, owner, actor, false
 	}
-	return cat, emp, owner, canChange, true
+	return cat, emp, owner, actor, true
 }
 
 func (h *handler) employerPage(w http.ResponseWriter, r *http.Request) {
-	cat, emp, owner, canChange, ok := h.employerTarget(w, r)
+	cat, emp, owner, actor, ok := h.employerTarget(w, r)
 	if !ok {
 		return
 	}
@@ -94,12 +100,13 @@ func (h *handler) employerPage(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
-	h.render(w, r, http.StatusOK, "employer", view{Title: emp.Name, Data: h.employerData(r, cat, emp, owner, canChange)})
+	h.render(w, r, http.StatusOK, "employer", view{Title: emp.Name, Data: h.employerData(r, cat, emp, owner, actor)})
 }
 
-func (h *handler) employerData(r *http.Request, cat core.Catalog, emp core.Employer, owner string, canChange bool) employerData {
+func (h *handler) employerData(r *http.Request, cat core.Catalog, emp core.Employer, owner string, actor core.Actor) employerData {
 	today := h.today(&emp)
-	d := employerData{Employer: emp, Owner: owner, CanChange: canChange, Today: today, Mode: core.ModeAt(cat, emp.ID, today),
+	d := employerData{Employer: emp, Owner: owner, CanChange: core.MayChangeSettings(emp, actor),
+		NoticeApplies: core.LeaveNoticeApplies(emp), CanNotice: core.MayRecordLeaveNotice(emp, actor), Today: today, Mode: core.ModeAt(cat, emp.ID, today),
 		Modes: core.Modes, Weekdays: weekdays, Projects: projectsOf(cat, emp.ID),
 		Kinds: []core.EmployerKind{core.KindEmployer, core.KindClient, core.KindPrivate},
 		Bases: []core.PayBasis{core.PayHourly, core.PayPerProject, core.PayPerAssignment, core.PayFlatPeriod},
@@ -154,6 +161,12 @@ func (h *handler) employerData(r *http.Request, cat core.Catalog, emp core.Emplo
 	for i, t := range d.Types {
 		d.Types[i].Name = h.absenceName(r, t)
 	}
+	for _, n := range cat.LeaveNotices {
+		if n.EmployerID == emp.ID {
+			d.Notices = append(d.Notices, n)
+		}
+	}
+	slices.SortFunc(d.Notices, func(a, b core.LeaveNotice) int { return b.NotifiedAt.Compare(a.NotifiedAt) })
 	return d
 }
 
@@ -191,11 +204,16 @@ func (h *handler) createEmployer(w http.ResponseWriter, r *http.Request) {
 
 // changeEmployer acts on the settings of an employer; each action checks MayChangeSettings first.
 func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
-	cat, emp, owner, canChange, ok := h.employerTarget(w, r)
+	cat, emp, owner, actor, ok := h.employerTarget(w, r)
 	if !ok {
 		return
 	}
-	if !canChange {
+	// The notice on lapsing leave has a right of its own; everything else is a setting.
+	allowed := core.MayChangeSettings(emp, actor)
+	if r.PathValue("action") == "notice" {
+		allowed = core.MayRecordLeaveNotice(emp, actor)
+	}
+	if !allowed {
 		h.back(w, r, errForbidden, "")
 		return
 	}
@@ -272,6 +290,11 @@ func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = h.options.Store.Delete(ctx, kind, owner, r.PostFormValue("record"))
+	case "notice":
+		var n core.LeaveNotice
+		if n, err = h.noticeFromForm(r, owner, emp); err == nil {
+			err = h.options.Store.Put(ctx, n)
+		}
 	case "archive":
 		if emp.Managed() {
 			err = errForbidden // a membership ends in the organization, not here
@@ -293,6 +316,28 @@ func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
 			"employer settings: "+r.PathValue("action"), core.Date{}, core.Date{})
 	}
 	h.back(w, r, err, "saved")
+}
+
+// noticeFromForm reads the employer's notice on lapsing leave: the year it is about (this year if empty), the day it
+// was given (not after today) and its wording. The day is kept as noon UTC, so it reads as the same day everywhere.
+func (h *handler) noticeFromForm(r *http.Request, owner string, emp core.Employer) (core.LeaveNotice, error) {
+	day, err := formDate(r, "notified")
+	if err != nil {
+		return core.LeaveNotice{}, err
+	}
+	today := h.today(&emp)
+	if day.After(today) {
+		return core.LeaveNotice{}, fmt.Errorf("%w: a notice given after today", core.ErrInvalid)
+	}
+	year := today.Year
+	if raw := strings.TrimSpace(r.PostFormValue("year")); raw != "" {
+		if year, err = strconv.Atoi(raw); err != nil {
+			return core.LeaveNotice{}, core.ErrInvalid
+		}
+	}
+	n := core.LeaveNotice{ID: core.NewID(), Owner: owner, EmployerID: emp.ID, Year: year,
+		NotifiedAt: time.Date(day.Year, day.Month, day.Day, 12, 0, 0, 0, time.UTC), Text: strings.TrimSpace(r.PostFormValue("text"))}
+	return n, n.Validate()
 }
 
 // scheduleFromForm reads hours per weekday, optional start, end and break, the overtime basis and the leave days.

@@ -338,3 +338,62 @@ func TestLeaveReminders(t *testing.T) {
 		}
 	}
 }
+
+// The notice applies to German employers and to those without a region; whoever stands for the employer records it.
+func TestMayRecordLeaveNotice(t *testing.T) {
+	private := employerOf(ModeSchedule, "DE-BY")
+	managed := Employer{ID: "m", Owner: owner, Holder: HolderManaged, Organization: "o", Region: "DE"}
+	admin, member := Actor{Person: "boss", Organization: "o", Admin: true}, Actor{Person: owner, Organization: "o"}
+	cases := []struct {
+		name string
+		e    Employer
+		a    Actor
+		want bool
+	}{
+		{"the person on a private employer", private, Actor{Person: owner}, true},
+		{"someone else on a private employer", private, Actor{Person: "boss"}, false},
+		{"the administrator on a managed employer", managed, admin, true},
+		{"the member on a managed employer", managed, member, false},
+		{"an administrator of another organization", managed, Actor{Person: "boss", Organization: "x", Admin: true}, false},
+		{"no region counts as German", employerOf(ModeSchedule, ""), Actor{Person: owner}, true},
+		{"an Austrian employer", employerOf(ModeSchedule, "AT"), Actor{Person: owner}, false},
+		{"a region that only starts with DE", employerOf(ModeSchedule, "DEX"), Actor{Person: owner}, false},
+		{"a client, not an employment", Employer{ID: "c", Owner: owner, Kind: KindClient, Region: "DE"}, Actor{Person: owner}, false},
+	}
+	for _, c := range cases {
+		if got := MayRecordLeaveNotice(c.e, c.a); got != c.want {
+			t.Errorf("%s: %v", c.name, got)
+		}
+	}
+}
+
+// An organization owes the notice to every German, active employer with open leave towards the end of the year and
+// without a notice for that year.
+func TestNoticesOwed(t *testing.T) {
+	sched := func(employer string) Schedule {
+		s := week("s"+employer, "2026-01-01", 480, 480, 480, 480, 480, 0, 0)
+		s.EmployerID = employer
+		return s
+	}
+	emp := func(id, region string, archived bool) Employer {
+		return Employer{ID: id, Owner: owner, Holder: HolderManaged, Organization: "o", Mode: ModeSchedule, Region: region,
+			WeekStart: time.Monday, Archived: archived}
+	}
+	data := Data{Catalog: Catalog{
+		Employers: []Employer{emp("e3", "DE-BY", false), emp("e1", "", false), emp("e2", "DE", false), emp("at", "AT", false),
+			emp("old", "DE", true)},
+		Schedules: []Schedule{sched("e1"), sched("e2"), sched("e3"), sched("at"), sched("old")},
+		LeaveNotices: []LeaveNotice{{ID: "n", Owner: owner, EmployerID: "e2", Year: 2026,
+			NotifiedAt: time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)}},
+	}}
+	got, err := NoticesOwed(data, d("2026-11-18"), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].EmployerID != "e1" || got[1].EmployerID != "e3" || got[0].Remaining != 30 || got[0].NoticeGiven {
+		t.Fatalf("%+v", got)
+	}
+	if early, err := NoticesOwed(data, d("2026-06-01"), 0); err != nil || len(early) != 0 {
+		t.Fatalf("too early in the year: %+v %v", early, err)
+	}
+}

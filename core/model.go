@@ -906,6 +906,9 @@ func (n LeaveNotice) Validate() error {
 	if n.Year < 1900 || n.Year > 9999 || n.NotifiedAt.IsZero() {
 		return invalid("leave notice needs a year and a time")
 	}
+	if len(n.Text) > 2000 {
+		return invalid("leave notice text longer than 2000 characters")
+	}
 	return nil
 }
 

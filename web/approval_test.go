@@ -494,3 +494,133 @@ func TestLeaveReminder(t *testing.T) {
 		t.Fatalf("the German reminder: %.600s", body[max(i, 0):])
 	}
 }
+
+// owedOf cuts the block of one member out of the organization's list of notices it still owes.
+func owedOf(page, employerID string) string {
+	start := strings.Index(page, `data-owed="`+employerID+`"`)
+	if start < 0 {
+		return ""
+	}
+	block := page[start:]
+	if end := strings.Index(block, "data-presence"); end >= 0 {
+		block = block[:end]
+	}
+	return block
+}
+
+func leaveNotices(t *testing.T, s *site, owner string) []core.LeaveNotice {
+	t.Helper()
+	cat, err := s.store.Catalog(context.Background(), owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cat.LeaveNotices
+}
+
+// Towards the end of the year the organization's page lists the members with open leave who have no notice on its
+// lapse yet; reading that list goes into the member's access log. An administrator records the notice there (only
+// up to today), the member cannot; afterwards the member's week view and settings show it and the list is empty.
+func TestOrganizationRecordsTheNoticeItOwes(t *testing.T) {
+	s, worker, org, member, managed, c := approvalSiteWithClock(t)
+	page := s.get("/orgs/" + org).body
+	owed := owedOf(page, managed.ID)
+	if !strings.Contains(page, "data-owed-notices") || !strings.Contains(owed, "tom") ||
+		!strings.Contains(owed, "5 days of leave open in 2026") || !strings.Contains(owed, `action="/employers/`+managed.ID+`/notice"`) ||
+		!strings.Contains(owed, `name="owner" value="`+member.ID+`"`) {
+		t.Fatalf("the owed notice is not listed: %.2000s", owed)
+	}
+	accesses, err := s.store.(core.AccessLog).Accesses(context.Background(), member.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var read *core.Access
+	for i, a := range accesses {
+		if a.What == "leave notices" && a.Action == core.AccessRead {
+			read = &accesses[i]
+		}
+	}
+	if read == nil || read.From != core.MustDate("2026-01-01") || read.To != core.MustDate("2026-12-31") {
+		t.Fatalf("the read of the year is not in the access log: %+v", read)
+	}
+
+	// The member stands not for the employer: the notice is refused and not offered.
+	if a := worker.post("/employers/"+managed.ID+"/notice", url.Values{"year": {"2026"}, "notified": {"2026-11-02"}}); a.status < 400 {
+		t.Fatalf("a member recorded the employer's notice: %d", a.status)
+	}
+	if body := worker.get("/employers/" + managed.ID).body; !strings.Contains(body, "data-leave-notices-none") ||
+		strings.Contains(body, "data-notice-add") {
+		t.Fatal("the member's settings offer the notice or do not say there is none")
+	}
+	// Not after today.
+	if a := s.post("/employers/"+managed.ID+"/notice", url.Values{"owner": {member.ID}, "year": {"2026"},
+		"notified": {"2026-11-19"}}); a.status != http.StatusBadRequest {
+		t.Fatalf("a notice given tomorrow: %d", a.status)
+	}
+	if n := leaveNotices(t, s, member.ID); len(n) != 0 {
+		t.Fatalf("refused notices were stored: %+v", n)
+	}
+	s.mustPost("/employers/"+managed.ID+"/notice", url.Values{"owner": {member.ID}, "year": {"2026"}, "notified": {"2026-11-02"},
+		"text": {"Letter: please take your 5 days."}, "back": {"/orgs/" + org}})
+	notices := leaveNotices(t, s, member.ID)
+	if len(notices) != 1 || notices[0].Year != 2026 || notices[0].EmployerID != managed.ID ||
+		!notices[0].NotifiedAt.Equal(time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)) || notices[0].Text != "Letter: please take your 5 days." {
+		t.Fatalf("%+v", notices)
+	}
+	accesses, _ = s.store.(core.AccessLog).Accesses(context.Background(), member.ID)
+	if last := accesses[len(accesses)-1]; last.Action != core.AccessChange || last.What != "employer settings: notice" {
+		t.Fatalf("the notice is not in the member's access log: %+v", last)
+	}
+	if page := s.get("/orgs/" + org).body; owedOf(page, managed.ID) != "" || !strings.Contains(page, "data-owed-none") {
+		t.Fatal("the recorded notice is still owed")
+	}
+	if body := worker.get("/?e=" + managed.ID).body; !strings.Contains(body, "data-reminder-notice") {
+		t.Fatal("the member's week view does not show the notice")
+	}
+	if body := worker.get("/employers/" + managed.ID).body; !strings.Contains(body, "data-leave-notice") ||
+		!strings.Contains(body, "Leave of 2026") || !strings.Contains(body, "2026-11-02") {
+		t.Fatal("the member's settings do not list the notice")
+	}
+
+	// Early in the next year there is nothing to owe yet, and nothing of the year is read for it.
+	c.Add(100 * 24 * time.Hour)
+	before := len(accesses)
+	if page := s.get("/orgs/" + org).body; !strings.Contains(page, "data-reviews") || strings.Contains(page, "data-owed-notices") {
+		t.Fatal("the list shows long before the end of the year, or the page is not the organization's")
+	}
+	accesses, _ = s.store.(core.AccessLog).Accesses(context.Background(), member.ID)
+	for _, a := range accesses[before:] {
+		if a.What == "leave notices" {
+			t.Fatalf("the year was read outside the window: %+v", a)
+		}
+	}
+}
+
+// On a private German employer the person records the notice the employer gave; nobody else can, and an employer in
+// Austria neither shows nor takes it.
+func TestPersonRecordsTheNoticeOfAPrivateEmployer(t *testing.T) {
+	s, _ := trackSite(t)
+	me := s.me("ann", false)
+	emp := s.employer(me, "Bakery", core.ModeSchedule, "8")
+	if body := s.get("/employers/" + emp.ID).body; !strings.Contains(body, "data-leave-notices") || !strings.Contains(body, "data-notice-add") {
+		t.Fatal("the private employer does not offer the notice")
+	}
+	s.mustPost("/employers/"+emp.ID+"/notice", url.Values{"year": {"2026"}, "notified": {"2026-10-01"}, "back": {"/employers/" + emp.ID}})
+	if n := leaveNotices(t, s, me.ID); len(n) != 1 || n[0].Owner != me.ID || n[0].EmployerID != emp.ID {
+		t.Fatalf("%+v", n)
+	}
+	other := newSiteSharing(t, s)
+	other.me("eve", false)
+	if a := other.post("/employers/"+emp.ID+"/notice", url.Values{"owner": {me.ID}, "year": {"2026"}, "notified": {"2026-10-01"}}); a.status != http.StatusNotFound {
+		t.Fatalf("someone else recorded a notice: %d", a.status)
+	}
+	s.mustPost("/employers/"+emp.ID+"/details", url.Values{"name": {"Bakery"}, "kind": {"employer"}, "region": {"AT"}, "back": {"/"}})
+	if body := s.get("/employers/" + emp.ID).body; strings.Contains(body, "data-leave-notices") {
+		t.Fatal("an Austrian employer shows the German notice")
+	}
+	if a := s.post("/employers/"+emp.ID+"/notice", url.Values{"year": {"2026"}, "notified": {"2026-10-02"}}); a.status < 400 {
+		t.Fatalf("an Austrian employer took the notice: %d", a.status)
+	}
+	if n := leaveNotices(t, s, me.ID); len(n) != 1 {
+		t.Fatalf("%+v", n)
+	}
+}

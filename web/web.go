@@ -217,6 +217,9 @@ func (h *handler) parseTemplates() error {
 			"durationPattern": func() string { return durationPattern },
 			"percent":         func(basisPoints int) string { return formatPercent(lang, basisPoints) },
 			"clock":           clockText,
+			"noticeForm": func(employer, owner, back string, today core.Date) noticeForm {
+				return noticeForm{EmployerID: employer, Owner: owner, Back: back, Today: today}
+			},
 		}).ParseFS(templateFiles, "templates/layout.html")
 		if err != nil {
 			return err
@@ -386,6 +389,13 @@ func formatMinutes(minutes int) string {
 type entriesData struct {
 	Entries []entryView
 	Back    string
+}
+
+// noticeForm is the form that records an employer's notice on lapsing leave, on the employer's page and in the
+// organization's list of notices it still owes.
+type noticeForm struct {
+	EmployerID, Owner, Back string
+	Today                   core.Date
 }
 
 type projectChoice struct {

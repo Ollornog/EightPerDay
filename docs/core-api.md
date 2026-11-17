@@ -94,8 +94,8 @@ caller resolves `Parsed.Project` to a project ID.
 
 - `Join(org, person, role, template, from)` makes the membership, the managed employer and the schedule from a
   template; `EndMembership` ends it and archives the employer, the records stay with the organization.
-- `ActorFor(person, organization, memberships, today)` and `MayChangeSettings`, `MayBook`, `MayErase` decide who may
-  do what. The store does not know who acts: ask these before calling it.
+- `ActorFor(person, organization, memberships, today)` and `MayChangeSettings`, `MayBook`, `MayErase`,
+  `MayRecordLeaveNotice` decide who may do what. The store does not know who acts: ask these before calling it.
 - `Store.Managed(ctx, organization, from, to)` is the only way an organization reads data: its managed employers and
   the records bound to them, never anything private.
 
@@ -119,6 +119,12 @@ Only for an organization with `Features.Approval` on; without it there are no su
 - `LeaveReminders(data, employerID, today, warnDays)`: open leave of the year within `warnDays` (92 by default)
   before 31 December, with whether the employer recorded its notice (`LeaveNotice`, BAG 9 AZR 266/20). The person
   sees it as a reminder, the organization on its managed data as the notices it still owes.
+- `LeaveNoticeApplies(employer)`: the notice matters for an employment (kind `employer`) that is German by its region
+  (`DE`, `DE-…`) or names none; not for Austria, clients or private work. `MayRecordLeaveNotice(employer, actor)`:
+  whoever stands for the employer records it, the person on a private employer, an administrator on a managed one.
+- `NoticesOwed(data, today, warnDays)`: for every active employer in the data the notice applies to, the reminder of
+  open leave without a notice for the year, ordered by employer; on `Store.Managed` of the whole year, the notices an
+  organization still owes. `LeaveNotice.Text` holds at most 2000 characters.
 
 ## Access log
 

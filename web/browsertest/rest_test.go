@@ -77,12 +77,15 @@ func TestOwnRequestReminderAndTemplatesOnAPhone(t *testing.T) {
 	b.shot("leave-reminder")
 	b.tap(`[data-absence-form] summary`)
 	b.settled()
-	b.tap(`form[action="/book/absence"] button[type=submit]`)
-	b.must(`!!document.querySelector('[data-absence]')`, "the leave is requested")
+	// The form, not the quick leave button of a day in the plan above it: the form comes with today, Wednesday.
+	b.must(`document.querySelector('#absence-from').value === '2026-11-18'`, "the form comes with today")
+	b.tap(`[data-absence-form] form[action="/book/absence"] button[type=submit]`)
+	b.must(`[...document.querySelectorAll('[data-absence]')].some(a => a.textContent.includes('2026-11-18'))`, "the leave is requested for today")
 	b.settle()
 	b.open(org)
 	b.must(`document.querySelectorAll('[data-review]').length === 1 && !!document.querySelector('[data-review] [data-review-own]') && !document.querySelector('[data-review] [data-approve]')`,
 		"her own request is marked, without buttons")
+	b.must(`document.querySelector('[data-review]').textContent.includes('2026-11-18')`, "the request names the day asked for")
 	b.reachable("own request")
 	b.shot("review-own")
 	b.signOut()
@@ -94,4 +97,22 @@ func TestOwnRequestReminderAndTemplatesOnAPhone(t *testing.T) {
 	b.tap(`[data-review] [data-approve]`)
 	b.must(`location.search.includes('done=decided') && !!document.querySelector('[data-reviews-none]')`, "the leave is approved")
 	b.settle()
+
+	// The end of the year is near and ann has leave open without a notice on its lapse: boss records it, for today.
+	b.must(`document.querySelectorAll('[data-owed]').length === 1`, "the organization owes ann the notice")
+	b.tap(`[data-owed] [data-notice-add] summary`)
+	b.settled()
+	b.must(`document.querySelector('[data-owed] input[name=notified]').value === '2026-11-18'`, "the notice comes with today")
+	b.typeInto(`[data-owed] textarea[name=text]`, "Letter: please take your leave by 31 December.")
+	b.reachable("owed notice")
+	b.shot("notice-owed")
+	b.tap(`[data-owed] form[data-notice-form] button[type=submit]`)
+	b.must(`location.search.includes('done=saved') && !!document.querySelector('[data-owed-none]')`, "the notice is no longer owed")
+	b.settle()
+	b.signOut()
+
+	// Ann reads on her week view that the notice was given.
+	b.signIn("ann")
+	b.must(`!!document.querySelector('[data-reminder-notice]') && document.querySelector('[data-reminder-notice]').textContent.includes('2026-11-18')`,
+		"ann reads the notice")
 }

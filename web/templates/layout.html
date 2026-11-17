@@ -130,6 +130,19 @@
   <select class="select w-full" id="{{.ID}}" name="project"><option value="">{{t "entry.noproject"}}</option>{{range .Projects}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></div>
 {{end}}
 
+{{define "notice-fields"}}
+<form method="post" action="/employers/{{.EmployerID}}/notice" class="mt-3 grid gap-3" data-notice-form="{{.EmployerID}}">
+  <input type="hidden" name="owner" value="{{.Owner}}"><input type="hidden" name="back" value="{{.Back}}">
+  <div class="grid grid-cols-2 gap-2">
+    <div class="field" role="group"><label for="notice-year-{{.EmployerID}}">{{t "notice.year"}}</label><input class="input tabular-nums" id="notice-year-{{.EmployerID}}" name="year" inputmode="numeric" value="{{.Today.Year}}" required></div>
+    <div class="field" role="group"><label for="notice-day-{{.EmployerID}}">{{t "notice.day"}}</label><input class="input" type="date" id="notice-day-{{.EmployerID}}" name="notified" value="{{.Today}}" max="{{.Today}}" required></div>
+  </div>
+  <div class="field" role="group"><label for="notice-text-{{.EmployerID}}">{{t "notice.text"}}</label><textarea class="textarea" id="notice-text-{{.EmployerID}}" name="text" maxlength="2000" placeholder="{{t "notice.text.placeholder"}}"></textarea></div>
+  <p class="text-muted-foreground text-xs">{{t "notice.hint"}}</p>
+  <button type="submit" class="btn">{{t "notice.save"}}</button>
+</form>
+{{end}}
+
 {{define "employer-form"}}
 <form method="post" action="/employers" class="grid gap-4" data-employer-form>
   <input type="hidden" name="back" value="/">
