@@ -66,3 +66,6 @@ All notable changes to this project are documented in this file. The format foll
   (`VerifyAccesses`), visible to the person and part of the export; `ReadManaged` logs every read of an
   organization. In PostgreSQL (migration 002) rows can only be added, and only rows older than two years can be
   purged (retention class `access_log`).
+- The data inventory (`DataInventory`, A21): every stored record and field with purpose, holder and deletion,
+  generated into `docs/data-inventory.json` and held to the code by a test. Templates for employers in `docs/legal/`
+  (works agreement skeleton, record of processing activities), marked as no legal advice and not checked by a lawyer.
