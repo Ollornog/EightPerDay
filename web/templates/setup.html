@@ -1,0 +1,61 @@
+{{define "content"}}
+<form method="post" action="/setup" class="card w-full" data-setup data-token="{{.Data.Token}}">
+  <header>
+    {{if .Data.Link.Reset}}
+    <h1 class="card-title">{{t "setup.reset.title"}}</h1>
+    <p class="card-description">{{t "setup.reset.lead" .Data.AccountName}}</p>
+    {{else}}
+    <h1 class="card-title">{{t "setup.title"}}</h1>
+    <p class="card-description">{{if .Data.Link.Admin}}{{t "setup.lead.admin"}}{{else}}{{t "setup.lead"}}{{end}}</p>
+    {{end}}
+  </header>
+  <section class="grid gap-6">
+    <input type="hidden" name="token" value="{{.Data.Token}}">
+    {{if not .Data.Link.Reset}}
+    <div class="field" role="group">
+      <label for="setup-name">{{t "setup.username"}}</label>
+      {{if .Data.Link.Username}}
+      <input class="input" id="setup-name" name="username" value="{{.Data.Link.Username}}" readonly>
+      {{else}}
+      <input class="input" id="setup-name" name="username" value="{{.Data.Username}}" autocomplete="username" autocapitalize="none" spellcheck="false" pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{0,63}" maxlength="64" required aria-describedby="setup-name-hint">
+      <p id="setup-name-hint" class="text-muted-foreground text-xs">{{t "setup.username.hint"}}</p>
+      {{end}}
+    </div>
+    <div class="field" role="group">
+      <label for="setup-display">{{t "setup.displayname"}}</label>
+      <input class="input" id="setup-display" name="display_name" value="{{.Data.DisplayName}}" autocomplete="name" maxlength="200">
+    </div>
+    {{end}}
+    <fieldset class="grid gap-3">
+      <legend class="label mb-2">{{t "setup.method"}}</legend>
+      <label class="flex items-start gap-3" for="method-passkey">
+        <input class="input" type="radio" id="method-passkey" name="method" value="passkey"{{if eq .Data.Method "passkey"}} checked{{end}}>
+        <span class="grid gap-0.5"><span class="font-medium">{{t "setup.method.passkey"}}</span><span class="text-muted-foreground text-xs">{{t "setup.method.passkey.hint"}}</span></span>
+      </label>
+      <label class="flex items-start gap-3" for="method-totp">
+        <input class="input" type="radio" id="method-totp" name="method" value="password_totp"{{if eq .Data.Method "password_totp"}} checked{{end}}>
+        <span class="grid gap-0.5"><span class="font-medium">{{t "setup.method.totp"}}</span><span class="text-muted-foreground text-xs">{{t "setup.method.totp.hint"}}</span></span>
+      </label>
+      <label class="flex items-start gap-3" for="method-password">
+        <input class="input" type="radio" id="method-password" name="method" value="password"{{if eq .Data.Method "password"}} checked{{end}}>
+        <span class="grid gap-0.5"><span class="font-medium">{{t "setup.method.password"}}</span><span class="text-muted-foreground text-xs">{{t "setup.method.password.hint"}}</span></span>
+      </label>
+    </fieldset>
+    <div class="grid gap-4" data-password-fields>
+      <div class="field" role="group">
+        <label for="setup-password">{{t "setup.password"}}</label>
+        <input class="input" id="setup-password" type="password" name="password" autocomplete="new-password" minlength="{{.Data.MinLength}}" maxlength="1024" aria-describedby="setup-password-hint">
+        <p id="setup-password-hint" class="text-muted-foreground text-xs">{{t "password.hint" .Data.MinLength}}</p>
+      </div>
+      <div class="field" role="group">
+        <label for="setup-password2">{{t "setup.password2"}}</label>
+        <input class="input" id="setup-password2" type="password" name="password2" autocomplete="new-password" maxlength="1024">
+      </div>
+    </div>
+    <p class="text-destructive text-xs" role="alert" data-passkey-error hidden></p>
+  </section>
+  <footer class="flex-col gap-2">
+    <button type="submit" class="btn w-full">{{t "setup.submit"}}</button>
+  </footer>
+</form>
+{{end}}

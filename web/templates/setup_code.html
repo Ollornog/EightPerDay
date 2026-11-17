@@ -1,0 +1,19 @@
+{{define "content"}}
+<form method="post" action="/setup/code" class="card w-full">
+  <header>
+    <h1 class="card-title">{{t "setup.totp.title"}}</h1>
+    <p class="card-description">{{t "setup.totp.lead"}}</p>
+  </header>
+  <section class="grid gap-4">
+    {{template "totp-enrollment" .Data.Enrollment}}
+    <input type="hidden" name="ceremony" value="{{.Data.Enrollment.Ceremony}}">
+    <div class="field" role="group">
+      <label for="code">{{t "code.label"}}</label>
+      <input class="input" id="code" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" required>
+    </div>
+  </section>
+  <footer class="flex-col gap-2">
+    <button type="submit" class="btn w-full">{{t "setup.totp.submit"}}</button>
+  </footer>
+</form>
+{{end}}

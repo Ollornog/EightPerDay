@@ -45,10 +45,32 @@ bei einer Tabelle.
 
 Entscheidungen stehen in [`backlog/`](../backlog/).
 
+## Betrieb
+
+Ein Programm, PostgreSQL, sonst nichts; die Weboberfläche ist fürs Handy zuerst gebaut und lässt sich auf den
+Startbildschirm legen. [`compose.yaml`](../compose.yaml) ist ein Beispiel mit Datenbank. Die Einstellungen kommen aus der
+Umgebung:
+
+| Variable | Bedeutung |
+|---|---|
+| `EIGHTPERDAY_DATABASE_URL` (oder `…_FILE`) | Verbindung zu PostgreSQL, Pflicht |
+| `EIGHTPERDAY_ORIGIN` | die Adresse, die man öffnet, etwa `https://example.org`; Passkeys hängen an ihrem Hostnamen |
+| `EIGHTPERDAY_ADDR`, `EIGHTPERDAY_HEALTH_ADDR` | wo Oberfläche und Gesundheitsprüfung lauschen (`127.0.0.1:8080`, `127.0.0.1:8081`) |
+| `EIGHTPERDAY_TRUSTED_PROXIES` | Netze, deren `X-Forwarded-For` und Gateway-Kopfzeilen geglaubt werden |
+| `EIGHTPERDAY_GATE_USER_HEADER` und `…_NAME_HEADER`, `…_GROUPS_HEADER`, `…_ADMIN_GROUP` | wahlweise: einem Anmelde-Gateway davor vertrauen |
+
+**Anmeldung.** Es gibt keine Selbstregistrierung. Beim ersten Start schreibt das Programm einen Einmal-Link für das erste
+Konto, das das Programm verwaltet; `eightperday link [--admin] [<name>]` erzeugt an der Konsole eine Einladung, und
+Verwaltende laden in der Oberfläche ein. Jede Person wählt einen Passkey (die Vorgabe), ein Passwort mit
+Authenticator-App oder nur ein Passwort. Passwörter werden mit Argon2id gehasht, Fehlversuche je Name und je Adresse
+gebremst, Sitzungen liegen in HTTP-only-Cookies. Hinter einem Anmelde-Gateway können dessen Kopfzeilen anmelden, aber
+nur von den vertrauten Proxys.
+
 ## Entwicklung
 
-`scripts/check.sh` fährt alles: Repository-Hygiene, gofmt, go vet, staticcheck, govulncheck und die Tests mit dem
-Race-Detektor. Es braucht Go, Python 3 und die PostgreSQL-Server-Programme. Siehe
+`scripts/check.sh` fährt alles: Repository-Hygiene, gofmt, go vet, staticcheck, govulncheck, die Tests mit dem
+Race-Detektor und einen Browsertest in einem echten Chrome mit Handy-Bildschirm. Es braucht Go, Python 3, die
+PostgreSQL-Server-Programme und Chrome. `scripts/check-image.sh` prüft das Container-Abbild. Siehe
 [CONTRIBUTING](CONTRIBUTING.de.md).
 
 ## Lizenz

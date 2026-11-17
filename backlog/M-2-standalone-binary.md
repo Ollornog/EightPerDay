@@ -2,7 +2,7 @@
 id: M-2
 type: Milestone
 title: "The standalone program with a small web interface"
-status: offen
+status: in-arbeit
 blocked_by: [M-1]
 tags: [ui, binary]
 created: 2026-11-17

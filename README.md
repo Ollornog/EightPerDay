@@ -43,10 +43,31 @@ only wants to note "sick on Wednesday" or a freelancer with three clients ends u
 
 Decisions are recorded in [`backlog/`](backlog/).
 
+## Running
+
+One binary, PostgreSQL, nothing else; the web interface is built for phones first and can be installed to the home
+screen. [`compose.yaml`](compose.yaml) is an example with the database. Configuration comes from the environment:
+
+| Variable | Meaning |
+|---|---|
+| `EIGHTPERDAY_DATABASE_URL` (or `…_FILE`) | PostgreSQL connection string, required |
+| `EIGHTPERDAY_ORIGIN` | the address people open, such as `https://example.org`; passkeys are bound to its host name |
+| `EIGHTPERDAY_ADDR`, `EIGHTPERDAY_HEALTH_ADDR` | where the interface and the health endpoint listen (`127.0.0.1:8080`, `127.0.0.1:8081`) |
+| `EIGHTPERDAY_TRUSTED_PROXIES` | networks whose `X-Forwarded-For` and gate headers are believed |
+| `EIGHTPERDAY_GATE_USER_HEADER` and `…_NAME_HEADER`, `…_GROUPS_HEADER`, `…_ADMIN_GROUP` | optional: trust a sign-in gate in front |
+
+**Signing in.** There is no sign-up. At its first start the program prints a one-time link for the first account,
+which administers the program; `eightperday link [--admin] [<name>]` prints an invitation at the console, and
+administrators invite people in the interface. Each person chooses a passkey (the default), a password with an
+authenticator app, or a password alone. Passwords are hashed with Argon2id, failed sign-ins are slowed down per name and
+per address, and sessions live in HTTP-only cookies. Behind a sign-in gate, its headers can sign people in instead, but
+only from the trusted proxies.
+
 ## Development
 
-`scripts/check.sh` runs everything: repository hygiene, gofmt, go vet, staticcheck, govulncheck and the tests with the
-race detector. It needs Go, Python 3 and the PostgreSQL server binaries. See [CONTRIBUTING.md](CONTRIBUTING.md).
+`scripts/check.sh` runs everything: repository hygiene, gofmt, go vet, staticcheck, govulncheck, the tests with the
+race detector, and a browser test in a real Chrome on the screen of a phone. It needs Go, Python 3, the PostgreSQL
+server binaries and Chrome. `scripts/check-image.sh` checks the container image. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

@@ -1,0 +1,36 @@
+# An example: EightPerDay with its PostgreSQL. Set POSTGRES_PASSWORD and EIGHTPERDAY_ORIGIN in a .env file next to it
+# (mode 0600), never here. Put a proxy with TLS in front of port 8080; passkeys need https (or localhost).
+#
+#   docker compose up -d && docker compose logs eightperday    # the first start prints the link for the first account
+#
+# scripts/check-image.sh starts the image against the database image named here, so Dependabot's update of it is tested.
+services:
+  eightperday:
+    build: .
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      EIGHTPERDAY_ORIGIN: ${EIGHTPERDAY_ORIGIN:?set the address people open, such as https://example.org}
+      EIGHTPERDAY_DATABASE_URL: postgres://eightperday:${POSTGRES_PASSWORD:?}@db/eightperday?sslmode=disable
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:18.7-alpine3.24@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eightperday
+      POSTGRES_DB: eightperday
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "eightperday"]
+      interval: 5s
+      retries: 20
+volumes:
+  db:

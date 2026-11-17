@@ -40,3 +40,21 @@ updates:
       minor:
         patterns: ["*"]
         update-types: ["patch", "minor"]
+  # The base images of the Dockerfile and the database image of compose.yaml. scripts/check-image.sh in the CI accepts
+  # them.
+  - package-ecosystem: docker
+    directory: /
+    cooldown:
+      default-days: 3
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"
+  - package-ecosystem: docker-compose
+    directory: /
+    cooldown:
+      default-days: 3
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"

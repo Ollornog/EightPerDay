@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# The gate before every push and merge: repository hygiene, then the Go part (gofmt, tidy, vet, staticcheck,
-# govulncheck, tests with the race detector) and the residue check.
+# The gate before every push and merge: repository hygiene, the licenses shipped with the binary, then the Go part
+# (gofmt, tidy, vet, staticcheck, govulncheck, tests with the race detector), the browser test and the residue check.
 #
 #   scripts/check.sh            everything
 #   scripts/check.sh --fast     without govulncheck and the race detector (short loop while building)
@@ -35,11 +35,20 @@ if command -v shellcheck >/dev/null; then
     shellcheck scripts/*.sh || fail "shellcheck"
 fi
 
+step "Third-party licenses in the binary"
+scripts/third-party-licenses.sh --check || fail "third-party licenses"
+
+# The browser test sits behind a tag, so it also has to pass vet and staticcheck explicitly.
+export GO_PRUEF_TAGS="browser"
 if [[ $FAST -eq 1 ]]; then
     scripts/_go_check.sh --fast
 else
     scripts/_go_check.sh
 fi
+
+# A real Chrome on the screen of a phone. A missing Chrome fails: a skipped browser test is not a green one.
+step "Browser test (phone, touch, passkeys)"
+go test -count=1 -tags browser ./web/browsertest/ || fail "browser test"
 
 step "Residue check"
 rc=0

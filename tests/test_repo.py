@@ -45,11 +45,15 @@ check("no build artifacts", hygiene.pruefe_artefakte(FILES, POLICY))
 check("only neutral addresses", hygiene.pruefe_adressen(str(ROOT), FILES, POLICY, zusaetzliche_hosts=[
     r"keepachangelog\.com", r"semver\.org",
     r"(www\.)?flaticon\.com",  # the source of the logo, whose license requires the attribution link
+    r"tailwindcss\.com",  # the license comment in the compiled style pack of C22
+    r"scripts\.sil\.org",  # the license text of the font, which has to stay unchanged
+    r"golang\.org", r"www\.apache\.org",  # license texts of Go modules, shipped unchanged (web/assets/licenses/THIRD-PARTY.txt)
 ]))
 # Reviewed by hand, not generated: a list that follows along would wave the next real customer name through.
 check("no unknown bare hostnames", hygiene.pruefe_blanke_adressen(str(ROOT), FILES, POLICY, grundstock=[
     "golang.org", "honnef.co", "python.org", "devguide.python.org", "pkg.go.dev", "modernc.org",
     "vuln.go.dev",  # named in a comment of the kit's Go gate
+    "gcr.io",  # the base image in the Dockerfile
     "flaticon.com", "www.flaticon.com"]))  # the source of the logo (assets/LICENSE-icon.md)
 check("nothing is loaded from third parties", hygiene.pruefe_keine_fremdressourcen(str(ROOT), FILES, POLICY))
 check("every page has a favicon", hygiene.pruefe_favicon(str(ROOT), FILES, POLICY))
