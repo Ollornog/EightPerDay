@@ -387,7 +387,11 @@ func TestPayRuleValidation(t *testing.T) {
 		absencePay("a", "bad key", PayTarget),
 		absencePay("a", AbsenceVacation, "guess"),
 		func() AbsencePay { p := absencePay("a", AbsenceVacation, PayAverage); p.Weeks = -1; return p }(),
-		func() AbsencePay { p := absencePay("a", AbsenceVacation, PayTarget); p.ValidTo = d("2025-12-31"); return p }(),
+		func() AbsencePay {
+			p := absencePay("a", AbsenceVacation, PayTarget)
+			p.ValidTo = d("2025-12-31")
+			return p
+		}(),
 		surcharge("s", "weekend", 5000),
 		surcharge("s", SurchargeSunday, 0),
 		night(2500, 6*60, 6*60),
