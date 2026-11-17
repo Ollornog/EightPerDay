@@ -772,7 +772,7 @@ func RunAccessLog(t *testing.T, newStore func(t *testing.T) AccessLogStore) {
 	view := core.Access{Actor: "boss", Organization: "acme", Subject: "carol", Action: core.AccessRead, What: "approval",
 		From: core.MustDate("2026-11-01"), To: core.MustDate("2026-11-30")}
 	for i, step := range []struct {
-		at       time.Time
+		when     time.Time
 		from, to string
 		added    bool
 	}{
@@ -783,7 +783,7 @@ func RunAccessLog(t *testing.T, newStore func(t *testing.T) AccessLogStore) {
 		{morning.Add(24 * time.Hour), "2026-11-01", "2026-11-30", true},  // the next day
 	} {
 		a := view
-		a.At, a.From, a.To = step.at, core.MustDate(step.from), core.MustDate(step.to)
+		a.At, a.From, a.To = step.when, core.MustDate(step.from), core.MustDate(step.to)
 		got, added, err := core.LogAccessOnce(ctx, s, a, berlin)
 		must(t, err)
 		if added != step.added || got.Hash == "" {
