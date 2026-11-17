@@ -84,6 +84,9 @@ All notable changes to this project are documented in this file. The format foll
   authenticator app, the wrapped license texts and the collapsible cards are C22's own now, and `assets/app/app.css`
   is gone. The week views follow C22's data-entry blocks; duration fields tell the accepted forms and refuse other
   input already in the browser.
+- The selects of a region of public holidays show readable names in English and German instead of codes: Germany
+  first, each state followed by its parts (`DE-BY-AUGSBURG`, `DE-BY-PROTESTANT`, `DE-SN-CATHOLIC`,
+  `DE-TH-CATHOLIC`), then Austria; a region an embedding adds keeps its code.
 
 ### Security
 

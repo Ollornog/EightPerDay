@@ -8,7 +8,9 @@ lockfile and no build step for JavaScript.
 - `assets/c22/` is C22's build output, refreshed only by `scripts/vendor-c22.sh <commit>`; `VERSION` names the commit.
 - `assets/licenses/THIRD-PARTY.txt` comes from `scripts/third-party-licenses.sh`; `scripts/check.sh` fails when it does
   not match the modules of the binary.
-- `i18n/en.json` and `i18n/de.json` hold every text; a test keeps their keys and placeholders in step.
+- `i18n/en.json` and `i18n/de.json` hold every text; a test keeps their keys and placeholders in step. Regions of
+  public holidays are named there as `region.<code>` (`regions.go` orders them), and a test fails on a region of
+  `core.Regions` without a name.
 - `auth/` holds the accounts; `browsertest/` runs the program in a real Chrome (`go test -tags browser`).
 
 ## Everything from C22

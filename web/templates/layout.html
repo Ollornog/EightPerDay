@@ -150,7 +150,7 @@
   </div>
   <p class="text-muted-foreground text-xs">{{t "start.hours.hint"}}</p>
   <div class="field" role="group"><label for="new-region">{{t "employer.region"}}</label>
-    <select class="select w-full" id="new-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range .Regions}}<option value="{{.}}">{{.}}</option>{{end}}</select></div>
+    <select class="select w-full" id="new-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range regionOptions}}<option value="{{.Code}}">{{.Name}}</option>{{end}}</select></div>
   <button type="submit" class="btn">{{t "start.submit"}}</button>
 </form>
 {{end}}

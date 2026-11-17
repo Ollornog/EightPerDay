@@ -28,7 +28,7 @@
       <input type="hidden" name="back" value="/orgs">
       <div class="field" role="group"><label for="org-name">{{t "employer.name"}}</label><input class="input" id="org-name" name="name" maxlength="200" required></div>
       <div class="field" role="group"><label for="org-region">{{t "employer.region"}}</label>
-        <select class="select w-full" id="org-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range $d.Regions}}<option value="{{.}}">{{.}}</option>{{end}}</select></div>
+        <select class="select w-full" id="org-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range regionOptions}}<option value="{{.Code}}">{{.Name}}</option>{{end}}</select></div>
     </section>
     <footer><button type="submit" class="btn">{{t "orgs.create.submit"}}</button></footer>
   </form>
