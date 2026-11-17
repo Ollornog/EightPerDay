@@ -5,7 +5,8 @@
 
 **Time tracking that adapts to how you work, not the other way round.**
 
-> **Status: early.** The repository has just been set up. The core library is being built, see [`backlog/`](backlog/).
+> **Status: early.** The core library is there ([docs/core-api.md](docs/core-api.md)); the standalone program with its
+> web interface is being built, see [`backlog/`](backlog/).
 
 ## Why
 
@@ -16,6 +17,8 @@ only wants to note "sick on Wednesday" or a freelancer with three clients ends u
 ## What it will do
 
 - **Several employers and clients per person**, also private ones, each with its own schedule and its own pay.
+- **Organizations** that manage the time tracking of their members, strictly separated from what a person tracks
+  privately; a person can do both at once and gets one overview over everything.
 - **Operating modes per employer, switchable at any time without losing data:**
   - *Weekly total*: one number per week, the next week starts empty.
   - *Schedule*: target hours per weekday, balance and overtime.
