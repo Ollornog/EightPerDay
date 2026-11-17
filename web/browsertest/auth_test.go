@@ -27,7 +27,7 @@ func TestFirstAccountWithAPasskey(t *testing.T) {
 	b.shot("login")
 	b.reachable("sign-in")
 
-	token, err := b.auth.FirstSetupLink(context.Background())
+	token, err := b.auth.FirstSetupLink(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

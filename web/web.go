@@ -121,6 +121,8 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	mux.HandleFunc("GET /sw.js", h.serviceWorker)
 	mux.HandleFunc("GET /about", h.about)
 	mux.HandleFunc("GET /licenses", h.licenses)
+	mux.HandleFunc("GET /legal", h.legalPage)
+	mux.HandleFunc("GET /legal/{name}", h.legalDownload)
 	mux.HandleFunc("POST /language", h.setLanguage)
 
 	mux.HandleFunc("GET /login", h.loginPage)
@@ -209,6 +211,7 @@ func (h *handler) parseTemplates() error {
 				return projectChoice{ID: id, Projects: projects}
 			},
 			"newEmployerForm": func() newEmployer { return newEmployerData(nil) },
+			"regionOptions":   func() []regionOption { return h.catalog.regionOptions(lang) },
 			"dateOf":          func(t *time.Time) core.Date { return core.DateOf(*t) },
 			"date":            func(t time.Time) string { return formatDate(lang, t) },
 			"durationPattern": func() string { return durationPattern },

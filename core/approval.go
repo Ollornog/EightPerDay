@@ -306,6 +306,26 @@ func LeaveDecision(s Submission, a Absence) (Absence, error) {
 	return a, nil
 }
 
+// ReviewRange returns the days a reviewer reads for the open (submitted) submissions of the catalog: from the first to
+// the last day any of them covers, and today in any case. Read the organization's data for this range (ReadManaged)
+// and pass it to ReviewData, so a leave request far ahead or a correction of an old week comes with its records,
+// however far from today they lie.
+func ReviewRange(c Catalog, today Date) (from, to Date) {
+	from, to = today, today
+	for _, s := range c.Submissions {
+		if s.Status != SubmissionSubmitted || s.From.IsZero() || s.To.IsZero() {
+			continue
+		}
+		if s.From.Before(from) {
+			from = s.From
+		}
+		if s.To.After(to) {
+			to = s.To
+		}
+	}
+	return from, to
+}
+
 // ReviewData returns what a reviewer of the organization sees when approval is switched on: the entries of the days
 // handed in or approved, and the absences inside them or asked for by a leave request that was not withdrawn. The
 // rest of what Store.Managed returns stays with the payroll view. Without approval, d comes back unchanged.

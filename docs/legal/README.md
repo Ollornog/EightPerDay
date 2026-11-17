@@ -11,6 +11,8 @@
 | [processing-record.md](processing-record.md) | Entry for the record of processing activities (Art. 30 GDPR, *Verzeichnis von Verarbeitungstätigkeiten*) |
 | [../data-inventory.json](../data-inventory.json) | Every field the library stores, its purpose and its deletion, generated from the code |
 
+The standalone program shows these files on its page `/legal` and offers them for download.
+
 ## What the software does to help
 
 - Company features (approval, a supervisor's present/absent view) are off by default and can only be switched on with

@@ -8,6 +8,7 @@ RUN go mod download
 COPY assets ./assets
 COPY cmd ./cmd
 COPY core ./core
+COPY docs ./docs
 COPY internal ./internal
 COPY web ./web
 # Reproducible: no cgo, no paths in the binary, no toolchain download.

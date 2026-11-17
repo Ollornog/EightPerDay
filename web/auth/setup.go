@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	// FirstLinkTTL is how long the link for the first administrator lasts. Every start without an account prints a
-	// new one.
-	FirstLinkTTL = 24 * time.Hour
+	// FirstLinkTTL is how long the link for the first administrator lasts. It comes only from the console
+	// (eightperday link --admin), never from the log, and a new one replaces the one before.
+	FirstLinkTTL = time.Hour
 	// InviteTTL is how long an invitation or a reset link lasts.
 	InviteTTL = 7 * 24 * time.Hour
 )
@@ -64,15 +64,18 @@ func (s *Service) NewSetupLink(ctx context.Context, link SetupLink, ttl time.Dur
 }
 
 // FirstSetupLink returns a new link for the first administrator while there is no account, and "" once there is one.
-func (s *Service) FirstSetupLink(ctx context.Context) (string, error) {
+// The link lasts FirstLinkTTL and replaces every link made before it, so only the newest one works; username fixes the
+// name of the account, or leaves it to the person when empty.
+func (s *Service) FirstSetupLink(ctx context.Context, username string) (string, error) {
 	n, err := s.AccountCount(ctx)
 	if err != nil || n > 0 {
 		return "", err
 	}
-	if _, err := s.db.Exec(ctx, "DELETE FROM epd_setup_link WHERE expires < $1", s.cfg.Now()); err != nil {
+	// Without an account there are only links for the first administrator: every one made before goes.
+	if _, err := s.db.Exec(ctx, "DELETE FROM epd_setup_link"); err != nil {
 		return "", err
 	}
-	return s.NewSetupLink(ctx, SetupLink{Admin: true}, FirstLinkTTL)
+	return s.NewSetupLink(ctx, SetupLink{Username: username, Admin: true}, FirstLinkTTL)
 }
 
 // LookupSetupLink returns a valid link.

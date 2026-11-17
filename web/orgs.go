@@ -20,7 +20,6 @@ import (
 type orgsData struct {
 	Orgs      []orgMembership
 	CanCreate bool
-	Regions   []string
 }
 
 type orgMembership struct {
@@ -35,7 +34,6 @@ type orgData struct {
 	Members    []memberView
 	Candidates []*auth.Account
 	Modes      []core.Mode
-	Regions    []string
 	Weekdays   []int
 	Presence   []presenceView
 	// ShowPresence: the company feature is on, so the page shows who is present today.
@@ -66,7 +64,7 @@ func (h *handler) orgsPage(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
-	d := orgsData{CanCreate: account.Admin, Regions: core.Regions()}
+	d := orgsData{CanCreate: account.Admin}
 	today := h.today(nil)
 	seen := map[string]bool{}
 	for _, m := range memberships {
@@ -151,7 +149,7 @@ func (h *handler) orgPage(w http.ResponseWriter, r *http.Request) {
 func (h *handler) orgData(r *http.Request, org core.Organization, members []core.Membership) (orgData, error) {
 	ctx := r.Context()
 	today := h.today(nil)
-	d := orgData{Org: org, Today: today, Modes: core.Modes, Regions: core.Regions(), Weekdays: weekdays, Back: "/orgs/" + org.ID}
+	d := orgData{Org: org, Today: today, Modes: core.Modes, Weekdays: weekdays, Back: "/orgs/" + org.ID}
 	accounts, err := h.options.Auth.Accounts(ctx)
 	if err != nil {
 		return d, err
@@ -187,7 +185,8 @@ func (h *handler) orgData(r *http.Request, org core.Organization, members []core
 	// The supervisor view: present or absent today, without reasons and without history, only when switched on.
 	if org.Features.SupervisorView {
 		d.ShowPresence = true
-		data, err := core.ReadManaged(ctx, h.options.Store, h.options.AccessLog, actor, org.ID, today, today, "presence view")
+		data, err := core.ReadManagedDaily(ctx, h.options.Store, h.options.AccessLog, actor, org.ID, today, today,
+			"presence view", h.now(), orgLocation(org))
 		if err != nil {
 			return d, err
 		}

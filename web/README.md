@@ -8,7 +8,9 @@ lockfile and no build step for JavaScript.
 - `assets/c22/` is C22's build output, refreshed only by `scripts/vendor-c22.sh <commit>`; `VERSION` names the commit.
 - `assets/licenses/THIRD-PARTY.txt` comes from `scripts/third-party-licenses.sh`; `scripts/check.sh` fails when it does
   not match the modules of the binary.
-- `i18n/en.json` and `i18n/de.json` hold every text; a test keeps their keys and placeholders in step.
+- `i18n/en.json` and `i18n/de.json` hold every text; a test keeps their keys and placeholders in step. Regions of
+  public holidays are named there as `region.<code>` (`regions.go` orders them), and a test fails on a region of
+  `core.Regions` without a name.
 - `auth/` holds the accounts; `browsertest/` runs the program in a real Chrome (`go test -tags browser`).
 
 ## Everything from C22
@@ -33,12 +35,22 @@ A duration field carries `pattern` from `durationPattern` (Go, `track.go`), whic
 - Approval (`approval.go`): when an organization switches it on, a member hands in a week with a tap; leave (and
   absence types that need approval) is booked as requested and handed in at once. Handed-in days show as such and
   refuse changes; a correction with a reason opens an approved week again once approved. Administrators decide on the
-  organization's page, never their own, and a rejection needs a reason. The rules are the core library's
-  (`core.Submit`, `core.Decide`, `core.Withdraw`, `core.LeaveDecision`, `core.ReviewData`).
-- Access log: every read of an organization goes through `core.ReadManaged`; decisions, membership and role changes,
+  organization's page, never their own (an administrator's own request shows as such, without the buttons), and a
+  rejection needs a reason. The days read for the reviews follow the open requests (`core.ReviewRange`), however far
+  from today they lie. The rules are the core library's
+  (`core.Submit`, `core.Decide`, `core.Withdraw`, `core.LeaveDecision`, `core.ReviewData`, `core.ReviewRange`).
+- Access log: every read of an organization goes through `core.ReadManaged`, the organization's page through
+  `core.ReadManagedDaily`, which logs a view once per member and day (in the organization's time zone) instead of on
+  every call; decisions, membership and role changes,
   and an administrator's reads and changes of a member's settings go through `LogAccess`. The person sees the log on
   `/access` (linked from the reports), with a note whether the chain holds (`core.VerifyAccesses`). `Options.AccessLog`
   defaults to the store's own.
+- Leave reminders: the week view shows `core.LeaveReminders` for the person while the year's data are loaded (the
+  week shown lies in this year or next to it), with the employer's notice when there is one; the note on lapsing
+  leave is only given for German employers.
+- Legal templates: `/legal` shows the files of `docs/legal` (embedded by the package `docs`) with their downloads
+  and the kinds of data from `core.DataInventory`, with `docs/data-inventory.json` to download; the page says first
+  that none of it is legal advice or checked by a lawyer.
 - Pay beyond time worked: the employer settings take paid absences (`core.AbsencePay`) and surcharges
   (`core.Surcharge`), and how shifts past midnight count (`Employer.DaySplit`); the reports name every line by its
   reason.

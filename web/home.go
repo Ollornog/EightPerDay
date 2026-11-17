@@ -42,12 +42,22 @@ type homeData struct {
 	Timer       *timerView
 	CanSettings bool
 	Back        string
-	Regions     []string
 	// Approval: the organization of the managed employer approves periods and leave.
 	Approval    bool
 	Submissions []submissionView
 	// WeekLocked: the week is handed in or approved; its records cannot change.
 	WeekLocked bool
+	// Reminders point out leave of this year still open towards its end (core.LeaveReminders), for the person only.
+	Reminders []reminderView
+}
+
+// reminderView is a leave reminder as the person reads it.
+type reminderView struct {
+	core.LeaveReminder
+	// Notice is the day the employer pointed the lapse out, in the language of the page.
+	Notice string
+	// Germany: the German rule on lapsing leave applies (§ 7 Abs. 3 BUrlG); not said for an employer in Austria.
+	Germany bool
 }
 
 type dayView struct {
@@ -125,8 +135,8 @@ func (h *handler) week(r *http.Request, cat core.Catalog, emp core.Employer) (ho
 		Employers: activeEmployers(cat), Employer: emp, Today: today, Week: week, WeekEnd: end,
 		Prev: week.AddDays(-7), Next: week.AddDays(7), ThisWeek: today.Within(week, end),
 		Mode: core.ModeAt(cat, emp.ID, week), Modes: core.Modes, Types: cat.AbsenceTypesFor(emp.ID),
-		AllProjects: projectsOf(cat, emp.ID), Regions: core.Regions(),
-		Back: "/?e=" + emp.ID + "&w=" + week.String(),
+		AllProjects: projectsOf(cat, emp.ID),
+		Back:        "/?e=" + emp.ID + "&w=" + week.String(),
 	}
 	if d.ThisWeek {
 		d.Mode = core.ModeAt(cat, emp.ID, today)
@@ -238,6 +248,21 @@ func (h *handler) week(r *http.Request, cat core.Catalog, emp core.Employer) (ho
 			return d, err
 		}
 		d.HasLeave = d.Leave.Entitlement > 0 || d.Leave.Taken > 0
+		// The data hold this year whole only when the week shown lies in it or around it.
+		if !from.After(core.NewDate(today.Year, time.January, 1)) && !to.Before(core.NewDate(today.Year, time.December, 31)) {
+			reminders, err := core.LeaveReminders(data, emp.ID, today, 0)
+			if err != nil {
+				return d, err
+			}
+			lang := h.lang(r)
+			for _, rem := range reminders {
+				v := reminderView{LeaveReminder: rem, Germany: emp.Region == "" || strings.HasPrefix(emp.Region, "DE")}
+				if rem.NotifiedAt != nil {
+					v.Notice = formatDate(lang, *rem.NotifiedAt)
+				}
+				d.Reminders = append(d.Reminders, v)
+			}
+		}
 	}
 	if d.Mode == core.ModeWeekSum {
 		earlier, err := core.Days(data, emp.ID, week.AddDays(-7*8), week.AddDays(-1))
@@ -289,13 +314,12 @@ func minDate(a, b core.Date) core.Date {
 
 // newEmployer is the form for a new employer, also the start page of a new account.
 type newEmployer struct {
-	Modes   []core.Mode
-	Regions []string
-	Kinds   []core.EmployerKind
+	Modes []core.Mode
+	Kinds []core.EmployerKind
 }
 
 func newEmployerData(*http.Request) newEmployer {
-	return newEmployer{Modes: core.Modes, Regions: core.Regions(), Kinds: []core.EmployerKind{core.KindEmployer, core.KindClient, core.KindPrivate}}
+	return newEmployer{Modes: core.Modes, Kinds: []core.EmployerKind{core.KindEmployer, core.KindClient, core.KindPrivate}}
 }
 
 // absenceName is the name of an absence type in the language of the page: the built-in ones are translated, one's

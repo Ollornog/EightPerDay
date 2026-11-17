@@ -19,6 +19,9 @@
         {{if eq .Kind "period"}}<p class="text-muted-foreground text-xs tabular-nums">{{t "schedule.target"}} {{hours .Target}} · {{t "schedule.actual"}} {{hours .Actual}} · {{t "reports.balance"}} {{signed .Balance}}</p>{{end}}
         {{if .Absence}}{{if .Absence.HalfDay}}<p class="text-muted-foreground text-xs">{{t "track.half"}}</p>{{end}}{{end}}
         {{if .Note}}<p class="text-xs">{{.Note}}</p>{{end}}
+        {{if .Own}}
+        <p class="text-muted-foreground text-xs" data-review-own>{{t "org.reviews.own"}}</p>
+        {{else}}
         <div class="flex flex-wrap gap-2">
           <form method="post" action="/orgs/{{$d.Org.ID}}/decide"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="submission" value="{{.ID}}"><input type="hidden" name="decision" value="approve">
             <button type="submit" class="btn" data-size="sm" data-approve>{{template "icon-check-small"}}{{t "org.reviews.approve"}}</button></form>
@@ -30,6 +33,7 @@
             </form>
           </details>
         </div>
+        {{end}}
       </div>
       {{else}}
       <p class="text-muted-foreground text-sm" data-reviews-none>{{t "org.reviews.none"}}</p>
@@ -144,10 +148,10 @@
       <input type="hidden" name="back" value="{{$d.Back}}">
       <div class="field" role="group"><label for="org-name">{{t "employer.name"}}</label><input class="input" id="org-name" name="name" value="{{$d.Org.Name}}" maxlength="200" required></div>
       <div class="field" role="group"><label for="org-region">{{t "employer.region"}}</label>
-        <select class="select w-full" id="org-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range $d.Regions}}<option value="{{.}}"{{if eq . $d.Org.Region}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+        <select class="select w-full" id="org-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range regionOptions}}<option value="{{.Code}}"{{if eq .Code $d.Org.Region}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
     </section>
     <footer><button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button></footer>
   </form>
-  <p class="text-center text-muted-foreground text-xs">{{t "legal.footer"}}</p>
+  <p class="text-center text-muted-foreground text-xs">{{t "legal.footer"}} <a class="underline underline-offset-4" href="/legal" data-legal-link>{{t "legal.link"}}</a></p>
 </div>
 {{end}}

@@ -110,6 +110,7 @@
   <li>{{t "about.license"}} <a class="underline underline-offset-4" href="https://github.com/Ollornog/EightPerDay/blob/main/LICENSE">MIT</a></li>
   <li data-attribution>{{t "about.icon"}} <a class="underline underline-offset-4" href="https://www.flaticon.com/authors/juicy-fish">juicy_fish</a> {{t "about.icon.from"}} <a class="underline underline-offset-4" href="https://www.flaticon.com/">Flaticon</a></li>
   <li><a class="underline underline-offset-4" href="/licenses">{{t "about.thirdparty"}}</a></li>
+  <li><a class="underline underline-offset-4" href="/legal">{{t "legal.link"}}</a></li>
   <li><a class="underline underline-offset-4" href="https://github.com/Ollornog/EightPerDay">{{t "about.source"}}</a></li>
 </ul>
 {{end}}
@@ -150,7 +151,7 @@
   </div>
   <p class="text-muted-foreground text-xs">{{t "start.hours.hint"}}</p>
   <div class="field" role="group"><label for="new-region">{{t "employer.region"}}</label>
-    <select class="select w-full" id="new-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range .Regions}}<option value="{{.}}">{{.}}</option>{{end}}</select></div>
+    <select class="select w-full" id="new-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range regionOptions}}<option value="{{.Code}}">{{.Name}}</option>{{end}}</select></div>
   <button type="submit" class="btn">{{t "start.submit"}}</button>
 </form>
 {{end}}

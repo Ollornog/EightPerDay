@@ -77,6 +77,13 @@ All notable changes to this project are documented in this file. The format foll
   opened again by a correction; a page for the person shows who of an organization read, changed or decided what of
   their data (the access log, also written for settings and memberships); the employer settings take paid absences,
   surcharges and how shifts past midnight count, and the reports name each earning by its reason.
+- Leave reminders in the interface: towards the end of the year the week view tells the person how much leave of the
+  year is still open, and whether the employer recorded the notice that it can lapse (`LeaveReminders`).
+- A page with the templates for employers (`/legal`, linked from the about dialog and the organization's page): the
+  texts of `docs/legal` (embedded as the package `docs`) to read and download, and the kinds of data with the data
+  inventory as a download, marked first as no legal advice and not checked by a lawyer.
+- The backlog names the next milestone, the first release (M-4), with publishing the container image as its open task
+  (T-5).
 
 ### Changed
 
@@ -84,6 +91,23 @@ All notable changes to this project are documented in this file. The format foll
   authenticator app, the wrapped license texts and the collapsible cards are C22's own now, and `assets/app/app.css`
   is gone. The week views follow C22's data-entry blocks; duration fields tell the accepted forms and refuse other
   input already in the browser.
+- The selects of a region of public holidays show readable names in English and German instead of codes: Germany
+  first, each state followed by its parts (`DE-BY-AUGSBURG`, `DE-BY-PROTESTANT`, `DE-SN-CATHOLIC`,
+  `DE-TH-CATHOLIC`), then Austria; a region an embedding adds keeps its code.
+
+- The organization's page logs its reads once per member, view and day (`ReadManagedDaily`, `LogAccessOnce`, both
+  new and backwards-compatible) instead of on every call; a read of other days still adds an entry, and the chain is
+  unchanged.
+- The reviews read the days of the open requests (`ReviewRange`, new) instead of a fixed span from 62 days back to
+  366 days ahead, so a leave request far ahead or far back shows with its absence and can be decided.
+- An administrator's own request shows on the organization's page as such ("another administrator decides it"),
+  without the buttons to decide it.
+
+### Security
+
+- The one-time link for the first administrator no longer goes to the log, where everyone who reads the log could
+  take the program over: a start without an account only says how to make it, and it is made at the server's console
+  with `eightperday link --admin`. It lasts one hour instead of 24, and a new one replaces the one before.
 
 ### Fixed
 

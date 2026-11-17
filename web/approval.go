@@ -172,18 +172,36 @@ type reviewView struct {
 	// Absence is the absence a leave request asks for.
 	Absence *core.Absence
 	Type    string
+	// Own: the administrator handed it in; another administrator decides it (core.Decide refuses one's own).
+	Own bool
 }
 
-// reviewRange is the span of days a reviewer reads: the weeks handed in lately and the leave asked for ahead.
-func reviewRange(today core.Date) (core.Date, core.Date) {
-	return today.AddDays(-62), today.AddDays(366)
+// orgLocation is the time zone of an organization, which decides its days.
+func orgLocation(org core.Organization) *time.Location {
+	name := org.TimeZone
+	if name == "" {
+		name = core.DefaultTimeZone
+	}
+	if loc, err := time.LoadLocation(name); err == nil {
+		return loc
+	}
+	return time.UTC
 }
 
 // reviews lists the open submissions of the organization's members, oldest first, from the data a reviewer may see
-// (core.ReviewData). The read is logged for every member (core.ReadManaged).
+// (core.ReviewData). The days read follow the open submissions (core.ReviewRange), however far from today they lie.
+// The read is logged for every member once a day (core.ReadManagedDaily): opening the page again adds nothing.
 func (h *handler) reviews(r *http.Request, org core.Organization, actor core.Actor, names map[string]string) ([]reviewView, error) {
-	from, to := reviewRange(h.today(nil))
-	data, err := core.ReadManaged(r.Context(), h.options.Store, h.options.AccessLog, actor, org.ID, from, to, "approval")
+	ctx := r.Context()
+	today := h.today(nil)
+	// The catalog names the open submissions; the records of today read with it lie inside the range logged below.
+	open, err := h.options.Store.Managed(ctx, org.ID, today, today)
+	if err != nil {
+		return nil, err
+	}
+	from, to := core.ReviewRange(open.Catalog, today)
+	data, err := core.ReadManagedDaily(ctx, h.options.Store, h.options.AccessLog, actor, org.ID, from, to, "approval",
+		h.now(), orgLocation(org))
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +220,7 @@ func (h *handler) reviews(r *http.Request, org core.Organization, actor core.Act
 		if s.Status != core.SubmissionSubmitted {
 			continue
 		}
-		v := reviewView{Submission: s, Member: names[s.Owner]}
+		v := reviewView{Submission: s, Member: names[s.Owner], Own: s.Owner == actor.Person}
 		for i, a := range data.Absences {
 			if a.ID == s.AbsenceID && a.Owner == s.Owner {
 				v.Absence, v.Type = &data.Absences[i], types[a.Type]
@@ -225,8 +243,8 @@ func (h *handler) decide(r *http.Request, org core.Organization, actor core.Acto
 	if !approve && reason == "" {
 		return errReasonNeeded
 	}
-	from, to := reviewRange(h.today(nil))
-	data, err := h.options.Store.Managed(ctx, org.ID, from, to)
+	today := h.today(nil)
+	data, err := h.options.Store.Managed(ctx, org.ID, today, today)
 	if err != nil {
 		return err
 	}
@@ -239,6 +257,12 @@ func (h *handler) decide(r *http.Request, org core.Organization, actor core.Acto
 	emp, found := data.Catalog.Employer(sub.EmployerID)
 	if sub.ID == "" || !found {
 		return core.ErrNotFound
+	}
+	// The records of the submission's own days, however far from today they lie.
+	if sub.Kind == core.SubmitLeave {
+		if data, err = h.options.Store.Managed(ctx, org.ID, sub.From, sub.To); err != nil {
+			return err
+		}
 	}
 	decided, err := core.Decide(sub, emp, actor, approve, reason, h.now())
 	if err != nil {

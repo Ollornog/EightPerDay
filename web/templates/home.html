@@ -34,6 +34,14 @@
     </section>
   </div>
   {{end}}
+  {{range $d.Reminders}}
+  <div class="alert" role="note" data-leave-reminder>{{template "icon-calendar"}}<h2>{{t "reminder.title" .Year}}</h2>
+    <section class="grid gap-1">
+      <p>{{t "reminder.text" (half .Remaining) (day .Expires) .DaysLeft}}</p>
+      {{if .NoticeGiven}}<p class="text-xs" data-reminder-notice>{{t "reminder.notice" .Notice}}</p>{{else if .Germany}}<p class="text-xs" data-reminder-nonotice>{{t "reminder.nonotice"}}</p>{{end}}
+    </section>
+  </div>
+  {{end}}
   {{if and (not $d.HasSchedule) (or (eq $d.Mode "schedule") (eq $d.Mode "plan"))}}
   <div class="alert" data-variant="warning" role="note">{{template "icon-alert"}}<h2>{{t "home.noschedule"}}</h2>
     <section><a class="underline underline-offset-4" href="/employers/{{$d.Employer.ID}}">{{t "home.noschedule.link"}}</a></section></div>

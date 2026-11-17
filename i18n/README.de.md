@@ -67,11 +67,15 @@ Urlaub`) geht in jeder Ansicht und sagt beim Tippen, was sie verstanden hat. Ber
 und Verdienst je Arbeitgeber und Monat sowie die eigenen Hinweise zum Arbeitszeitgesetz; alles über eine Person lässt
 sich als JSON oder CSV exportieren. Organisationen verwalten Mitglieder, Zeitmodell-Vorlagen und Vergütung; sie sehen
 nur, was ihnen gehört, nie die privaten Arbeitgeber eines Mitglieds, und ihre Firmenfunktionen sind aus, bis sie mit
-Betriebsvereinbarung eingeschaltet werden.
+Betriebsvereinbarung eingeschaltet werden. Gegen Jahresende erinnert die Wochenansicht an offenen Urlaub; die Seite
+`/legal` zeigt die Vorlagen für Arbeitgeber aus [`docs/legal`](../docs/legal/) und die gespeicherten Datenarten, als
+Entwürfe ohne Rechtsberatung.
 
-**Anmeldung.** Es gibt keine Selbstregistrierung. Beim ersten Start schreibt das Programm einen Einmal-Link für das erste
-Konto, das das Programm verwaltet; `eightperday link [--admin] [<name>]` erzeugt an der Konsole eine Einladung, und
-Verwaltende laden in der Oberfläche ein. Jede Person wählt einen Passkey (die Vorgabe), ein Passwort mit
+**Anmeldung.** Es gibt keine Selbstregistrierung. Das erste Konto, das das Programm verwaltet, kommt über einen
+Einmal-Link, der an der Konsole des Servers mit `eightperday link --admin` entsteht (im Container `docker compose exec
+eightperday /eightperday link --admin`): Er gilt eine Stunde, ein neuer ersetzt ihn, und er landet nie im Protokoll,
+das nur sagt, wie man ihn erzeugt. Danach erzeugt `eightperday link [--admin] [<name>]` an der Konsole eine Einladung,
+und Verwaltende laden in der Oberfläche ein. Jede Person wählt einen Passkey (die Vorgabe), ein Passwort mit
 Authenticator-App oder nur ein Passwort. Passwörter werden mit Argon2id gehasht, Fehlversuche je Name und je Adresse
 gebremst, Sitzungen liegen in HTTP-only-Cookies. Hinter einem Anmelde-Gateway können dessen Kopfzeilen anmelden, aber
 nur von den vertrauten Proxys.

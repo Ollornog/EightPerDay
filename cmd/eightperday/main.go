@@ -17,8 +17,9 @@
 //
 // Commands:
 //
-//	eightperday serve                       run the program; at the first start it prints a link for the first account
-//	eightperday link [--admin] [<name>]     print a one-time link that invites someone (optionally with a fixed name)
+//	eightperday serve                       run the program; without an account it says how to make the first one
+//	eightperday link [--admin] [<name>]     print a one-time link that invites someone (optionally with a fixed name);
+//	                                        without an account: the link for the first administrator, valid one hour
 //	eightperday link --reset <name>         print a one-time link that replaces the sign-in of an account
 //	eightperday probe                       ask the health endpoint (for the container's health check)
 //	eightperday version
@@ -231,12 +232,12 @@ func serve(ctx context.Context, getenv func(string) string, stdout, stderr io.Wr
 		return err
 	}
 	defer storePool.Close()
-	if token, err := accounts.FirstSetupLink(ctx); err != nil {
+	if n, err := accounts.AccountCount(ctx); err != nil {
 		return err
-	} else if token != "" {
-		// The console is the way the first account comes in: there is no sign-up.
-		_, _ = fmt.Fprintf(stderr, "\nNo account yet. Open this one-time link within %s to create the administrator:\n\n  %s\n\n",
-			auth.FirstLinkTTL, setupURL(c.origin, token))
+	} else if n == 0 {
+		// The console is the way the first account comes in: there is no sign-up. The link itself never goes to the
+		// log, where everyone who reads the log could take it.
+		_, _ = fmt.Fprint(stderr, firstAccountHint)
 	}
 	handler, err := web.New(log, web.Options{Auth: accounts, Store: store, Origin: c.origin, Gate: c.gate, TrustedProxies: c.proxies})
 	if err != nil {
@@ -266,6 +267,11 @@ func cleanUp(ctx context.Context, accounts *auth.Service, log *slog.Logger) {
 		}
 	}
 }
+
+// firstAccountHint is what serve says while there is no account: how to make the link, never the link.
+const firstAccountHint = "\nNo account yet. Make the one-time link for the first administrator at the server's console:\n\n" +
+	"  eightperday link --admin\n\n(in a container: docker compose exec eightperday /eightperday link --admin)." +
+	" It lasts one hour, and a new one replaces it.\n"
 
 func setupURL(origin *url.URL, token string) string {
 	return origin.Scheme + "://" + origin.Host + "/setup?token=" + token
@@ -308,6 +314,20 @@ func link(ctx context.Context, getenv func(string) string, request linkRequest, 
 		return err
 	}
 	defer pool.Close()
+	if n, err := accounts.AccountCount(ctx); err != nil {
+		return err
+	} else if n == 0 && !request.reset {
+		// The first account administers the program; its link is short-lived and replaces any before it.
+		if !request.admin {
+			return errors.New("there is no account yet: the first one administers the program, so make its link with --admin")
+		}
+		token, err := accounts.FirstSetupLink(ctx, request.name)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(stdout, setupURL(c.origin, token))
+		return err
+	}
 	setup := auth.SetupLink{Username: request.name, Admin: request.admin}
 	if request.reset {
 		account, err := findAccount(ctx, accounts, request.name)

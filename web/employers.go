@@ -31,7 +31,6 @@ type employerData struct {
 	Surcharges  []core.Surcharge
 	Types       []core.AbsenceType
 	Projects    []core.Project
-	Regions     []string
 	Kinds       []core.EmployerKind
 	Weekdays    []int
 	Bases       []core.PayBasis
@@ -101,7 +100,7 @@ func (h *handler) employerPage(w http.ResponseWriter, r *http.Request) {
 func (h *handler) employerData(r *http.Request, cat core.Catalog, emp core.Employer, owner string, canChange bool) employerData {
 	today := h.today(&emp)
 	d := employerData{Employer: emp, Owner: owner, CanChange: canChange, Today: today, Mode: core.ModeAt(cat, emp.ID, today),
-		Modes: core.Modes, Regions: core.Regions(), Weekdays: weekdays, Projects: projectsOf(cat, emp.ID),
+		Modes: core.Modes, Weekdays: weekdays, Projects: projectsOf(cat, emp.ID),
 		Kinds: []core.EmployerKind{core.KindEmployer, core.KindClient, core.KindPrivate},
 		Bases: []core.PayBasis{core.PayHourly, core.PayPerProject, core.PayPerAssignment, core.PayFlatPeriod},
 		Back:  "/employers/" + emp.ID}

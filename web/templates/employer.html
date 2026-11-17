@@ -15,7 +15,7 @@
       <div class="field" role="group"><label for="emp-kind">{{t "employer.kind"}}</label>
         <select class="select w-full" id="emp-kind" name="kind">{{range $d.Kinds}}<option value="{{.}}"{{if eq . $d.Employer.Kind}} selected{{end}}>{{t (print "kind." .)}}</option>{{end}}</select></div>
       <div class="field" role="group"><label for="emp-region">{{t "employer.region"}}</label>
-        <select class="select w-full" id="emp-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range $d.Regions}}<option value="{{.}}"{{if eq . $d.Employer.Region}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+        <select class="select w-full" id="emp-region" name="region"><option value="">{{t "employer.region.none"}}</option>{{range regionOptions}}<option value="{{.Code}}"{{if eq .Code $d.Employer.Region}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
       <div class="field" role="group"><label for="emp-split">{{t "employer.daysplit"}}</label>
         <select class="select w-full" id="emp-split" name="day_split"><option value="start_day">{{t "daysplit.start_day"}}</option><option value="midnight"{{if eq $d.Employer.DaySplit "midnight"}} selected{{end}}>{{t "daysplit.midnight"}}</option></select>
         <p class="text-muted-foreground text-xs">{{t "employer.daysplit.hint"}}</p></div>

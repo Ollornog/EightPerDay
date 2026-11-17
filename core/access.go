@@ -147,6 +147,53 @@ func VerifyAccesses(log []Access) error {
 	return nil
 }
 
+// LogAccessOnce adds a to the log like LogAccess, unless the subject's log already holds an entry of the same day (in
+// loc; UTC if nil) by the same actor and organization, for the same employer, action and What, whose days cover a's.
+// It returns the entry that stands for the access, and whether it was added now. Pages that are opened again and again
+// (an organization's overview) log their reads with it: one entry per view, person and day instead of one per call.
+//
+// Nothing that was read goes unlogged: a read of other days, of another view or by someone else still adds an entry.
+// The chain is not touched, entries are only ever added, so VerifyAccesses finds a changed or removed entry as before.
+// Two calls at the same moment may both add one.
+func LogAccessOnce(ctx context.Context, log AccessLog, a Access, loc *time.Location) (Access, bool, error) {
+	if loc == nil {
+		loc = time.UTC
+	}
+	at := a.At
+	if at.IsZero() {
+		at = time.Now()
+	}
+	y, m, d := at.In(loc).Date()
+	dayStart := time.Date(y, m, d, 0, 0, 0, 0, loc)
+	dayEnd := dayStart.AddDate(0, 0, 1)
+	entries, err := log.Accesses(ctx, a.Subject)
+	if err != nil {
+		return Access{}, false, err
+	}
+	// The whole log is looked at: an embedding may write entries with times of its own, out of order.
+	for i := len(entries) - 1; i >= 0; i-- {
+		e := entries[i]
+		if e.At.Before(dayStart) || !e.At.Before(dayEnd) {
+			continue
+		}
+		if e.Actor == a.Actor && e.Organization == a.Organization && e.EmployerID == a.EmployerID &&
+			e.Action == a.Action && e.What == a.What && covers(e, a) {
+			return e, false, nil
+		}
+	}
+	a.At = at
+	logged, err := log.LogAccess(ctx, a)
+	return logged, err == nil, err
+}
+
+// covers reports whether the days of e include those of a; an entry without days only stands for one without days.
+func covers(e, a Access) bool {
+	if e.From.IsZero() || e.To.IsZero() || a.From.IsZero() || a.To.IsZero() {
+		return e.From == a.From && e.To == a.To
+	}
+	return !a.From.Before(e.From) && !a.To.After(e.To)
+}
+
 // ReadManaged is Store.Managed with the access log: it logs a read for every person whose records the organization
 // gets, before it hands them over. Use it for every read of an organization that a person did not start for their own
 // data; purpose goes into What.
@@ -156,6 +203,17 @@ func ReadManaged(ctx context.Context, s Store, log AccessLog, actor Actor, organ
 	if err != nil {
 		return Data{}, err
 	}
+	for _, subject := range ownersOf(d) {
+		if _, err := log.LogAccess(ctx, Access{Actor: actor.Person, Organization: organization, Subject: subject,
+			Action: AccessRead, What: purpose, From: from, To: to}); err != nil {
+			return Data{}, err
+		}
+	}
+	return d, nil
+}
+
+// ownersOf returns the owners of the employers in d, sorted: the people whose records an organization's read gets.
+func ownersOf(d Data) []string {
 	var subjects []string
 	for _, e := range d.Catalog.Employers {
 		if !slices.Contains(subjects, e.Owner) {
@@ -163,9 +221,21 @@ func ReadManaged(ctx context.Context, s Store, log AccessLog, actor Actor, organ
 		}
 	}
 	slices.Sort(subjects)
-	for _, subject := range subjects {
-		if _, err := log.LogAccess(ctx, Access{Actor: actor.Person, Organization: organization, Subject: subject,
-			Action: AccessRead, What: purpose, From: from, To: to}); err != nil {
+	return subjects
+}
+
+// ReadManagedDaily is ReadManaged for a view that is opened again and again: it logs the read for every person with
+// LogAccessOnce, so the same view of the same days by the same actor is logged once a day (in loc) and not on every
+// call. at is the time of the read (zero: now). ReadManaged stays as it was and logs every call.
+func ReadManagedDaily(ctx context.Context, s Store, log AccessLog, actor Actor, organization string, from, to Date,
+	purpose string, at time.Time, loc *time.Location) (Data, error) {
+	d, err := s.Managed(ctx, organization, from, to)
+	if err != nil {
+		return Data{}, err
+	}
+	for _, subject := range ownersOf(d) {
+		if _, _, err := LogAccessOnce(ctx, log, Access{At: at, Actor: actor.Person, Organization: organization,
+			Subject: subject, Action: AccessRead, What: purpose, From: from, To: to}, loc); err != nil {
 			return Data{}, err
 		}
 	}

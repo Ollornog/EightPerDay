@@ -63,11 +63,15 @@ project. A free-text line (`8-16:30 30m Pause`, `Fr -2h früher weg`, `Mo-Mi Url
 what it understood while it is typed. Reports show balance, time account, leave and earnings per employer and month,
 and the person's own hints on the Working Hours Act; everything about a person can be exported as JSON or CSV.
 Organizations manage members, schedule templates and pay; they see only what belongs to them, never a member's
-private employers, and their company features are off unless switched on with a works agreement.
+private employers, and their company features are off unless switched on with a works agreement. Towards the end of
+the year the week view reminds a person of leave still open; the page `/legal` shows the templates for employers from
+[`docs/legal`](docs/legal/) and the kinds of data stored, as drafts that are no legal advice.
 
-**Signing in.** There is no sign-up. At its first start the program prints a one-time link for the first account,
-which administers the program; `eightperday link [--admin] [<name>]` prints an invitation at the console, and
-administrators invite people in the interface. Each person chooses a passkey (the default), a password with an
+**Signing in.** There is no sign-up. The first account, which administers the program, comes from a one-time link made
+at the server's console with `eightperday link --admin` (in a container `docker compose exec eightperday /eightperday
+link --admin`): it lasts one hour, a new one replaces it, and it never goes to the log, which only says how to make
+it. After that `eightperday link [--admin] [<name>]` prints an invitation at the console, and administrators invite
+people in the interface. Each person chooses a passkey (the default), a password with an
 authenticator app, or a password alone. Passwords are hashed with Argon2id, failed sign-ins are slowed down per name and
 per address, and sessions live in HTTP-only cookies. Behind a sign-in gate, its headers can sign people in instead, but
 only from the trusted proxies.
