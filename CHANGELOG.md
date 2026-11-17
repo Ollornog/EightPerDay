@@ -62,3 +62,7 @@ All notable changes to this project are documented in this file. The format foll
   locked in both stores, a correction is a new request that opens them again once approved; a reviewer sees only what
   was handed in (`ReviewData`). Leave reminders before the end of the year with the employer's notice as a data
   point (`LeaveReminders`).
+- An access log (`AccessLog`, A8): who read, changed, exported or decided whose data when, chained by hash per person
+  (`VerifyAccesses`), visible to the person and part of the export; `ReadManaged` logs every read of an
+  organization. In PostgreSQL (migration 002) rows can only be added, and only rows older than two years can be
+  purged (retention class `access_log`).

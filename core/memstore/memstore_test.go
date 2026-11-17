@@ -13,3 +13,7 @@ import (
 func TestConformance(t *testing.T) {
 	storetest.Run(t, func(*testing.T) core.Store { return memstore.New() })
 }
+
+func TestAccessLog(t *testing.T) {
+	storetest.RunAccessLog(t, func(*testing.T) storetest.AccessLogStore { return memstore.New() })
+}

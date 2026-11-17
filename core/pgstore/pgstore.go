@@ -33,11 +33,14 @@ type DB interface {
 
 // Store is a core.Store on PostgreSQL.
 type Store struct {
-	db                                    DB
-	records, entries, absences, revisions string
+	db                                            DB
+	records, entries, absences, revisions, access string
 }
 
-var _ core.Store = (*Store)(nil)
+var (
+	_ core.Store     = (*Store)(nil)
+	_ core.AccessLog = (*Store)(nil)
+)
 
 // New returns a store on db. The migrations must have run with the same options.
 func New(db DB, o Options) (*Store, error) {
@@ -46,7 +49,7 @@ func New(db DB, o Options) (*Store, error) {
 		return nil, err
 	}
 	return &Store{db: db, records: o.Prefix + "records", entries: o.Prefix + "entries",
-		absences: o.Prefix + "absences", revisions: o.Prefix + "revisions"}, nil
+		absences: o.Prefix + "absences", revisions: o.Prefix + "revisions", access: o.Prefix + "access_log"}, nil
 }
 
 // Connect opens a pool for a standalone program whose connections all belong to one tenant.
@@ -506,6 +509,12 @@ func (s *Store) Purge(ctx context.Context, owner string, class core.Class, cutof
 				DELETE FROM `+s.records+` x WHERE x.kind = 'leave_notice' AND ($1 = '' OR x.owner = $1)
 					AND (x.doc->>'year')::int < $2 AND NOT `+fmt.Sprintf(held, "h.id = x.employer_id")+` RETURNING x.id)
 			SELECT count(*) FROM gone`, owner, cutoff.Year).Scan(&removed)
+		case core.ClassAccessLog:
+			// Row-level security only lets rows older than the minimum retention go; younger ones stay silently.
+			var tag pgconn.CommandTag
+			tag, err = tx.Exec(ctx, "DELETE FROM "+s.access+" WHERE ($1 = '' OR subject = $1) AND at < $2::date",
+				owner, cutoff.String())
+			removed = int(tag.RowsAffected())
 		default:
 			return core.Retention{Class: class, YearsAfterYearEnd: core.MinimumYears}.Validate()
 		}
@@ -661,4 +670,42 @@ func (s *Store) Memberships(ctx context.Context, organization, person string) ([
 	return scanDocs[core.Membership](s.db.Query(ctx, "SELECT doc FROM "+s.records+` WHERE kind = 'membership'
 		AND ($1 = '' OR doc->>'organization' = $1) AND ($2 = '' OR doc->>'person' = $2)
 		ORDER BY (doc->>'from')::date, id`, organization, person))
+}
+
+// LogAccess adds an entry to the access log, linked to the subject's last one. Entries of one subject are written one
+// after the other (an advisory lock), so the chain has no forks.
+func (s *Store) LogAccess(ctx context.Context, a core.Access) (core.Access, error) {
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", s.access+"/"+a.Subject); err != nil {
+			return err
+		}
+		prev := ""
+		err := tx.QueryRow(ctx, "SELECT hash FROM "+s.access+" WHERE subject = $1 ORDER BY seq DESC LIMIT 1",
+			a.Subject).Scan(&prev)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if a, err = core.PrepareAccess(a, prev); err != nil {
+			return err
+		}
+		doc, err := json.Marshal(a)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, "INSERT INTO "+s.access+" (id, subject, at, hash, doc) VALUES ($1, $2, $3, $4, $5)",
+			a.ID, a.Subject, a.At, a.Hash, doc)
+		if isUnique(err) {
+			return core.ErrConflict
+		}
+		return err
+	})
+	if err != nil {
+		return core.Access{}, err
+	}
+	return a, nil
+}
+
+// Accesses returns the access log of the subject, oldest first.
+func (s *Store) Accesses(ctx context.Context, subject string) ([]core.Access, error) {
+	return scanDocs[core.Access](s.db.Query(ctx, "SELECT doc FROM "+s.access+" WHERE subject = $1 ORDER BY seq", subject))
 }

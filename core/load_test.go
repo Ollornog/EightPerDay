@@ -36,3 +36,33 @@ func TestLoadReachesBackForNightShifts(t *testing.T) {
 		t.Fatalf("the night's part on 2 March: %+v %v", days, err)
 	}
 }
+
+// Every read of an organization is logged for each person whose records it gets, and only for them.
+func TestReadManagedLogs(t *testing.T) {
+	ctx := context.Background()
+	s := memstore.New()
+	for _, e := range []core.Employer{
+		{ID: "m1", Owner: "alice", Name: "ACME", Kind: core.KindEmployer, Mode: core.ModeExact, Holder: core.HolderManaged, Organization: "acme"},
+		{ID: "m2", Owner: "bob", Name: "ACME", Kind: core.KindEmployer, Mode: core.ModeExact, Holder: core.HolderManaged, Organization: "acme"},
+		{ID: "p1", Owner: "carol", Name: "Own", Kind: core.KindPrivate, Mode: core.ModeExact},
+	} {
+		if err := s.Put(ctx, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	boss := core.Actor{Person: "boss", Organization: "acme", Admin: true}
+	d, err := core.ReadManaged(ctx, s, s, boss, "acme", core.MustDate("2026-03-01"), core.MustDate("2026-03-31"), "payroll March")
+	if err != nil || len(d.Catalog.Employers) != 2 {
+		t.Fatalf("read: %+v %v", d, err)
+	}
+	for subject, want := range map[string]int{"alice": 1, "bob": 1, "carol": 0} {
+		log, err := s.Accesses(ctx, subject)
+		if err != nil || len(log) != want {
+			t.Fatalf("%s: %+v %v", subject, log, err)
+		}
+		if want == 1 && (log[0].Actor != "boss" || log[0].Action != core.AccessRead || log[0].What != "payroll March" ||
+			log[0].From != core.MustDate("2026-03-01")) {
+			t.Fatalf("%s: %+v", subject, log[0])
+		}
+	}
+}

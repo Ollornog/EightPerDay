@@ -12,7 +12,7 @@ application that embeds it. The reasons are in [ADR-1](../backlog/ADR-1-library-
 | `core` | Model, validation, calculations, parser, export, rights, the `Store` interface |
 | `core/memstore` | `Store` in memory, for tests and trials |
 | `core/pgstore` | `Store` on PostgreSQL: migrations, table prefix, tenant column with row-level security |
-| `core/storetest` | The conformance test every `Store` passes; run it for a store of your own |
+| `core/storetest` | The conformance test every `Store` passes (`Run`, and `RunAccessLog` for an `AccessLog`); run it for a store of your own |
 
 ## Model
 
@@ -119,12 +119,28 @@ Only for an organization with `Features.Approval` on; without it there are no su
   before 31 December, with whether the employer recorded its notice (`LeaveNotice`, BAG 9 AZR 266/20). The person
   sees it as a reminder, the organization on its managed data as the notices it still owes.
 
+## Access log
+
+`AccessLog` (both stores have it; it is separate from `Store`, so a store of one's own keeps working) records who
+(`Actor`, for `Organization`) read, changed, exported or decided what of whose data (`Subject`), and when.
+
+- `ReadManaged(ctx, store, log, actor, organization, from, to, purpose)` is `Store.Managed` with a read logged for
+  every person whose records the organization gets. Changes, exports, decisions and role changes are logged with
+  `LogAccess`.
+- `Accesses(ctx, subject)` is the person's own view; `ExportOwner` includes it.
+- Every entry holds the hash of the subject's entry before it (`Prev`, `Hash`); `VerifyAccesses` checks the chain.
+  PostgreSQL only adds rows (no update policy) and only lets the retention purge (`ClassAccessLog`) delete rows older
+  than two years; the in-memory store follows the same rule. The chain shows a changed single entry, not a rewritten
+  chain: keep the last hash elsewhere if that matters.
+- `Store.Erase` leaves the access log to its retention.
+
 ## Personal rights and retention
 
 - `ExportOwner` collects everything of a person (JSON with `WriteJSON`, entries as CSV with `WriteEntriesCSV`).
   `Export.PrivatePart` and `ImportPrivate` take the private part to another instance.
 - `Store.Erase(owner)` removes everything private of a person; managed records stay.
-- `Retention` (`DefaultRetention`: three years after the end of the year, at least two) gives the cutoff for
+- `Retention` (`DefaultRetention`: three years after the end of the year, at least two; classes `time_records`,
+  `leave_notices`, `access_log`) gives the cutoff for
   `Store.Purge(ctx, owner, class, cutoff)`, which skips employers on hold and logs every run.
 
 ## PostgreSQL

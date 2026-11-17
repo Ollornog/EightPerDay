@@ -30,9 +30,13 @@ type Store struct {
 	revisions []core.Revision
 	orgs      map[string]core.Organization
 	members   map[string]core.Membership
+	accesses  []core.Access
 }
 
-var _ core.Store = (*Store)(nil)
+var (
+	_ core.Store     = (*Store)(nil)
+	_ core.AccessLog = (*Store)(nil)
+)
 
 // New returns an empty store.
 func New() *Store {
@@ -433,6 +437,14 @@ func (s *Store) Purge(_ context.Context, owner string, class core.Class, cutoff 
 				removed++
 			}
 		}
+	case core.ClassAccessLog:
+		before := len(s.accesses)
+		s.accesses = slices.DeleteFunc(s.accesses, func(a core.Access) bool {
+			// As in PostgreSQL: nothing younger than the minimum retention goes, whatever the cutoff.
+			return (owner == "" || a.Subject == owner) && core.DateOf(a.At).Before(cutoff) &&
+				a.At.Before(time.Now().AddDate(-core.MinimumYears, 0, 0))
+		})
+		removed = before - len(s.accesses)
 	default:
 		return 0, core.Retention{Class: class, YearsAfterYearEnd: core.MinimumYears}.Validate()
 	}
@@ -610,5 +622,36 @@ func (s *Store) Memberships(_ context.Context, organization, person string) ([]c
 		}
 		return strings.Compare(a.ID, b.ID)
 	})
+	return out, nil
+}
+
+// LogAccess adds an entry to the access log, linked to the subject's last one.
+func (s *Store) LogAccess(_ context.Context, a core.Access) (core.Access, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prev := ""
+	for _, x := range s.accesses {
+		if x.Subject == a.Subject {
+			prev = x.Hash
+		}
+	}
+	a, err := core.PrepareAccess(a, prev)
+	if err != nil {
+		return core.Access{}, err
+	}
+	s.accesses = append(s.accesses, a)
+	return a, nil
+}
+
+// Accesses returns the access log of the subject, oldest first.
+func (s *Store) Accesses(_ context.Context, subject string) ([]core.Access, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []core.Access
+	for _, a := range s.accesses {
+		if a.Subject == subject {
+			out = append(out, a)
+		}
+	}
 	return out, nil
 }
