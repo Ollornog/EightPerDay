@@ -614,5 +614,17 @@
   "month.short.9": "Sep",
   "month.short.10": "Okt",
   "month.short.11": "Nov",
-  "month.short.12": "Dez"
+  "month.short.12": "Dez",
+  "list.approved": "Genehmigt",
+  "list.requested": "Änderung beantragt",
+  "list.approved.hint": "Der Betrieb hat diese Woche genehmigt. Eine Änderung geht als Antrag an ihn; bis er entscheidet, gilt der genehmigte Stand.",
+  "list.reason": "Grund der Änderung",
+  "list.request": "Änderung beantragen",
+  "list.error.reason": "Eine Änderung an einer genehmigten Woche braucht einen Grund.",
+  "done.requested": "Die Änderung ist beantragt. Bis der Betrieb entscheidet, gilt der genehmigte Stand.",
+  "weeks.title": "Alle Wochen",
+  "weeks.link": "Alle Wochen",
+  "weeks.back": "Zurück zur Liste",
+  "weeks.older": "Frühere Wochen",
+  "weeks.start": "Die erste Woche mit Einträgen."
 }

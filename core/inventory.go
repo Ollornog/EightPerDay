@@ -191,6 +191,7 @@ var inventory = []struct {
 		"decided_at":   "When it was decided or withdrawn.",
 		"decided_by":   "Who decided or withdrew it.",
 		"reason":       "Reason of the decision; always given for a rejection.",
+		"proposal":     "The values a change request asks the days of an approved period to hold: hours or an absence, and a note.",
 	}},
 	{Entry{}, "", "A booking of working time, a break or a deviation from the plan.", holderOfEmployer,
 		ClassTimeRecords, deletedByPurge, map[string]string{

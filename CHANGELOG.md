@@ -8,6 +8,12 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- The list of every week (M-5, T-9, `/weeks`): the newest week at the bottom, the weeks before it load while
+  scrolling up, back to the first week with records; without JavaScript a link does the same.
+- Change requests: on a managed employer whose organization approves weeks, a change typed into an approved week in
+  the list becomes a correction with the proposed values (`Submission.Proposal`). The approved values count until the
+  organization decides; the week and the day show the request, the reviewer reads what is asked. Approved, the values
+  are booked in the administrator's name and the week is approved again; the member's access log shows the change.
 - The list as the start page (M-5, T-6): this week and last week side by side, a row per day with hours, target,
   difference and note, and per week the sum, the difference and the balance carried over from the week before
   (`core.Ledger`). Hours are typed into the row (`8,5`), or a short code (`U`, `K`, `F`, `ZA`, `½U`, English `V`,

@@ -43,11 +43,12 @@
   <div class="flex items-center justify-between gap-2">
     <a class="btn" data-variant="ghost" data-size="sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Prev}}" data-older>{{template "icon-left"}}{{t "list.earlier"}}</a>
     {{if not $d.ThisWeek}}<a class="btn" data-variant="ghost" data-size="sm" href="/?e={{$d.Employer.ID}}" data-today>{{t "list.today"}}</a>{{end}}
+    <a class="btn" data-variant="ghost" data-size="sm" href="/weeks?e={{$d.Employer.ID}}" data-all-weeks>{{t "weeks.link"}}</a>
     <a class="btn" data-variant="ghost" data-size="sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Next}}" data-newer>{{t "list.later"}}{{template "icon-right"}}</a>
   </div>
 
   <div class="grid gap-4 lg:grid-cols-2" data-weeks>
-    {{range $d.Weeks}}{{template "list-week" (listWeekOf . $d)}}{{end}}
+    {{range $d.Weeks}}{{template "list-week" (listWeekOf . $d.Employer.ID $d.HasAccount)}}{{end}}
   </div>
   <p class="text-muted-foreground text-xs">{{t "list.hint"}}</p>
 
@@ -63,45 +64,6 @@
     <button type="button" class="btn btn-close" data-variant="ghost" aria-label="{{t "dialog.close"}}" data-close-dialog>{{template "icon-x"}}</button>
   </div>
 </dialog>
-{{end}}
-
-{{define "list-week"}}
-{{$w := .Week}}{{$d := .List}}
-<form method="post" action="/book/list" class="card" data-size="sm" id="week-{{$w.From}}" data-week="{{$w.From}}">
-  <header>
-    <h2 class="card-title">{{t "gap.week" $w.Number}}</h2>
-    <p class="card-description tabular-nums">{{short $w.From}} – {{short $w.To}}{{if $w.Locked}} · {{t "approval.locked"}}{{end}}</p>
-  </header>
-  <section>
-    <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}">
-    <div class="table-container">
-      <table class="table">
-        <thead><tr><th class="px-1">{{t "list.day"}}</th><th class="px-1">{{t "list.hours"}}</th><th class="px-1 text-end">{{t "list.target"}}</th><th class="px-1 text-end">{{t "list.diff"}}</th><th class="px-1 w-full">{{t "list.note"}}</th></tr></thead>
-        <tbody>
-          {{range $w.Rows}}
-          <tr data-day="{{.Date}}"{{if .IsToday}} aria-current="date"{{end}}>
-            <td class="px-1 tabular-nums"><span class="font-medium">{{t (print "weekday." .Weekday)}}</span>{{if .Day.Holiday}} <abbr title="{{.Day.Holiday}}">{{t "code.public"}}</abbr>{{end}}<br><span class="text-muted-foreground text-xs">{{short .Date}}</span></td>
-            <td class="px-1">{{if .Fixed}}<span class="tabular-nums" data-fixed>{{.Value}}</span>{{else}}
-              <input type="hidden" name="was-{{.Date}}" value="{{.Value}}">
-              <input class="input w-14 tabular-nums" id="v-{{.Date}}" name="v-{{.Date}}" value="{{.Value}}" placeholder="{{.Placeholder}}" pattern="{{dayPattern}}" autocomplete="off" autocapitalize="characters" aria-label="{{t "list.hours.of" (t (print "weekday." .Weekday)) (short .Date)}}"{{if .Focus}} autofocus data-focus{{end}}>{{end}}</td>
-            <td class="px-1 text-end tabular-nums">{{if .Day.AdjustedTarget}}{{dec .Day.AdjustedTarget}}{{end}}</td>
-            <td class="px-1 text-end tabular-nums" data-diff>{{if and .Counted .Day.HasTarget (or .Day.AdjustedTarget .Day.Actual)}}{{sdec .Day.Balance}}{{end}}</td>
-            <td class="px-1">{{if .Fixed}}<span class="text-xs">{{.Note}}</span>{{else}}
-              <input type="hidden" name="wasn-{{.Date}}" value="{{.Note}}">
-              <input class="input w-full min-w-16" name="n-{{.Date}}" value="{{.Note}}" maxlength="200" autocomplete="off" aria-label="{{t "list.note.of" (t (print "weekday." .Weekday)) (short .Date)}}">{{end}}</td>
-          </tr>
-          {{end}}
-        </tbody>
-        <tfoot>
-          <tr data-week-total><td class="px-1">{{t "list.sum"}}</td><td class="px-1 tabular-nums" data-week-sum>{{dec $w.Total.Actual}}</td><td class="text-end tabular-nums">{{dec $w.Total.AdjustedTarget}}</td><td class="text-end tabular-nums" data-week-diff>{{sdec $w.Total.Balance}}</td><td></td></tr>
-          {{range $w.Corrections}}<tr data-correction><td colspan="3" class="text-xs">{{t "list.correction"}} {{short .Date}}: {{.Reason}}</td><td class="text-end tabular-nums">{{sdec .Minutes}}</td><td></td></tr>{{end}}
-          {{if $d.HasAccount}}<tr><td colspan="2" class="tabular-nums" data-carry>{{t "list.carry"}} {{sdec $w.CarryOver}}</td><td colspan="3" class="text-end tabular-nums" data-week-balance>{{t "list.balance"}} {{sdec $w.Balance}}</td></tr>{{end}}
-        </tfoot>
-      </table>
-    </div>
-  </section>
-  {{if not $w.Locked}}<footer><button type="submit" class="btn w-full" data-variant="outline" data-size="sm">{{t "action.save"}}</button></footer>{{end}}
-</form>
 {{end}}
 
 {{define "month-grid"}}

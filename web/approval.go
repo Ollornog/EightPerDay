@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -174,6 +175,8 @@ type reviewView struct {
 	Type    string
 	// Own: the administrator handed it in; another administrator decides it (core.Decide refuses one's own).
 	Own bool
+	// Changes are the days a change request asks for, as "Mon 11-16: 6".
+	Changes []string
 }
 
 // orgLocation is the time zone of an organization, which decides its days.
@@ -221,6 +224,10 @@ func (h *handler) reviews(r *http.Request, org core.Organization, actor core.Act
 			continue
 		}
 		v := reviewView{Submission: s, Member: names[s.Owner], Own: s.Owner == actor.Person}
+		for _, p := range s.Proposal {
+			v.Changes = append(v.Changes, h.t(r, "weekday."+strconv.Itoa(int(p.Date.Weekday())))+" "+shortDate(h.lang(r), p.Date)+": "+
+				h.proposedText(r, data.Catalog.AbsenceTypes, p)+noteSuffix(p.Note))
+		}
 		for i, a := range data.Absences {
 			if a.ID == s.AbsenceID && a.Owner == s.Owner {
 				v.Absence, v.Type = &data.Absences[i], types[a.Type]
@@ -282,6 +289,11 @@ func (h *handler) decide(r *http.Request, org core.Organization, actor core.Acto
 	}
 	if err := h.options.Store.Put(ctx, decided); err != nil {
 		return err
+	}
+	if decided.Kind == core.SubmitCorrection && decided.Status == core.SubmissionApproved && len(decided.Proposal) > 0 {
+		if err := h.applyChange(r, org, actor, emp, decided); err != nil {
+			return err
+		}
 	}
 	if leave != nil {
 		updated, err := core.LeaveDecision(decided, *leave)
@@ -361,4 +373,11 @@ func (h *handler) accessPage(w http.ResponseWriter, r *http.Request) {
 		d.Accesses = append(d.Accesses, v)
 	}
 	h.render(w, r, http.StatusOK, "access", view{Title: h.t(r, "access.title"), Data: d})
+}
+
+func noteSuffix(note string) string {
+	if note == "" {
+		return ""
+	}
+	return " („" + note + "“)"
 }

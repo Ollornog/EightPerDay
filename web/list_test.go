@@ -246,3 +246,145 @@ func TestListOfAHandedInWeek(t *testing.T) {
 		t.Errorf("a handed-in day changed: %d", a.status)
 	}
 }
+
+// A change to an approved week on a managed employer becomes a change request: the approved values count until the
+// organization decides; approved, the values are booked and the week is approved again; rejected, nothing changes.
+func TestChangeRequestOnAnApprovedWeek(t *testing.T) {
+	s, worker, org, member, managed := approvalSite(t)
+	list := "/?e=" + managed.ID
+	worker.mustPost("/book/list", url.Values{"employer": {managed.ID}, "back": {list}, "v-2026-11-16": {"9"}, "was-2026-11-16": {""}})
+	worker.mustPost("/approval/submit", url.Values{"employer": {managed.ID}, "kind": {"period"}, "from": {monday.String()},
+		"to": {monday.AddDays(6).String()}, "back": {list}})
+	s.mustPost("/orgs/"+org+"/decide", url.Values{"submission": {submissions(t, s, member.ID)[0].ID}, "decision": {"approve"}, "back": {"/"}})
+
+	body := worker.get(list).body
+	if !strings.Contains(body, "data-approved") || rowValue(t, body, monday) != "9" || strings.Contains(body, "data-requested") {
+		t.Fatal("the approved week cannot be changed from the list")
+	}
+	change := url.Values{"employer": {managed.ID}, "back": {list}, "v-2026-11-16": {"7"}, "was-2026-11-16": {"9"}, "n-2026-11-16": {"dentist"}}
+	if a := worker.post("/book/list", change); a.status != http.StatusBadRequest || !strings.Contains(a.body, "says why") {
+		t.Fatalf("a change request without a reason: %d", a.status)
+	}
+	change.Set("reason", "left for the dentist")
+	change.Set("v-2026-11-16", "6")
+	if a := worker.mustPost("/book/list", change); !strings.Contains(a.header.Get("Location"), "done=requested") {
+		t.Errorf("redirect %s", a.header.Get("Location"))
+	}
+	// Asked again, the day takes its new value in the open request.
+	change.Set("v-2026-11-16", "7")
+	worker.mustPost("/book/list", change)
+	worker.mustPost("/book/list", url.Values{"employer": {managed.ID}, "back": {list}, "v-2026-11-17": {"v"}, "was-2026-11-17": {""},
+		"reason": {"and a day of leave"}})
+	if e := worker.entries(member.ID); len(e) != 1 || e[0].Minutes != 540 {
+		t.Fatalf("the approved values changed before the decision: %+v", e)
+	}
+	var request core.Submission
+	for _, x := range submissions(t, s, member.ID) {
+		if x.Kind == core.SubmitCorrection {
+			if request.ID != "" {
+				t.Fatal("a second change request instead of one")
+			}
+			request = x
+		}
+	}
+	if len(request.Proposal) != 2 || request.Proposal[0].Minutes != 420 || request.Proposal[0].Note != "dentist" ||
+		request.Proposal[1].Absence != core.AbsenceVacation || request.Note != "and a day of leave" {
+		t.Fatalf("change request %+v", request)
+	}
+	body = worker.get(list).body
+	if !strings.Contains(body, "data-requested") || !strings.Contains(body, "data-proposed>→ 7<") || rowValue(t, body, monday) != "9" {
+		t.Error("the list does not mark the request next to the approved values")
+	}
+	if page := s.get("/orgs/" + org).body; !strings.Contains(page, "Mon 11-16: 7 („dentist“)") || !strings.Contains(page, "Tue 11-17: V") {
+		t.Errorf("the reviewer does not see what is asked: %s", regexp.MustCompile(`data-changes>[\s\S]{0,200}`).FindString(page))
+	}
+
+	s.mustPost("/orgs/"+org+"/decide", url.Values{"submission": {request.ID}, "decision": {"approve"}, "back": {"/"}})
+	if e := worker.entries(member.ID); len(e) != 1 || e[0].Minutes != 420 || e[0].Note != "dentist" {
+		t.Fatalf("the approved request was not booked: %+v", e)
+	}
+	if a := worker.absences(member.ID); len(a) != 1 || a[0].Type != core.AbsenceVacation || a[0].Status != core.StatusApproved {
+		t.Fatalf("absences %+v", a)
+	}
+	cat, _ := s.store.Catalog(context.Background(), member.ID)
+	if p, ok := cat.PeriodAt(managed.ID, monday); !ok || p.Status != core.SubmissionApproved || p.ID == request.Supersedes {
+		t.Fatalf("the corrected week is not approved anew: %+v %v", p, ok)
+	}
+	accesses, _ := s.store.(core.AccessLog).Accesses(context.Background(), member.ID)
+	applied := false
+	for _, a := range accesses {
+		applied = applied || (a.Action == core.AccessChange && a.What == "change request applied")
+	}
+	if !applied {
+		t.Error("the member's access log lacks the change")
+	}
+
+	// Rejected, nothing changes.
+	worker.mustPost("/book/list", url.Values{"employer": {managed.ID}, "back": {list}, "v-2026-11-16": {"8"}, "was-2026-11-16": {"7"},
+		"n-2026-11-16": {"dentist"}, "wasn-2026-11-16": {"dentist"}, "reason": {"typo"}})
+	for _, x := range submissions(t, s, member.ID) {
+		if x.Kind == core.SubmitCorrection && x.Status == core.SubmissionSubmitted {
+			s.mustPost("/orgs/"+org+"/decide", url.Values{"submission": {x.ID}, "decision": {"reject"}, "reason": {"was right"}, "back": {"/"}})
+		}
+	}
+	if e := worker.entries(member.ID); len(e) != 1 || e[0].Minutes != 420 {
+		t.Errorf("a rejected request changed the day: %+v", e)
+	}
+	if body := worker.get(list).body; strings.Contains(body, "data-requested") || rowValue(t, body, monday) != "7" {
+		t.Error("after the rejection the week does not show the approved values")
+	}
+}
+
+// The list of every week: the newest at the bottom, eight at first, and the weeks before load in parts until the
+// first week with records; each week's form returns to its own week.
+func TestEveryWeek(t *testing.T) {
+	s, _ := trackSite(t)
+	me := s.me("mara", false)
+	emp := s.employer(me, "Office", core.ModeSchedule, "8")
+	s.mustPost("/book/list", url.Values{"employer": {emp.ID}, "back": {"/"}, "v-2026-06-02": {"8"}, "was-2026-06-02": {""}})
+	weeksOf := func(body string) []string {
+		var out []string
+		for _, m := range regexp.MustCompile(`data-week="([^"]+)"`).FindAllStringSubmatch(body, -1) {
+			out = append(out, m[1])
+		}
+		return out
+	}
+	body := s.get("/weeks?e=" + emp.ID).body
+	if w := weeksOf(body); len(w) != 8 || w[0] != "2026-09-28" || w[7] != "2026-11-16" || !strings.Contains(body, "data-endless") {
+		t.Fatalf("first weeks %v", w)
+	}
+	if strings.Contains(body, "autofocus") {
+		t.Error("the list of every week takes the focus")
+	}
+	if !strings.Contains(body, `value="/weeks?e=`+emp.ID+`&from=2026-11-09#week-2026-11-09"`) {
+		t.Errorf("a week's form does not return to its week: %s", regexp.MustCompile(`name="back" value="/weeks[^"]*"`).FindString(body))
+	}
+	seen := weeksOf(body)
+	part := regexp.MustCompile(`data-part="([^"]+)"`)
+	for loads := 0; ; loads++ {
+		next := part.FindStringSubmatch(body)
+		if next == nil {
+			break
+		}
+		if loads > 5 {
+			t.Fatal("the weeks before do not end")
+		}
+		body = s.get(strings.ReplaceAll(next[1], "&amp;", "&")).body
+		if !strings.HasPrefix(body, "<div data-weeks-part>") || strings.Contains(body, "<html") {
+			t.Fatalf("a part is a whole page: %.200s", body)
+		}
+		seen = append(weeksOf(body), seen...)
+	}
+	if !strings.Contains(body, "data-weeks-start") || seen[0] != "2026-06-01" || len(seen) != 25 {
+		t.Errorf("the weeks end at %v after %d weeks", seen[0], len(seen))
+	}
+	for i := 1; i < len(seen); i++ {
+		if core.MustDate(seen[i]) != core.MustDate(seen[i-1]).AddDays(7) {
+			t.Fatalf("weeks out of order at %d: %v", i, seen)
+		}
+	}
+	// Without JavaScript the link opens the page from an older week on.
+	if w := weeksOf(s.get("/weeks?e=" + emp.ID + "&from=2026-08-10").body); len(w) != 15 || w[0] != "2026-08-10" {
+		t.Errorf("from an older week: %v", w)
+	}
+}

@@ -19,6 +19,7 @@
         {{if eq .Kind "period"}}<p class="text-muted-foreground text-xs tabular-nums">{{t "schedule.target"}} {{hours .Target}} · {{t "schedule.actual"}} {{hours .Actual}} · {{t "reports.balance"}} {{signed .Balance}}</p>{{end}}
         {{if .Absence}}{{if .Absence.HalfDay}}<p class="text-muted-foreground text-xs">{{t "track.half"}}</p>{{end}}{{end}}
         {{if .Note}}<p class="text-xs">{{.Note}}</p>{{end}}
+        {{if .Changes}}<ul class="grid gap-1 text-xs tabular-nums" data-changes>{{range .Changes}}<li>{{.}}</li>{{end}}</ul>{{end}}
         {{if .Own}}
         <p class="text-muted-foreground text-xs" data-review-own>{{t "org.reviews.own"}}</p>
         {{else}}
