@@ -20,6 +20,7 @@
         {{if .Absence}}{{if .Absence.HalfDay}}<p class="text-muted-foreground text-xs">{{t "track.half"}}</p>{{end}}{{end}}
         {{if .Note}}<p class="text-xs">{{.Note}}</p>{{end}}
         {{if .Changes}}<ul class="grid gap-1 text-xs tabular-nums" data-changes>{{range .Changes}}<li>{{.}}</li>{{end}}</ul>{{end}}
+        {{if .Overlaps}}<div class="text-xs" data-overlaps><p class="font-medium">{{t "org.reviews.overlaps"}}</p><ul class="grid gap-1 tabular-nums">{{range .Overlaps}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
         {{if .Own}}
         <p class="text-muted-foreground text-xs" data-review-own>{{t "org.reviews.own"}}</p>
         {{else}}

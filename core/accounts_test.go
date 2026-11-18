@@ -2,7 +2,10 @@
 
 package core
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestOvertimeBasis(t *testing.T) {
 	// Target 8 h Monday to Friday. Week 1: +2 h Monday, -2 h Tuesday. Week 2: +1 h Monday.
@@ -102,5 +105,59 @@ func TestLeave(t *testing.T) {
 				t.Fatalf("got %+v, want %+v", got, c.want)
 			}
 		})
+	}
+}
+
+func TestLeaveAt(t *testing.T) {
+	half := func(a Absence) Absence { a.HalfDay = true; return a }
+	requested := func(a Absence) Absence { a.Status = StatusRequested; return a }
+	// 30 days from 1 January; today is Wednesday 1 July 2026. Leave: a week in May with Ascension Day (four days), a
+	// half day today, a planned week in August, half of 24 December, and a request in October.
+	data := Data{Catalog: Catalog{Employers: []Employer{employerOf(ModeSchedule, "DE-BY")},
+		Schedules: []Schedule{week("s", "2026-01-01", 480, 480, 480, 480, 480, 0, 0)}},
+		Absences: []Absence{absence(AbsenceVacation, "2026-05-11", "2026-05-17"), half(absence(AbsenceVacation, "2026-07-01", "2026-07-01")),
+			absence(AbsenceVacation, "2026-08-10", "2026-08-14"), half(absence(AbsenceVacation, "2026-12-24", "2026-12-24")),
+			requested(absence(AbsenceVacation, "2026-10-05", "2026-10-06")), absence(AbsenceSick, "2026-03-02", "2026-03-06")}}
+	st, err := LeaveAt(data, "e1", 2026, d("2026-07-01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 182 of 365 days of 30 is 14.96, rounded to the half day: 15.
+	if st.Entitlement != 30 || st.Accrued != 15 || st.TakenSoFar != 4.5 || st.Planned != 5.5 || st.Taken != 10 ||
+		st.Requested != 2 || st.Remaining != 20 {
+		t.Fatalf("status %+v", st)
+	}
+	if st, _ := LeaveAt(data, "e1", 2026, d("2027-02-01")); st.Accrued != 30 || st.Planned != 0 || st.TakenSoFar != 10 {
+		t.Errorf("after the year %+v", st)
+	}
+	if st, _ := LeaveAt(data, "e1", 2026, d("2025-12-01")); st.Accrued != 0 || st.Planned != 10 {
+		t.Errorf("before the year %+v", st)
+	}
+	if _, err := LeaveAt(data, "nobody", 2026, d("2026-07-01")); err == nil {
+		t.Error("an unknown employer")
+	}
+}
+
+func TestOverlaps(t *testing.T) {
+	mine := absence(AbsenceVacation, "2026-08-10", "2026-08-14")
+	other := func(who, typ, from, to string, status AbsenceStatus) Absence {
+		a := absence(typ, from, to)
+		a.Owner, a.Status = who, status
+		return a
+	}
+	deleted := other("bea", AbsenceVacation, "2026-08-10", "2026-08-10", StatusApproved)
+	now := time.Now()
+	deleted.DeletedAt = &now
+	data := Data{Catalog: Catalog{Employers: []Employer{employerOf(ModeSchedule, "DE-BY")}},
+		Absences: []Absence{mine,
+			other("bea", AbsenceVacation, "2026-08-13", "2026-08-20", StatusApproved),
+			other("cem", AbsenceVacation, "2026-08-03", "2026-08-10", StatusRequested),
+			other("dan", AbsenceSick, "2026-08-11", "2026-08-11", StatusApproved),
+			other("eli", AbsenceVacation, "2026-08-15", "2026-08-16", StatusApproved),
+			other("fay", AbsenceVacation, "2026-08-12", "2026-08-12", StatusRejected),
+			deleted}}
+	got := Overlaps(data, mine)
+	if len(got) != 2 || got[0].Owner != "cem" || got[1].Owner != "bea" {
+		t.Fatalf("overlaps %+v", got)
 	}
 }

@@ -14,6 +14,11 @@ All notable changes to this project are documented in this file. The format foll
   the list becomes a correction with the proposed values (`Submission.Proposal`). The approved values count until the
   organization decides; the week and the day show the request, the reviewer reads what is asked. Approved, the values
   are booked in the administrator's name and the week is approved again; the member's access log shows the change.
+- Leave planning (M-5, T-8, tab "Leave", `/leave`): the account of the year as of today (entitlement, earned so
+  far, taken, planned, requested, left; `core.LeaveAt`) and the year as twelve months, in which free working days are
+  tapped and booked as leave in one step, as half days if wanted; days with only a weekend between them make one
+  absence. Where the organization approves leave the days are asked for, and the reviewer sees which other members
+  are away on the same days (`core.Overlaps`, never a sickness).
 - The list as the start page (M-5, T-6): this week and last week side by side, a row per day with hours, target,
   difference and note, and per week the sum, the difference and the balance carried over from the week before
   (`core.Ledger`). Hours are typed into the row (`8,5`), or a short code (`U`, `K`, `F`, `ZA`, `½U`, English `V`,

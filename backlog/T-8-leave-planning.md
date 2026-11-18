@@ -2,7 +2,7 @@
 id: T-8
 type: Task
 title: "Leave planning in the year's grid"
-status: offen
+status: erledigt
 milestone: M-5
 tags: [ui, core, leave]
 created: 2026-11-19

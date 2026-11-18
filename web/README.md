@@ -55,6 +55,14 @@ with `Proposal`; an open one takes further days in). The row shows the approved 
 organization's page lists the days asked for. Approving it books the values in the administrator's name
 (`applyChange`), hands the period in anew approved by the same decision, and logs the change in the member's access
 log; a rejection changes nothing.
+## Leave
+
+`/leave` (`leave.go`) shows the leave account of a year as of today (`core.LeaveAt`) and the year as twelve month
+grids. A free working day (a target in the schedule, or Monday to Friday without one; no absence, no public holiday,
+not handed in) carries a checkbox; `POST /leave/plan` books the marked days as leave through `createAbsence`, so an
+organization that approves leave gets a request at once. Marked days with only free days between them make one
+absence. On the organization's page a leave request names the other members away on its days (`core.Overlaps` on
+the data read for the reviews, leave types only).
 
 ## Company features, access log, pay
 

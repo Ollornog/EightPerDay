@@ -44,6 +44,8 @@ owner, from, to)`. `Load` reads entries from the day before `from` on, for night
 | `Sum(days)`, `Totals(days, PeriodWeek/Month/Year, weekStart)` | Totals per period |
 | `Overtime(data, employerID, from, to)` | Time account: balance with adjustments, overtime by the schedule's basis (day, week, month) |
 | `Leave(data, employerID, year)` | Leave account: entitlement (prorated), adjustments, taken, requested, remaining |
+| `LeaveAt(data, employerID, year, today)` | `LeaveStatus`: the leave account as of a day: the entitlement earned up to it (aliquot, half days), approved leave taken up to it and planned after it, requested, remaining |
+| `Overlaps(data, absence)` | Leave of other people on days of an absence, for a reviewer: types that count against leave only (never sickness), approved or requested |
 | `ComputeEarnings(data, employerID, from, to)` | Earnings per pay rule: hourly, per project, per assignment (day or job), flat per period; paid absences and surcharges; `Reasons` splits the total by reason |
 | `PersonalOverview(data, from, to, weekStart)` | The person's view over all employers, with hints on the Working Hours Act; refuses data of several people |
 | `Ledger(data, employerID, start, from, to, until)` | `[]LedgerWeek`: the weeks of a list with their days, sums up to `until`, the corrections dated in them and the balance carried from week to week since `start`; its last balance equals `Overtime(…, start, until)` |
