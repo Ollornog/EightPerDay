@@ -140,7 +140,11 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	mux.HandleFunc("POST /setup/passkey/finish", h.setupPasskeyFinish)
 
 	signedIn := http.NewServeMux()
-	signedIn.HandleFunc("GET /{$}", h.home)
+	signedIn.HandleFunc("GET /{$}", h.list)
+	signedIn.HandleFunc("GET /week", h.home)
+	signedIn.HandleFunc("POST /book/list", h.listDays)
+	signedIn.HandleFunc("POST /book/correction", h.addCorrection)
+	signedIn.HandleFunc("POST /corrections/{id}/remove", h.removeCorrection)
 	signedIn.HandleFunc("POST /employers", h.createEmployer)
 	signedIn.HandleFunc("GET /employers/{id}", h.employerPage)
 	signedIn.HandleFunc("POST /employers/{id}/{action}", h.changeEmployer)
@@ -216,6 +220,14 @@ func (h *handler) parseTemplates() error {
 			"date":            func(t time.Time) string { return formatDate(lang, t) },
 			"durationPattern": func() string { return durationPattern },
 			"percent":         func(basisPoints int) string { return formatPercent(lang, basisPoints) },
+			"dec":             func(minutes int) string { return hoursText(lang, minutes) },
+			"sdec":            func(minutes int) string { return signedDecimal(lang, minutes) },
+			"dayPattern":      func() string { return dayPattern },
+			"listWeekOf":      func(w listWeek, d listData) listWeekView { return listWeekView{Week: w, List: d} },
+			"monthNumber":     func(m time.Month) int { return int(m) },
+			"weekdayOf":       func(d core.Date) int { return int(d.Weekday()) },
+			"days31":          func() []int { return days31 },
+			"short":           func(d core.Date) string { return shortDate(lang, d) },
 			"clock":           clockText,
 			"noticeForm": func(employer, owner, back string, today core.Date) noticeForm {
 				return noticeForm{EmployerID: employer, Owner: owner, Back: back, Today: today}
@@ -255,6 +267,7 @@ type view struct {
 	Error     string
 	Data      any
 	Narrow    bool // a page with one small card, such as the sign-in
+	Wide      bool // a page with columns side by side, such as the list
 	Languages []string
 }
 

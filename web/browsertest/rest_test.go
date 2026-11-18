@@ -71,6 +71,7 @@ func TestOwnRequestReminderAndTemplatesOnAPhone(t *testing.T) {
 
 	// Ann reads the reminder of her open leave and asks for a day off.
 	b.signIn("ann")
+	b.open("/week")
 	b.must(`!!document.querySelector('[data-leave-reminder]') && document.querySelector('[data-leave-reminder]').textContent.includes('Leave left in 2026')`,
 		"the week view reminds of open leave")
 	b.reachable("leave reminder")
@@ -113,6 +114,7 @@ func TestOwnRequestReminderAndTemplatesOnAPhone(t *testing.T) {
 
 	// Ann reads on her week view that the notice was given.
 	b.signIn("ann")
+	b.open("/week")
 	b.must(`!!document.querySelector('[data-reminder-notice]') && document.querySelector('[data-reminder-notice]').textContent.includes('2026-11-18')`,
 		"ann reads the notice")
 }

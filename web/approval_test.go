@@ -56,7 +56,7 @@ func submissions(t *testing.T, s *site, owner string) []core.Submission {
 
 func TestApprovalOfAWeek(t *testing.T) {
 	s, worker, org, member, managed := approvalSite(t)
-	home := "/?e=" + managed.ID
+	home := "/week?e=" + managed.ID
 	if body := worker.get(home).body; !strings.Contains(body, "data-approval") || !strings.Contains(body, "Hand in this week") {
 		t.Fatal("the week does not offer to be handed in")
 	}
@@ -165,7 +165,7 @@ func byID(subs []core.Submission, id string) core.Submission {
 
 func TestApprovalOfLeave(t *testing.T) {
 	s, worker, org, member, managed := approvalSite(t)
-	home := "/?e=" + managed.ID
+	home := "/week?e=" + managed.ID
 	// Leave is requested and handed in at once; sickness needs no approval.
 	worker.mustPost("/book/absence", url.Values{"employer": {managed.ID}, "type": {"vacation"}, "from": {"2026-11-26"}, "to": {"2026-11-27"}, "back": {home}})
 	worker.mustPost("/book/absence", url.Values{"employer": {managed.ID}, "type": {"sick"}, "from": {monday.String()}, "back": {home}})
@@ -198,7 +198,7 @@ func TestApprovalOfLeave(t *testing.T) {
 			t.Fatalf("the approved leave is %s", a.Status)
 		}
 	}
-	if body := worker.get("/?e=" + managed.ID + "&w=2026-11-23").body; strings.Contains(body, "waits for approval") || !strings.Contains(body, "approved") {
+	if body := worker.get("/week?e=" + managed.ID + "&w=2026-11-23").body; strings.Contains(body, "waits for approval") || !strings.Contains(body, "approved") {
 		t.Fatal("the member does not see the approval")
 	}
 }
@@ -208,7 +208,7 @@ func TestNoApprovalWithoutTheFeature(t *testing.T) {
 	s, _ := trackSite(t)
 	me := s.me("mara", false)
 	emp := s.employer(me, "Mine", core.ModeSchedule, "8")
-	if body := s.get("/?e=" + emp.ID).body; strings.Contains(body, "data-approval") {
+	if body := s.get("/week?e=" + emp.ID).body; strings.Contains(body, "data-approval") {
 		t.Fatal("a private employer offers approval")
 	}
 	if a := s.post("/approval/submit", url.Values{"employer": {emp.ID}, "kind": {"period"}, "from": {monday.String()}, "to": {monday.String()}}); a.status != http.StatusBadRequest {
@@ -469,7 +469,7 @@ func TestOrgPageReadsAreLoggedOncePerDay(t *testing.T) {
 // notice that it can lapse; a week of another year, whose data do not hold this year, shows no reminder.
 func TestLeaveReminder(t *testing.T) {
 	s, worker, _, member, managed := approvalSite(t)
-	home := "/?e=" + managed.ID
+	home := "/week?e=" + managed.ID
 	body := worker.get(home).body
 	if !strings.Contains(body, "data-leave-reminder") || !strings.Contains(body, "Leave left in 2026") ||
 		!strings.Contains(body, "in 43 days") || !strings.Contains(body, "data-reminder-nonotice") {
@@ -573,7 +573,7 @@ func TestOrganizationRecordsTheNoticeItOwes(t *testing.T) {
 	if page := s.get("/orgs/" + org).body; owedOf(page, managed.ID) != "" || !strings.Contains(page, "data-owed-none") {
 		t.Fatal("the recorded notice is still owed")
 	}
-	if body := worker.get("/?e=" + managed.ID).body; !strings.Contains(body, "data-reminder-notice") {
+	if body := worker.get("/week?e=" + managed.ID).body; !strings.Contains(body, "data-reminder-notice") {
 		t.Fatal("the member's week view does not show the notice")
 	}
 	if body := worker.get("/employers/" + managed.ID).body; !strings.Contains(body, "data-leave-notice") ||

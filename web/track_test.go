@@ -117,11 +117,11 @@ func TestWeeklyTotal(t *testing.T) {
 	if len(entries) != 1 || entries[0].Minutes != 38*60+30 || entries[0].Precision != core.PrecisionWeek || entries[0].Date != monday {
 		t.Fatalf("%+v", entries)
 	}
-	if body := s.get("/?e=" + emp.ID).body; !strings.Contains(body, `value="38:30"`) {
+	if body := s.get("/week?e=" + emp.ID).body; !strings.Contains(body, `value="38:30"`) {
 		t.Fatal("the week does not show its total")
 	}
 	// The next week starts empty.
-	if body := s.get("/?e=" + emp.ID + "&w=2026-11-23").body; strings.Contains(body, `value="38:30"`) {
+	if body := s.get("/week?e=" + emp.ID + "&w=2026-11-23").body; strings.Contains(body, `value="38:30"`) {
 		t.Fatal("the next week is not empty")
 	}
 	// Changed, then cleared: one entry is updated, then removed, never a second one.
@@ -142,14 +142,14 @@ func TestWeeklyTotalSplitIntoDays(t *testing.T) {
 	s, _ := trackSite(t)
 	me := s.me("mara", false)
 	emp := s.employer(me, "Workshop", core.ModeWeekSum, "")
-	if body := s.get("/?e=" + emp.ID).body; strings.Contains(body, "data-spread") {
+	if body := s.get("/week?e=" + emp.ID).body; strings.Contains(body, "data-spread") {
 		t.Fatal("an empty week offers to be split")
 	}
 	if a := s.post("/book/spread", url.Values{"employer": {emp.ID}, "week": {monday.String()}}); a.status != http.StatusBadRequest {
 		t.Fatalf("an empty week split: %d", a.status)
 	}
 	s.mustPost("/book/week", url.Values{"employer": {emp.ID}, "week": {monday.String()}, "hours": {"38,5"}, "back": {"/"}})
-	if body := s.get("/?e=" + emp.ID).body; !strings.Contains(body, "data-spread") {
+	if body := s.get("/week?e=" + emp.ID).body; !strings.Contains(body, "data-spread") {
 		t.Fatal("the week does not offer to be split")
 	}
 	s.mustPost("/book/spread", url.Values{"employer": {emp.ID}, "week": {wednesday.String()}, "back": {"/"}})
@@ -170,7 +170,7 @@ func TestWeeklyTotalSplitIntoDays(t *testing.T) {
 		t.Fatal("the mode did not switch from that week on")
 	}
 	// The day view shows the parts as hours per day, which can be changed one by one.
-	if body := s.get("/?e=" + emp.ID).body; !strings.Contains(body, `name="day-2026-11-16" inputmode="decimal" value="7:42"`) {
+	if body := s.get("/week?e=" + emp.ID).body; !strings.Contains(body, `name="day-2026-11-16" inputmode="decimal" value="7:42"`) {
 		t.Fatalf("the days do not show their part: %s", regexp.MustCompile(`name="day-2026-11-16"[^>]*`).FindString(body))
 	}
 }
@@ -180,7 +180,7 @@ func TestScheduleWithBalance(t *testing.T) {
 	me := s.me("mara", false)
 	emp := s.employer(me, "Office", core.ModeSchedule, "8")
 	s.mustPost("/book/days", url.Values{"employer": {emp.ID}, "back": {"/"}, "day-2026-11-16": {"8:30"}, "day-2026-11-17": {"7"}})
-	body := s.get("/?e=" + emp.ID).body
+	body := s.get("/week?e=" + emp.ID).body
 	balances := regexp.MustCompile(`data-balance>([^<]*)<`).FindAllStringSubmatch(body, -1)
 	if len(balances) < 2 || balances[0][1] != "+0:30" || balances[1][1] != "-1:00" {
 		t.Fatalf("balances %v", balances)
@@ -199,7 +199,7 @@ func TestPlanCountsOnlyDeviations(t *testing.T) {
 	s, _ := trackSite(t)
 	me := s.me("mara", false)
 	emp := s.employer(me, "Site", core.ModePlan, "8")
-	body := s.get("/?e=" + emp.ID).body
+	body := s.get("/week?e=" + emp.ID).body
 	if !strings.Contains(body, "as planned") || !strings.Contains(body, "The week is right") {
 		t.Fatal("the plan view is missing")
 	}
@@ -215,7 +215,7 @@ func TestPlanCountsOnlyDeviations(t *testing.T) {
 	if len(cat.Confirmations) != 1 || cat.Confirmations[0].From != monday || cat.Confirmations[0].To != wednesday {
 		t.Fatalf("%+v", cat.Confirmations)
 	}
-	body = s.get("/?e=" + emp.ID).body
+	body = s.get("/week?e=" + emp.ID).body
 	if !strings.Contains(body, "You confirmed this week") || !strings.Contains(body, ">Sick<") {
 		t.Fatal("confirmation or sickness does not show")
 	}
@@ -243,7 +243,7 @@ func TestPlanBecomesExact(t *testing.T) {
 	if core.ModeAt(cat, emp.ID, monday) != core.ModeExact {
 		t.Fatal("the mode did not switch")
 	}
-	if body := s.get("/?e=" + emp.ID).body; !strings.Contains(body, "Stopwatch") {
+	if body := s.get("/week?e=" + emp.ID).body; !strings.Contains(body, "Stopwatch") {
 		t.Fatal("the exact view does not show")
 	}
 }
@@ -286,7 +286,7 @@ func TestStopwatch(t *testing.T) {
 	if a := s.post("/timer/start", url.Values{"employer": {emp.ID}, "back": {"/"}}); a.status != http.StatusBadRequest {
 		t.Fatalf("a second stopwatch: %d", a.status)
 	}
-	if body := s.get("/?e=" + emp.ID).body; !strings.Contains(body, "Running since 10:30") {
+	if body := s.get("/week?e=" + emp.ID).body; !strings.Contains(body, "Running since 10:30") {
 		t.Fatalf("the running stopwatch does not show: %s", regexp.MustCompile(`Running since[^<]*`).FindString(body))
 	}
 	c.Add(95 * time.Minute)
@@ -351,7 +351,7 @@ func TestProjectsOnly(t *testing.T) {
 	if total != 3*60+15+6*60 {
 		t.Fatalf("%d", total)
 	}
-	body := s.get("/?e=" + emp.ID).body
+	body := s.get("/week?e=" + emp.ID).body
 	if !strings.Contains(body, `value="3:15"`) || strings.Contains(body, "data-week-balance") {
 		t.Fatal("projects only shows its values and no balance")
 	}
@@ -484,7 +484,7 @@ func TestOrganizations(t *testing.T) {
 	if managed.ID == "" || managed.Mode != core.ModePlan || managed.Organization != org {
 		t.Fatalf("no managed employer: %+v", cat.Employers)
 	}
-	home := worker.get("/?e=" + managed.ID).body
+	home := worker.get("/week?e=" + managed.ID).body
 	if !strings.Contains(home, "Managed by ACME Construction") || !strings.Contains(home, "as planned") {
 		t.Fatal("the member's week does not show the managed employer in its mode")
 	}

@@ -131,7 +131,10 @@ var (
 // durationPattern is the pattern attribute of a duration field (C22 block data-entry/duration-field): the forms
 // parseHours accepts, so the browser says early that a value is not a duration. The server still decides. Written for
 // the browser's v-mode and for Go's regexp alike; a test keeps it in step with parseHours.
-const durationPattern = `\s*(?:-\s*|\+)?(?:\d{1,3}:[0-5]\d|\d{1,3}(?:[.,]\d{1,2})?|(?:\d{1,3}\s*[hH])?\s*\d{1,4}\s*(?:[mM]|[mM][iI][nN])|\d{1,3}\s*[hH])\s*`
+const durationPattern = `\s*(?:-\s*|\+)?` + durationBody + `\s*`
+
+// durationBody is a duration without sign or spaces around it.
+const durationBody = `(?:\d{1,3}:[0-5]\d|\d{1,3}(?:[.,]\d{1,2})?|(?:\d{1,3}\s*[hH])?\s*\d{1,4}\s*(?:[mM]|[mM][iI][nN])|\d{1,3}\s*[hH])`
 
 // parseHours reads a duration as people type it into a field: 38:30, 38,5, 38.5, 38h30m, 38h, 90m. Empty is zero.
 // It is input handling only; what the minutes mean is the core library's business.

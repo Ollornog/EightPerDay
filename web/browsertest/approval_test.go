@@ -51,6 +51,7 @@ func TestApprovalOnAPhone(t *testing.T) {
 	b.signOut()
 
 	b.signIn("tom")
+	b.open("/week")
 	b.must(`!!document.querySelector('[data-approval]')`, "the member's week offers approval")
 	b.tap(`[data-submit-week]`)
 	b.must(`location.search.includes('done=submitted') && !!document.querySelector('[data-week-locked]')`, "the week is handed in")
@@ -72,6 +73,7 @@ func TestApprovalOnAPhone(t *testing.T) {
 	b.signOut()
 
 	b.signIn("tom")
+	b.open("/week")
 	b.must(`document.querySelector('[data-submission="rejected"] [data-reason]')?.textContent.includes('Tuesday is missing') && !!document.querySelector('[data-submit-week]')`,
 		"the member reads why, and the week is open again")
 	b.settle()
