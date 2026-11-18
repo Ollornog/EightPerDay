@@ -46,6 +46,8 @@ owner, from, to)`. `Load` reads entries from the day before `from` on, for night
 | `Leave(data, employerID, year)` | Leave account: entitlement (prorated), adjustments, taken, requested, remaining |
 | `ComputeEarnings(data, employerID, from, to)` | Earnings per pay rule: hourly, per project, per assignment (day or job), flat per period; paid absences and surcharges; `Reasons` splits the total by reason |
 | `PersonalOverview(data, from, to, weekStart)` | The person's view over all employers, with hints on the Working Hours Act; refuses data of several people |
+| `Ledger(data, employerID, start, from, to, until)` | `[]LedgerWeek`: the weeks of a list with their days, sums up to `until`, the corrections dated in them and the balance carried from week to week since `start`; its last balance equals `Overtime(…, start, until)` |
+| `WeekGaps(data, employerID, start, from, today, approval)` | `[]WeekGap`: weeks that lack something, for notices: working days before today without any booking, a plan week over and not confirmed, a week over and not handed in where the organization approves weeks |
 | `PublicHolidays(region, year)`, `Regions()`, `AddHolidayRule` | Public holidays of the German states and Austria, as data, and of parts of a state (see below) |
 
 Public holidays of parts of a state: some days are kept only in some municipalities. A part has a code of its own
@@ -89,6 +91,13 @@ current rule (store them with `UpdateEntry` to re-value on purpose).
 `Mo-Mi Urlaub`, `24.12. halb Urlaub`. A date only counts as the first word. `Parsed.Entries(opts)` makes entries (spans
 are placed in the time zone, so daylight saving changes keep the real length), `Parsed.AbsenceRecord` an absence. The
 caller resolves `Parsed.Project` to a project ID.
+
+## Short codes
+
+`ParseDayCode(input)` reads what people type into a day of a spreadsheet instead of hours: `U`/`V` leave, `K`/`S` sick,
+`F`/`O` a day off, `ZA`/`C` time off in lieu, in upper or lower case, half days with `½`, `/2` or `0,5` in front or
+behind (`½U`, `U/2`). Public holidays have no code: they come from the region. `CodedAbsence(key)` says whether an
+absence type has one.
 
 ## Organizations and rights
 

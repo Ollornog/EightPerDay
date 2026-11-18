@@ -136,7 +136,7 @@ func (h *handler) week(r *http.Request, cat core.Catalog, emp core.Employer) (ho
 		Prev: week.AddDays(-7), Next: week.AddDays(7), ThisWeek: today.Within(week, end),
 		Mode: core.ModeAt(cat, emp.ID, week), Modes: core.Modes, Types: cat.AbsenceTypesFor(emp.ID),
 		AllProjects: projectsOf(cat, emp.ID),
-		Back:        "/?e=" + emp.ID + "&w=" + week.String(),
+		Back:        "/week?e=" + emp.ID + "&w=" + week.String(),
 	}
 	if d.ThisWeek {
 		d.Mode = core.ModeAt(cat, emp.ID, today)

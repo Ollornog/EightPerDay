@@ -30,6 +30,20 @@ Parts used beyond the plain components:
 A duration field carries `pattern` from `durationPattern` (Go, `track.go`), which a test keeps in step with
 `parseHours`: the browser refuses early what the server would refuse, and nothing it would take.
 
+## The list
+
+The start page (`list.go`, `templates/list.html`) is the list of one employer: the week before and the week shown
+side by side (`lg:grid-cols-2`, one above the other on a phone), each a form with a row per day. A row's field takes
+hours or a short code; its pattern `dayPattern` follows `parseDayValue` (hours without a sign, or
+`core.ParseDayCode`), and a test keeps them in step. Only rows whose field or note changed are written (`was-` and
+`wasn-` carry what the page showed): hours become the day's one manual entry, a code an absence of that day alone,
+and whatever the row booked before goes through the history. A day handed in for approval, an absence of several days
+or of every employer, and a requested one show as text instead of a field. The first empty working day of the week
+shown gets `autofocus`, so Enter after a number leads to the next day. `core.Ledger` gives the sums and the balance,
+`core.WeekGaps` the notices on top (the last eight weeks), and the grids show the codes of the month and the year.
+Corrections of the time account (`POST /book/correction`, `/corrections/{id}/remove`) are for whoever may change the
+employer's settings (`core.MayChangeSettings`). Everything else of a mode stays on `/week`.
+
 ## Company features, access log, pay
 
 - Approval (`approval.go`): when an organization switches it on, a member hands in a week with a tap; leave (and

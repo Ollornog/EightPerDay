@@ -3,7 +3,7 @@
 {{$d := .Data}}
 <div class="grid gap-4">
   <div class="flex flex-wrap items-center gap-2">
-    <form method="get" action="/" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
+    <form method="get" action="/week" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
       <label class="sr-only" for="pick-employer">{{t "home.employer"}}</label>
       <select class="select min-w-0 flex-1" id="pick-employer" name="e">
         {{range $d.Employers}}<option value="{{.ID}}"{{if eq .ID $d.Employer.ID}} selected{{end}}>{{.Name}}</option>{{end}}
@@ -16,12 +16,12 @@
   {{if $d.Org}}<p class="text-muted-foreground text-xs">{{t "home.managed" $d.Org}}</p>{{end}}
 
   <div class="flex items-center justify-between gap-2">
-    <a class="btn" data-variant="ghost" data-size="icon-sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Prev}}" aria-label="{{t "home.prev"}}">{{template "icon-left"}}</a>
+    <a class="btn" data-variant="ghost" data-size="icon-sm" href="/week?e={{$d.Employer.ID}}&amp;w={{$d.Prev}}" aria-label="{{t "home.prev"}}">{{template "icon-left"}}</a>
     <div class="text-center">
       <p class="font-semibold">{{if $d.ThisWeek}}{{t "home.thisweek"}}{{else}}{{t "home.week"}}{{end}}</p>
       <p class="text-muted-foreground text-xs tabular-nums">{{day $d.Week}} – {{day $d.WeekEnd}} · {{t (print "mode." $d.Mode)}}</p>
     </div>
-    <a class="btn" data-variant="ghost" data-size="icon-sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Next}}" aria-label="{{t "home.next"}}">{{template "icon-right"}}</a>
+    <a class="btn" data-variant="ghost" data-size="icon-sm" href="/week?e={{$d.Employer.ID}}&amp;w={{$d.Next}}" aria-label="{{t "home.next"}}">{{template "icon-right"}}</a>
   </div>
 
   {{if and $d.HasTarget $d.HasSchedule}}

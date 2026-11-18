@@ -8,6 +8,14 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- The list as the start page (M-5, T-6): this week and last week side by side, a row per day with hours, target,
+  difference and note, and per week the sum, the difference and the balance carried over from the week before
+  (`core.Ledger`). Hours are typed into the row (`8,5`), or a short code (`U`, `K`, `F`, `ZA`, `½U`, English `V`,
+  `S`, `O`, `C`; `core.ParseDayCode`); Enter saves and the next empty working day gets the focus, so a week takes ten
+  key presses. Weeks that lack days, a confirmation or a hand-in are named on top with a link (`core.WeekGaps`);
+  older weeks open the same way and are changed like this one. The month and the year as grids of codes below, and a
+  correction of the time account (payout, cap) with its reason. The former start page with the tools of each mode
+  moves to the tab "Week" (`/week`).
 - The repository: MIT license, bilingual README (English, German), security policy, contributing guide, code of
   conduct, the shared test kit with its Go gate, hardened workflows (CI, vulnerability audit, release, Dependabot
   auto-merge), and the backlog with milestones M-1 to M-3 and the decisions ADR-1 (a Go library plus a standalone

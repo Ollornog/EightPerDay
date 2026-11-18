@@ -515,7 +515,7 @@ func pages(t *testing.T) map[string]string {
 		paths := []string{"/account", "/admin", "/about", "/licenses", "/legal", "/nothing", "/setup?token=" + token, "/setup?token=bad",
 			"/reports", "/reports?month=2026-10", "/orgs", "/orgs/" + org}
 		for _, e := range employers {
-			paths = append(paths, "/?e="+e.ID, "/employers/"+e.ID)
+			paths = append(paths, "/?e="+e.ID, "/?e="+e.ID+"&w=2026-01-05", "/week?e="+e.ID, "/employers/"+e.ID)
 		}
 		for _, path := range paths {
 			out[lang+" "+path] = s.get(path).body
