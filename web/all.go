@@ -10,7 +10,8 @@ import (
 
 // The week of every employer in one list, the way people with several jobs in a season keep it: a column per employer
 // that is active that week, a cell only on the days it is, and the earnings per day, week and the average working
-// day, with what was taken in cash or by card.
+// day, with what was taken in cash or by card. A day whose work took only a morning or only an afternoon (core.Day.Part)
+// counts as half a day for the average.
 
 type allData struct {
 	Week, Prev, Next core.Date
@@ -20,9 +21,10 @@ type allData struct {
 	Currency         string
 	Earned           int64
 	Average          int64
-	WorkDays         int
-	Cash, Card       int64
-	Back             string
+	// WorkHalves counts the worked days in halves: a whole day two, a morning or an afternoon one.
+	WorkHalves int
+	Cash, Card int64
+	Back       string
 }
 
 type allColumn struct {
@@ -40,13 +42,17 @@ type allRow struct {
 	Worked  bool
 	Place   string
 	Km      string
+	// whole: some work of the day took the whole day; parts: the halves of the day that work took.
+	whole bool
+	parts map[core.DayPart]bool
 }
 
 type allCell struct {
-	Active bool
-	Hours  string
-	Code   string
-	Earned int64
+	Active  bool
+	Hours   string
+	Code    string
+	Earned  int64
+	Standby bool
 }
 
 func (h *handler) allEmployers(w http.ResponseWriter, r *http.Request) {
@@ -107,11 +113,19 @@ func (h *handler) allEmployers(w http.ResponseWriter, r *http.Request) {
 				h.failed(w, r, err)
 				return
 			}
-			c := allCell{Code: codes[day.Date].text, Earned: earnings.Total[d.Currency]}
+			c := allCell{Code: codes[day.Date].text, Earned: earnings.Total[d.Currency], Standby: hasStandby(cat, emp.ID, day.Date)}
 			if day.Worked > 0 {
-				c.Hours = hoursText(lang, day.Worked)
+				c.Hours = h.hoursOfPart(r, day.Worked, day.Part)
+				if day.Part != "" && day.Standby == 0 {
+					if d.Rows[i].parts == nil {
+						d.Rows[i].parts = map[core.DayPart]bool{}
+					}
+					d.Rows[i].parts[day.Part] = true
+				} else {
+					d.Rows[i].whole = true
+				}
 			}
-			c.Active = day.Worked > 0 || c.Code != "" || hasIncome(cat, emp.ID, day.Date)
+			c.Active = day.Worked > 0 || c.Code != "" || c.Standby || hasIncome(cat, emp.ID, day.Date)
 			if c.Active {
 				active = true
 				col.Minutes += day.Worked
@@ -133,14 +147,28 @@ func (h *handler) allEmployers(w http.ResponseWriter, r *http.Request) {
 		d.Earned += col.Earned
 	}
 	for _, row := range d.Rows {
-		if row.Worked {
-			d.WorkDays++
+		switch {
+		case !row.Worked:
+		case row.whole || len(row.parts) == 2:
+			d.WorkHalves += 2
+		default:
+			d.WorkHalves++
 		}
 	}
-	if d.WorkDays > 0 {
-		d.Average = (d.Earned + int64(d.WorkDays)/2) / int64(d.WorkDays)
+	if d.WorkHalves > 0 {
+		d.Average = (2*d.Earned + int64(d.WorkHalves)/2) / int64(d.WorkHalves)
 	}
 	h.render(w, r, http.StatusOK, "all", view{Title: h.t(r, "all.title"), Data: d, Wide: true})
+}
+
+// hasStandby reports whether the details of the employer's day hold standby.
+func hasStandby(cat core.Catalog, employerID string, d core.Date) bool {
+	for _, i := range cat.DayInfos {
+		if i.EmployerID == employerID && i.Date == d && (i.StandbyPassive > 0 || i.StandbyActive > 0 || i.Callouts > 0) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasIncome(cat core.Catalog, employerID string, d core.Date) bool {

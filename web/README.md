@@ -42,8 +42,10 @@ A duration field carries `pattern` from `durationPattern` (Go, `track.go`), whic
 
 The start page (`list.go`, `templates/list.html`) is the list of one employer: the week before and the week shown
 side by side (`lg:grid-cols-2`, one above the other on a phone), each a form with a row per day. A row's field takes
-hours or a short code; its pattern `dayPattern` follows `parseDayValue` (hours without a sign, or
-`core.ParseDayCode`), and a test keeps them in step. Only rows whose field or note changed are written (`was-` and
+hours or a short code; its pattern `dayPattern` follows `parseDayValue` (hours without a sign, optionally with the
+half of the day behind them, `4v`/`4a` morning and `4n`/`4p` afternoon; a short code of `core.ParseDayCode`; or half
+a day of a code next to hours, `½U 4n`), and a test keeps them in step. The row writes a half back as `4 NM` or
+`4 PM`. Only rows whose field or note changed are written (`was-` and
 `wasn-` carry what the page showed): hours become the day's one manual entry, a code an absence of that day alone,
 and whatever the row booked before goes through the history. A day handed in for approval, an absence of several days
 or of every employer, and a requested one show as text instead of a field. The first empty working day of the week
@@ -83,9 +85,12 @@ header, tab bar or footer, the page inside C22's `print-sheet`), with a button t
 
 `/all` (`all.go`) shows a week of every employer: a column per employer active in the week, a cell only on its
 active days (hours, a code or an income), the earnings of each day (`core.ComputeEarnings` per employer and day, in
-the currency of the first employer's pay), the week's sum, the average working day and what was taken in cash or by
-card. The day page books incomes (`POST /book/income`, `/incomes/{id}/remove`) and the details of the day
-(`POST /book/dayinfo`; all fields empty removes them).
+the currency of the first employer's pay), the week's sum, the average working day (a day of only mornings or only
+afternoons counts half, `data-work-halves`) and what was taken in cash or by card; a cell with standby is marked.
+The day page books incomes (`POST /book/income`, `/incomes/{id}/remove`) and the details of the day
+(`POST /book/dayinfo`, with standby and its call-outs; all fields empty removes them) and says how much standby
+counts as working time. The employer's settings take the amount for half a day of a rule per day, the standby bases
+and whether standby is working time (`standby_work`).
 
 ## Company features, access log, pay
 

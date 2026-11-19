@@ -86,13 +86,40 @@ type Employer struct {
 	WeekStart time.Weekday `json:"week_start"`
 	// DaySplit says which day a span past midnight counts for: the day it starts (the default) or each day its part.
 	DaySplit DaySplit `json:"day_split,omitempty"`
-	Archived bool     `json:"archived,omitempty"`
+	// StandbyWork says which standby of DayInfo counts as working time for the time account: active only (the
+	// default when empty), none, or all.
+	StandbyWork StandbyWork `json:"standby_work,omitempty"`
+	Archived    bool        `json:"archived,omitempty"`
 	// Hold stops the retention purge for this employer, for example during a dispute (legal hold).
 	Hold bool `json:"hold,omitempty"`
 }
 
 // Managed reports whether an organization manages the employer.
 func (e Employer) Managed() bool { return e.Holder == HolderManaged }
+
+// StandbyWork is which standby counts as working time (Employer.StandbyWork).
+type StandbyWork string
+
+const (
+	// StandbyWorkActive: active standby (called out) is working time, passive standby (reachable only) is not. This is
+	// the default, as German labour law usually counts them; it is no legal advice.
+	StandbyWorkActive StandbyWork = "active"
+	// StandbyWorkNone: no standby is working time.
+	StandbyWorkNone StandbyWork = "none"
+	// StandbyWorkAll: passive and active standby are working time.
+	StandbyWorkAll StandbyWork = "all"
+)
+
+// StandbyWorked returns the minutes of standby that count as working time.
+func (e Employer) StandbyWorked(passive, active int) int {
+	switch e.StandbyWork {
+	case StandbyWorkNone:
+		return 0
+	case StandbyWorkAll:
+		return passive + active
+	}
+	return active
+}
 
 // Location returns the time zone of the employer.
 func (e Employer) Location() (*time.Location, error) {
@@ -166,7 +193,22 @@ const (
 	PayPerAssignment PayBasis = "per_assignment"
 	// PayFlatPeriod pays an amount per week, month or year, prorated by days for parts of it.
 	PayFlatPeriod PayBasis = "flat_period"
+	// PayStandbyPassive and PayStandbyActive pay the standby of DayInfo: per hour (no unit), per day with standby of
+	// the kind (unit day), or, for active standby, per call-out (unit assignment, DayInfo.Callouts).
+	PayStandbyPassive PayBasis = "standby_passive"
+	PayStandbyActive  PayBasis = "standby_active"
 )
+
+// DayPart is the half of a day that work took: the morning or the afternoon. Empty means the whole day.
+type DayPart string
+
+const (
+	Morning   DayPart = "am"
+	Afternoon DayPart = "pm"
+)
+
+// Valid reports whether the part is a half of a day or empty.
+func (p DayPart) Valid() bool { return p == "" || p == Morning || p == Afternoon }
 
 // Units of PayRule.Unit.
 const (
@@ -195,6 +237,17 @@ type PayRule struct {
 	// Salaries is the number of monthly salaries a year of a monthly flat_period rule (13 or 14 with extra month pay,
 	// spread over the year); 0 means 12.
 	Salaries int `json:"salaries,omitempty"`
+	// HalfAmount is the amount for half a day (a morning or an afternoon, Day.Part) of a per_assignment rule per day;
+	// zero means half of Amount.
+	HalfAmount int64 `json:"half_amount,omitempty"`
+}
+
+// HalfDayAmount is what the rule pays for half a day: HalfAmount, or half of Amount without one.
+func (p PayRule) HalfDayAmount() int64 {
+	if p.HalfAmount > 0 {
+		return p.HalfAmount
+	}
+	return roundDiv(p.Amount, 2)
 }
 
 // Client is a customer below an employer or client.
@@ -293,7 +346,9 @@ type Entry struct {
 	Minutes   int        `json:"minutes"`
 	Precision Precision  `json:"precision"`
 	// Assignment groups entries of one job for per_assignment pay with unit "assignment".
-	Assignment string        `json:"assignment,omitempty"`
+	Assignment string `json:"assignment,omitempty"`
+	// Part marks work of half a day, the morning or the afternoon, for per_assignment pay per day (Day.Part).
+	Part       DayPart       `json:"part,omitempty"`
 	ProjectID  string        `json:"project_id,omitempty"`
 	ActivityID string        `json:"activity_id,omitempty"`
 	Tags       []string      `json:"tags,omitempty"`
@@ -557,6 +612,11 @@ func (e Employer) Validate() error {
 	if !e.DaySplit.Valid() {
 		return invalid("day split %q", e.DaySplit)
 	}
+	switch e.StandbyWork {
+	case "", StandbyWorkActive, StandbyWorkNone, StandbyWorkAll:
+	default:
+		return invalid("standby work %q", e.StandbyWork)
+	}
 	return nil
 }
 
@@ -630,11 +690,14 @@ func (p PayRule) Validate() error {
 	if !p.ValidTo.IsZero() && p.ValidTo.Before(p.ValidFrom) {
 		return invalid("pay rule ends before it starts")
 	}
-	if p.Amount < 0 {
+	if p.Amount < 0 || p.HalfAmount < 0 {
 		return invalid("negative amount")
 	}
 	if !currencyPattern.MatchString(p.Currency) {
 		return invalid("currency %q", p.Currency)
+	}
+	if p.HalfAmount != 0 && (p.Basis != PayPerAssignment || (p.Unit != "" && p.Unit != UnitDay)) {
+		return invalid("only a per_assignment rule per day has an amount for half a day")
 	}
 	switch p.Basis {
 	case PayHourly:
@@ -648,6 +711,13 @@ func (p PayRule) Validate() error {
 	case PayPerAssignment:
 		if p.Unit != "" && p.Unit != UnitDay && p.Unit != UnitAssignment {
 			return invalid("per_assignment unit %q", p.Unit)
+		}
+	case PayStandbyPassive, PayStandbyActive:
+		if p.ProjectID != "" {
+			return invalid("standby is paid for the employer, not a project")
+		}
+		if p.Unit != "" && p.Unit != UnitDay && (p.Unit != UnitAssignment || p.Basis != PayStandbyActive) {
+			return invalid("%s unit %q", p.Basis, p.Unit)
 		}
 	case PayFlatPeriod:
 		if p.Unit != "" && p.Unit != UnitWeek && p.Unit != UnitMonth && p.Unit != UnitYear {
@@ -784,6 +854,9 @@ func (e Entry) Validate() error {
 	}
 	if e.Rate != nil && !currencyPattern.MatchString(e.Rate.Currency) {
 		return invalid("rate currency %q", e.Rate.Currency)
+	}
+	if !e.Part.Valid() || (e.Part != "" && e.Kind != EntryWork) {
+		return invalid("part of day %q", e.Part)
 	}
 	return nil
 }

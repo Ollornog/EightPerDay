@@ -28,16 +28,22 @@ list of days and weeks, the way people keep their hours in a spreadsheet; everyt
   hours: `U`/`V` leave, `K`/`S` sick, `F`/`O` day off, half days (`½U`); public holidays come from the region; leave
   and sickness meet the target.
 - A week of five days is entered with the keyboard alone in at most ten key presses (a browser test counts them).
+  A half day, the morning or the afternoon, is one letter behind the hours (`4v`, `4n`), and half a day of leave
+  stands next to hours of the same day (`½U 4n`); a browser test counts these keys as well.
 - A correction of the time account (payout, cap) is a booking of its own with a reason, and the balance shows it.
 - Bookings on projects or clients per day (name, order number, hours), both ways: the projects make the day's hours,
   or the day's hours come first and the list shows what is not booked on projects, per day and week.
 - A weekly report to print: carry-over, difference, balance, and per day the clients with numbers and hours.
 - Several employers in one list, each with its own pay: per hour, per day or half day, per job with a client and an
   amount, plus extras (commission, photos, tips), taken in cash or by card; earnings per day, week and the average day.
-  Optionally per employer: place of work and kilometres per day, standby.
+  Pay per day knows an own amount for half a day (morning or afternoon, otherwise half), and the average counts half
+  days as halves. Optionally per employer: place of work and kilometres per day, standby with its pay (passive and
+  active, per hour, per standby day or per call-out) in the earnings, and whether standby is working time (active by
+  default). One currency per instance and employer.
 - Leave: entitlement, accrued up to today, taken, planned, remaining, half days. Planned days are marked in the year's
   grid and become a request (T-1) for approval; in an organization a reviewer sees who else is away at the same time.
 - An optional estimate of pay: a yearly or monthly salary or an hourly rate, with 13th and 14th month pay.
 
 Tasks: [T-6](T-6-list-and-codes.md), [T-9](T-9-endless-list-and-change-requests.md),
-[T-7](T-7-projects-report-employers.md), [T-8](T-8-leave-planning.md), [T-10](T-10-employers-in-one-list.md).
+[T-7](T-7-projects-report-employers.md), [T-8](T-8-leave-planning.md), [T-10](T-10-employers-in-one-list.md),
+[T-12](T-12-half-days-and-standby-pay.md).

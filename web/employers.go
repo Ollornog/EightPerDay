@@ -109,8 +109,9 @@ func (h *handler) employerData(r *http.Request, cat core.Catalog, emp core.Emplo
 		NoticeApplies: core.LeaveNoticeApplies(emp), CanNotice: core.MayRecordLeaveNotice(emp, actor), Today: today, Mode: core.ModeAt(cat, emp.ID, today),
 		Modes: core.Modes, Weekdays: weekdays, Projects: projectsOf(cat, emp.ID),
 		Kinds: []core.EmployerKind{core.KindEmployer, core.KindClient, core.KindPrivate},
-		Bases: []core.PayBasis{core.PayHourly, core.PayPerProject, core.PayPerAssignment, core.PayFlatPeriod},
-		Back:  "/employers/" + emp.ID}
+		Bases: []core.PayBasis{core.PayHourly, core.PayPerProject, core.PayPerAssignment, core.PayFlatPeriod,
+			core.PayStandbyPassive, core.PayStandbyActive},
+		Back: "/employers/" + emp.ID}
 	if owner != accountFrom(r.Context()).ID {
 		d.Back += "?owner=" + owner
 		if a, err := h.directory().Account(r.Context(), owner); err == nil {
@@ -225,6 +226,10 @@ func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
 		emp.Kind = core.EmployerKind(r.PostFormValue("kind"))
 		emp.Region = r.PostFormValue("region")
 		emp.DaySplit = core.DaySplit(r.PostFormValue("day_split"))
+		emp.StandbyWork = core.StandbyWork(r.PostFormValue("standby_work"))
+		if emp.StandbyWork == core.StandbyWorkActive {
+			emp.StandbyWork = "" // the default
+		}
 		if tz := strings.TrimSpace(r.PostFormValue("time_zone")); tz != "" {
 			emp.TimeZone = tz
 		}
@@ -374,7 +379,8 @@ func scheduleFromForm(r *http.Request, owner, employerID string) (core.Schedule,
 	return s, s.Validate()
 }
 
-// payRuleFromForm reads a pay rule; the amount is typed in the currency (12,50) and stored in cents.
+// payRuleFromForm reads a pay rule; the amount (and the amount for half a day) is typed in the currency (12,50) and
+// stored in cents.
 func payRuleFromForm(r *http.Request, owner, employerID string) (core.PayRule, error) {
 	from, err := formDate(r, "from")
 	if err != nil {
@@ -389,6 +395,11 @@ func payRuleFromForm(r *http.Request, owner, employerID string) (core.PayRule, e
 		Unit: r.PostFormValue("unit")}
 	if p.Currency == "" {
 		p.Currency = "EUR"
+	}
+	if raw := strings.TrimSpace(r.PostFormValue("half_amount")); raw != "" {
+		if p.HalfAmount, err = parseMoney(raw); err != nil {
+			return p, core.ErrInvalid
+		}
 	}
 	if raw := r.PostFormValue("salaries"); raw != "" {
 		if p.Salaries, err = strconv.Atoi(raw); err != nil {

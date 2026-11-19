@@ -101,6 +101,8 @@ type DayInfo struct {
 	// StandbyPassive and StandbyActive are minutes on standby: reachable only, and called out.
 	StandbyPassive int `json:"standby_passive,omitempty"`
 	StandbyActive  int `json:"standby_active,omitempty"`
+	// Callouts counts the call-outs of active standby, for pay per call-out; zero with active minutes counts as one.
+	Callouts int `json:"callouts,omitempty"`
 }
 
 // DayInfoID is the ID of the details of an employer's day, so a store replaces them instead of adding.
@@ -130,6 +132,9 @@ func (i DayInfo) Validate() error {
 	}
 	if i.StandbyPassive < 0 || i.StandbyActive < 0 || i.StandbyPassive+i.StandbyActive > 24*60 {
 		return invalid("standby out of range")
+	}
+	if i.Callouts < 0 || i.Callouts > 100 {
+		return invalid("call-outs out of range")
 	}
 	return nil
 }

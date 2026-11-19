@@ -26,6 +26,10 @@ type EarningLine struct {
 	BasisPoints int    `json:"basis_points,omitempty"`
 	Amount      int64  `json:"amount"`
 	Currency    string `json:"currency"`
+	// HalfDay: the line pays half days (per_assignment per day, Day.Part) at the rule's amount for half a day.
+	HalfDay bool `json:"half_day,omitempty"`
+	// Unit is the unit of a standby line: empty for minutes at a rate per hour, "day" or "assignment" (call-outs).
+	Unit string `json:"unit,omitempty"`
 }
 
 // ReasonTotal sums the lines of one basis and reason in one currency.
@@ -118,6 +122,8 @@ type lineKey struct {
 	basis                           PayBasis
 	rate                            int64
 	basisPoints                     int
+	half                            bool
+	unit                            string
 	// direct: the amount is summed as it goes (flat periods, averages), not rate times quantity at the end.
 	direct bool
 	ref    Date
@@ -155,7 +161,7 @@ func (b *earningsBuilder) add(k lineKey, qty int, amount int64) {
 	l, ok := b.lines[k]
 	if !ok {
 		l = &EarningLine{RuleID: k.rule, ProjectID: k.project, Basis: k.basis, Reason: k.reason, Rate: k.rate,
-			BasisPoints: k.basisPoints, Currency: k.currency}
+			BasisPoints: k.basisPoints, Currency: k.currency, HalfDay: k.half, Unit: k.unit}
 		b.lines[k] = l
 		b.order = append(b.order, k)
 	}
@@ -190,7 +196,7 @@ func (b *earningsBuilder) paidWork(day Day) []paid {
 		}
 	}
 	if day.FromPlan {
-		planned := day.Worked
+		planned := day.Worked - day.Standby // standby is paid by its own rules
 		for _, w := range work {
 			planned -= w.minutes
 		}
@@ -248,13 +254,18 @@ func (b *earningsBuilder) work() {
 				}
 				continue
 			}
-			worked := day.Worked > 0
+			worked := day.Worked-day.Standby > 0
 			if r.ProjectID != "" {
 				worked = day.Projects[r.ProjectID] > 0
 			}
-			if worked {
-				b.add(b.workLine(r), 1, 0)
+			if !worked {
+				continue
 			}
+			k := b.workLine(r)
+			if day.Part != "" {
+				k.half, k.rate = true, r.HalfDayAmount()
+			}
+			b.add(k, 1, 0)
 		}
 	}
 
@@ -301,6 +312,38 @@ func (b *earningsBuilder) work() {
 	}
 }
 
+// standby adds the pay for standby (DayInfo): passive and active, per hour, per day with standby of the kind, or per
+// call-out. Standby that counts as working time (Day.Standby) is paid here only, never at the hourly rule.
+func (b *earningsBuilder) standby() {
+	for _, basis := range []PayBasis{PayStandbyPassive, PayStandbyActive} {
+		rules := rulesFor(b.d.Catalog, b.v.emp.ID, basis)
+		if len(rules) == 0 {
+			continue
+		}
+		for _, day := range b.days {
+			info := b.v.infos[day.Date]
+			minutes := info.StandbyPassive
+			if basis == PayStandbyActive {
+				minutes = info.StandbyActive
+			}
+			r, ok := RuleAt(rules, "", day.Date)
+			if !ok || (minutes == 0 && (basis != PayStandbyActive || info.Callouts == 0)) {
+				continue
+			}
+			k := b.workLine(r)
+			k.reason, k.unit = string(basis), r.Unit
+			switch r.Unit {
+			case "":
+				b.add(k, minutes, 0)
+			case UnitDay:
+				b.add(k, 1, 0)
+			case UnitAssignment:
+				b.add(k, max(1, info.Callouts), 0)
+			}
+		}
+	}
+}
+
 // averageKey identifies a reference period of PayAverage.
 type averageKey struct {
 	start Date
@@ -330,8 +373,9 @@ func (b *earningsBuilder) averageBefore(start Date, weeks int) average {
 			}
 		}
 		for _, day := range ref.days {
-			a.minutes += day.Worked
-			a.days += boolInt(day.Worked > 0)
+			worked := day.Worked - day.Standby // the average pays work; standby has its own rules
+			a.minutes += worked
+			a.days += boolInt(worked > 0)
 		}
 	}
 	b.averages[k] = a
@@ -543,7 +587,8 @@ func (b *earningsBuilder) finish() Earnings {
 		switch {
 		case k.direct:
 			l.Amount = b.direct[k]
-		case l.Basis == PayHourly || l.Basis == PayAbsence:
+		case l.Basis == PayHourly || l.Basis == PayAbsence ||
+			((l.Basis == PayStandbyPassive || l.Basis == PayStandbyActive) && l.Unit == ""):
 			l.Amount = roundDiv(int64(l.Quantity)*l.Rate, 60)
 		case l.Basis == PaySurcharge:
 			l.Amount = roundDiv(int64(l.Quantity)*l.Rate*int64(l.BasisPoints), 60*10000)
@@ -577,8 +622,10 @@ func (b *earningsBuilder) finish() Earnings {
 //   - hourly: worked minutes times the rate. An entry uses its snapshot, else the rule of its date; days of the mode
 //     plan without entries use the employer's rule. Breaks of a day are taken off its work entries in proportion.
 //   - per_project: the amount once, when the project is completed in the range.
-//   - per_assignment: the amount per worked day (unit day) or per distinct assignment of the entries (unit assignment).
+//   - per_assignment: the amount per worked day (unit day) or per distinct assignment of the entries (unit assignment);
+//     a day whose work took only its morning or its afternoon (Day.Part) pays the rule's amount for half a day.
 //   - flat_period: the amount per week, month or year, prorated by days for a part of it.
+//   - standby_passive, standby_active: the standby of DayInfo per hour, per day with standby or per call-out.
 //   - paid_absence: absent time that an AbsencePay rule pays (public holidays, leave, sickness, own types).
 //   - surcharge: the Surcharge rules on night, Sunday, holiday and overtime minutes.
 //   - income: the Income records of the range (a job with its client, commission, photos, tips), as booked.
@@ -591,6 +638,7 @@ func ComputeEarnings(d Data, employerID string, from, to Date) (Earnings, error)
 		return Earnings{}, err
 	}
 	b.work()
+	b.standby()
 	b.absences()
 	b.surcharges()
 	taken := b.incomes()

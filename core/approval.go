@@ -63,14 +63,15 @@ type Submission struct {
 	Proposal []ProposedDay `json:"proposal,omitempty"`
 }
 
-// ProposedDay is what a change request asks one day to hold: hours, or an absence of a type with a short code, and a
-// note.
+// ProposedDay is what a change request asks one day to hold: hours (with their half of the day), an absence of a type
+// with a short code, or half a day of such an absence with hours, and a note.
 type ProposedDay struct {
-	Date    Date   `json:"date"`
-	Minutes int    `json:"minutes,omitempty"`
-	Absence string `json:"absence,omitempty"`
-	HalfDay bool   `json:"half_day,omitempty"`
-	Note    string `json:"note,omitempty"`
+	Date    Date    `json:"date"`
+	Minutes int     `json:"minutes,omitempty"`
+	Part    DayPart `json:"part,omitempty"`
+	Absence string  `json:"absence,omitempty"`
+	HalfDay bool    `json:"half_day,omitempty"`
+	Note    string  `json:"note,omitempty"`
 }
 
 // Meta files the submission.
@@ -140,8 +141,10 @@ func (s Submission) Validate() error {
 			return invalid("a proposed day lies outside the period or twice in it")
 		case p.Minutes < 0 || p.Minutes > 24*60:
 			return invalid("proposed minutes out of range")
-		case p.Absence != "" && (p.Minutes != 0 || !CodedAbsence(p.Absence)):
-			return invalid("a proposed absence has a short code and no minutes")
+		case p.Absence != "" && ((p.Minutes != 0 && !p.HalfDay) || !CodedAbsence(p.Absence)):
+			return invalid("a proposed absence has a short code, and minutes only next to half a day")
+		case !p.Part.Valid() || (p.Part != "" && p.Minutes == 0):
+			return invalid("a proposed half of a day needs minutes")
 		case p.Absence == "" && p.HalfDay:
 			return invalid("only an absence is half a day")
 		case len(p.Note) > 200:

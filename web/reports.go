@@ -125,7 +125,8 @@ func (h *handler) reports(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, http.StatusOK, "reports", view{Title: h.t(r, "reports.title"), Data: d})
 }
 
-// earningLabel names a line of the earnings: "Hourly", "Paid absence: Leave", "Surcharge night 25 %".
+// earningLabel names a line of the earnings: "Hourly", "Paid absence: Leave", "Surcharge night 25 %", "Per assignment,
+// half days", "Standby, active / job".
 func (h *handler) earningLabel(r *http.Request, cat core.Catalog, employerID string, line core.EarningLine) string {
 	label := h.t(r, "pay."+string(line.Basis))
 	switch line.Basis {
@@ -142,6 +143,15 @@ func (h *handler) earningLabel(r *http.Request, cat core.Catalog, employerID str
 		label += ": " + name
 	case core.PaySurcharge:
 		label += ": " + h.t(r, "surcharge."+line.Reason) + " " + formatPercent(h.lang(r), line.BasisPoints)
+	case core.PayStandbyPassive, core.PayStandbyActive:
+		unit := "hour"
+		if line.Unit != "" {
+			unit = line.Unit
+		}
+		label += " / " + h.t(r, "unit."+unit)
+	}
+	if line.HalfDay {
+		label += ", " + h.t(r, "earning.half_day")
 	}
 	return label
 }

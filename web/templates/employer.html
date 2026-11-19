@@ -19,6 +19,9 @@
       <div class="field" role="group"><label for="emp-split">{{t "employer.daysplit"}}</label>
         <select class="select w-full" id="emp-split" name="day_split"><option value="start_day">{{t "daysplit.start_day"}}</option><option value="midnight"{{if eq $d.Employer.DaySplit "midnight"}} selected{{end}}>{{t "daysplit.midnight"}}</option></select>
         <p class="text-muted-foreground text-xs">{{t "employer.daysplit.hint"}}</p></div>
+      <div class="field" role="group"><label for="emp-standby">{{t "employer.standbywork"}}</label>
+        <select class="select w-full" id="emp-standby" name="standby_work"><option value="active">{{t "standbywork.active"}}</option><option value="none"{{if eq $d.Employer.StandbyWork "none"}} selected{{end}}>{{t "standbywork.none"}}</option><option value="all"{{if eq $d.Employer.StandbyWork "all"}} selected{{end}}>{{t "standbywork.all"}}</option></select>
+        <p class="text-muted-foreground text-xs">{{t "employer.standbywork.hint"}}</p></div>
       <div class="field" role="group"><label for="emp-tz">{{t "employer.timezone"}}</label><input class="input" id="emp-tz" name="time_zone" value="{{$d.Employer.TimeZone}}" placeholder="Europe/Berlin" maxlength="64"></div>
     </section>
     {{if $d.CanChange}}<footer><button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button></footer>{{end}}
@@ -100,7 +103,7 @@
     <section class="grid gap-4">
       {{range $d.PayRules}}
       <div class="flex items-center gap-2 rounded-md border p-3 text-sm" data-payrule>
-        <span class="min-w-0 flex-1">{{t (print "pay." .Basis)}} · <span class="tabular-nums">{{money .Amount .Currency}}</span>{{if .Unit}} / {{t (print "unit." .Unit)}}{{end}} · {{t "employer.mode.from" (day .ValidFrom)}}</span>
+        <span class="min-w-0 flex-1">{{t (print "pay." .Basis)}} · <span class="tabular-nums">{{money .Amount .Currency}}</span>{{if .Unit}} / {{t (print "unit." .Unit)}}{{else if or (eq .Basis "standby_passive") (eq .Basis "standby_active")}} / {{t "unit.hour"}}{{end}}{{if .HalfAmount}} · <span data-half-amount>{{t "employer.pay.half.short" (money .HalfAmount .Currency)}}</span>{{end}} · {{t "employer.mode.from" (day .ValidFrom)}}</span>
         {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="pay"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
       </div>
       {{else}}
@@ -120,6 +123,8 @@
           <div class="field" role="group"><label for="pay-unit">{{t "employer.pay.unit"}}</label>
             <select class="select w-full" id="pay-unit" name="unit"><option value="">–</option><option value="day">{{t "unit.day"}}</option><option value="assignment">{{t "unit.assignment"}}</option><option value="week">{{t "unit.week"}}</option><option value="month">{{t "unit.month"}}</option><option value="year">{{t "unit.year"}}</option></select>
             <p class="text-muted-foreground text-xs">{{t "employer.pay.unit.hint"}}</p></div>
+          <div class="field" role="group"><label for="pay-half">{{t "employer.pay.half"}}</label><input class="input tabular-nums" id="pay-half" name="half_amount" inputmode="decimal" placeholder="{{t "employer.pay.half.placeholder"}}">
+            <p class="text-muted-foreground text-xs">{{t "employer.pay.half.hint"}}</p></div>
           <div class="field" role="group"><label for="pay-salaries">{{t "employer.pay.salaries"}}</label>
             <select class="select w-full" id="pay-salaries" name="salaries"><option value="">12</option><option value="13">13</option><option value="14">14</option></select>
             <p class="text-muted-foreground text-xs">{{t "employer.pay.salaries.hint"}}</p></div>

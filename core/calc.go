@@ -40,6 +40,11 @@ type Day struct {
 	Projects map[string]int `json:"projects,omitempty"`
 	// Unbooked is the part of the hours typed for the day (DayTotal) that no booking on a project of the day takes.
 	Unbooked int `json:"unbooked,omitempty"`
+	// Part is the half of the day the work took when every work entry of the day marks the same half (Entry.Part);
+	// empty for a whole day or a day without work.
+	Part DayPart `json:"part,omitempty"`
+	// Standby is the standby of the day (DayInfo) that counts as working time (Employer.StandbyWork); Worked holds it.
+	Standby int `json:"standby,omitempty"`
 }
 
 // DayTotal reports whether an entry is the hours typed for a whole day: work by the day, by hand, without a span and
@@ -58,6 +63,7 @@ type employerView struct {
 	confirms  []Confirmation
 	entries   map[Date][]Entry
 	absences  []Absence
+	infos     map[Date]DayInfo
 }
 
 func newEmployerView(d Data, employerID string) (*employerView, error) {
@@ -84,6 +90,12 @@ func newEmployerView(d Data, employerID string) (*employerView, error) {
 		}
 	}
 	v.entries = entriesByDay(d, emp)
+	v.infos = map[Date]DayInfo{}
+	for _, i := range d.Catalog.DayInfos {
+		if i.EmployerID == employerID {
+			v.infos[i.Date] = i
+		}
+	}
 	for _, a := range d.Absences {
 		if appliesTo(emp, a.EmployerID) && a.DeletedAt == nil && a.Status == StatusApproved {
 			v.absences = append(v.absences, a)
@@ -204,11 +216,19 @@ func (v *employerView) day(d Date) Day {
 	out := Day{Date: d, EmployerID: v.emp.ID, Mode: mode, HasTarget: mode.HasTarget()}
 
 	var work, breaks, adjust, total, onProjects int
-	booked, typed := false, false
+	booked, typed, whole := false, false, false
 	for _, e := range v.entries[d] {
 		switch e.Kind {
 		case EntryWork:
 			booked = true
+			if e.Minutes > 0 {
+				switch {
+				case e.Part == "" || (out.Part != "" && out.Part != e.Part):
+					whole = true
+				default:
+					out.Part = e.Part
+				}
+			}
 			if out.Projects == nil {
 				out.Projects = map[string]int{}
 			}
@@ -237,6 +257,11 @@ func (v *employerView) day(d Date) Day {
 		work += onProjects
 	}
 	out.Breaks = breaks
+	if whole {
+		out.Part = ""
+	}
+	standby := v.infos[d]
+	out.Standby = v.emp.StandbyWorked(standby.StandbyPassive, standby.StandbyActive)
 
 	name, holiday := v.holidays.on(d)
 	out.Holiday = name
@@ -244,7 +269,7 @@ func (v *employerView) day(d Date) Day {
 	out.Absences = keys
 
 	if !mode.HasTarget() {
-		out.Worked = max(0, work-breaks+adjust)
+		out.Worked = max(0, work-breaks+adjust) + out.Standby
 		out.Actual = out.Worked
 		return out
 	}
@@ -261,11 +286,11 @@ func (v *employerView) day(d Date) Day {
 	case mode == ModePlan && !booked:
 		// The plan counts as worked, less every absent part of the day.
 		planned := available - part(available, min(1000, fills+reduces+info))
-		out.Worked = max(0, planned-breaks+adjust)
+		out.Worked = max(0, planned-breaks+adjust) + out.Standby
 		out.FromPlan = planned > 0
 		out.Confirmed = v.confirmed(d)
 	default:
-		out.Worked = max(0, work-breaks+adjust)
+		out.Worked = max(0, work-breaks+adjust) + out.Standby
 		if mode == ModePlan {
 			out.Confirmed = v.confirmed(d)
 		}

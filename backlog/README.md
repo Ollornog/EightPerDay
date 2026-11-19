@@ -11,7 +11,7 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[M-2](M-2-standalone-binary.md)** The standalone program with a small web interface — noch keine Aufgaben
 * ☑ **[M-3](M-3-embedding.md)** Embedding: another application runs the core in its own database — 5/5 erledigt
 * ☐ **[M-4](M-4-first-release.md)** The first release — 0/1 erledigt
-* ☑ **[M-5](M-5-list-view.md)** List view and leave planning: a start page that gives an overview — 5/5 erledigt
+* ☑ **[M-5](M-5-list-view.md)** List view and leave planning: a start page that gives an overview — 6/6 erledigt
 
 ## Aufgaben
 
@@ -26,8 +26,10 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[T-9](T-9-endless-list-and-change-requests.md)** The whole period as an endless list; change requests on approved weeks · M-5
 * ☑ **[T-10](T-10-employers-in-one-list.md)** Several employers in one list, with their pay, extras, kilometres and standby · M-5
 * ☑ **[T-11](T-11-embedding-hooks.md)** Hooks for an embedding application: mount path, its sign-in, its tenant, a frame, a calendar · M-3
+* ☑ **[T-12](T-12-half-days-and-standby-pay.md)** Pay for half days, paid standby, one currency · M-5
 
 ## Entscheidungen (ADR)
 
 * ☑ **[ADR-1](ADR-1-library-and-binary.md)** A Go library at the core, and a standalone binary on top
 * ☑ **[ADR-2](ADR-2-data-model.md)** One entry table, modes as views, everything with a valid-from date
+* ☑ **[ADR-3](ADR-3-half-days-and-standby.md)** Half days on the work, standby as pay rules, one currency

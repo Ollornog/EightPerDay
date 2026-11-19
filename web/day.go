@@ -304,7 +304,7 @@ func (h *handler) removeIncome(w http.ResponseWriter, r *http.Request) {
 	h.back(w, r, core.ErrNotFound, "")
 }
 
-// bookDayInfo keeps the details of a day: place of work, kilometres, standby. All empty removes them.
+// bookDayInfo keeps the details of a day: place of work, kilometres, standby and its call-outs. All empty removes them.
 func (h *handler) bookDayInfo(w http.ResponseWriter, r *http.Request) {
 	_, emp, ok := h.bookingContext(w, r)
 	if !ok {
@@ -317,11 +317,14 @@ func (h *handler) bookDayInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	i := core.DayInfo{ID: core.DayInfoID(emp.ID, date), Owner: emp.Owner, EmployerID: emp.ID, Date: date,
 		Place: strings.TrimSpace(r.PostFormValue("place"))}
-	var errs [4]error
+	var errs [5]error
 	i.KmOneWay, errs[0] = parseKm(r.PostFormValue("km_one_way"))
 	i.KmTotal, errs[1] = parseKm(r.PostFormValue("km_total"))
 	i.StandbyPassive, errs[2] = parseHours(r.PostFormValue("standby_passive"))
 	i.StandbyActive, errs[3] = parseHours(r.PostFormValue("standby_active"))
+	if raw := strings.TrimSpace(r.PostFormValue("callouts")); raw != "" {
+		i.Callouts, errs[4] = strconv.Atoi(raw)
+	}
 	for _, err := range errs {
 		if err != nil {
 			h.message(w, r, http.StatusBadRequest, h.t(r, "track.error.title"), h.t(r, "day.error.details"))
