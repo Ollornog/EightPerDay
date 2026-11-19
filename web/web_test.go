@@ -579,7 +579,7 @@ func TestNothingFromThirdParties(t *testing.T) {
 
 func TestAboutNamesTheLogoAuthor(t *testing.T) {
 	for name, body := range pages(t) {
-		if !strings.Contains(body, `href="https://www.flaticon.com/authors/juicy-fish">juicy_fish</a>`) ||
+		if !strings.Contains(body, `href="https://www.flaticon.com/authors/alfredo-creates">Alfredo Creates</a>`) ||
 			!strings.Contains(body, `href="https://www.flaticon.com/">Flaticon</a>`) {
 			t.Errorf("%s: the about dialog does not name the logo's author", name)
 		}

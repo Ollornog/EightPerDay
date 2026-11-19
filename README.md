@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logo.png" width="250" height="250" alt="EightPerDay logo, a stopwatch"></p>
+<p align="center"><img src="assets/logo.png" width="250" height="250" alt="EightPerDay logo, the number eight in a yellow circle"></p>
 <h1 align="center">EightPerDay</h1>
 
 <p align="center"><b>English</b> · <a href="i18n/README.de.md">Deutsch</a></p>
@@ -86,6 +86,6 @@ server binaries and Chrome. `scripts/check-image.sh` checks the container image.
 
 The code is under the [MIT License](LICENSE).
 
-The logo is **not** under the MIT License: Icon by [juicy_fish](https://www.flaticon.com/authors/juicy-fish) from
+The logo is **not** under the MIT License: Icon by [Alfredo Creates](https://www.flaticon.com/authors/alfredo-creates) from
 [Flaticon](https://www.flaticon.com/), used under the Flaticon license with attribution, see
 [assets/LICENSE-icon.md](assets/LICENSE-icon.md).

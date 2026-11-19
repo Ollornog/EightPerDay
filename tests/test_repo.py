@@ -61,7 +61,7 @@ check("every page has a favicon", hygiene.pruefe_favicon(str(ROOT), FILES, POLIC
 # ---- The logo is not MIT: its attribution must stay where the license requires it
 for doc in ("README.md", "i18n/README.de.md", "assets/LICENSE-icon.md"):
     text = (ROOT / doc).read_text(encoding="utf-8")
-    r.check(f"{doc} credits the logo (juicy_fish, Flaticon)", "juicy_fish" in text and "Flaticon" in text)
+    r.check(f"{doc} credits the logo (Alfredo Creates, Flaticon)", "Alfredo Creates" in text and "Flaticon" in text)
 
 # ---- Workflows
 check("actions pinned by SHA", hygiene.pruefe_actions_sha_gepinnt(str(ROOT), FILES))

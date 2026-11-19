@@ -1,4 +1,4 @@
-<p align="center"><img src="../assets/logo.png" width="250" height="250" alt="EightPerDay-Logo, eine Stoppuhr"></p>
+<p align="center"><img src="../assets/logo.png" width="250" height="250" alt="EightPerDay-Logo, die Zahl Acht in einem gelben Kreis"></p>
 <h1 align="center">EightPerDay</h1>
 
 <p align="center"><a href="../README.md">English</a> · <b>Deutsch</b></p>
@@ -91,6 +91,6 @@ PostgreSQL-Server-Programme und Chrome. `scripts/check-image.sh` prüft das Cont
 
 Der Code steht unter der [MIT-Lizenz](../LICENSE).
 
-Das Logo steht **nicht** unter der MIT-Lizenz: Icon von [juicy_fish](https://www.flaticon.com/de/autoren/juicy-fish) bei
+Das Logo steht **nicht** unter der MIT-Lizenz: Icon von [Alfredo Creates](https://www.flaticon.com/de/autoren/alfredo-creates) bei
 [Flaticon](https://www.flaticon.com/de/), genutzt unter der Flaticon-Lizenz mit Namensnennung, siehe
 [assets/LICENSE-icon.md](../assets/LICENSE-icon.md).

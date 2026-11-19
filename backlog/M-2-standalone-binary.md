@@ -14,5 +14,5 @@ EightPerDay runs on its own (ADR-1): one binary, PostgreSQL, a small web interfa
 
 - `cmd/eightperday` serves the web interface from `web/`, with no resources from third parties.
 - Every operating mode has its view, and the mode can be switched from the interface.
-- The about dialog names the logo's author (juicy_fish, Flaticon), as its license requires.
+- The about dialog names the logo's author (Alfredo Creates, Flaticon), as its license requires.
 - The release workflow builds and checks the binary.
