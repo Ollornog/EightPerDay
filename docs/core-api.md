@@ -132,10 +132,32 @@ caller resolves `Parsed.Project` to a project ID.
 behind (`½U`, `U/2`). Public holidays have no code: they come from the region. `CodedAbsence(key)` says whether an
 absence type has one.
 
-The list of the web interface also reads hours of half a day (`4v`, `4n`, `4a`, `4p`, `4 VM`, `4 NM`, `4 AM`,
-`4 PM`: `Entry.Part`) and half a day of a code next to hours (`½U 4n`: half a day of leave and an afternoon of work).
+## The line of a day
+
+`ParseDay(input, DayOptions)` reads everything a person did on one day typed into one field: Parse's language for one
+day (durations, a span with its break, `#tags`, `@project`, the rest a note) with plain numbers as hours (`8`, `8,5`,
+`7:30`), the short codes of `ParseDayCode`, the half of a day behind the hours (`4v`, `4n`, `4a`, `4p`, `4 VM`,
+`4 NM`, `4 AM`, `4 PM`: `Entry.Part`), half a day of a code next to hours (`½U 2,5n`), the key of an employer in front
+of the hours (`f3`, `nU`) and a word that names a project behind them (`f3 studio`, by its order number, its name or
+the beginning of a word of its name with three letters at least: `MatchProject`). Values come first; behind the first
+word of the note only hours with a key count. `DayLine.Groups` holds one `DayGroup` per employer and project
+(`Minutes`, `Part`, `Code`, `Typed` for a span with its break as typed, `Tags`), `DayLine.Note` the rest. It refuses
+a project without hours in front of it, a code on a project, two codes for one employer's day, hours next to a whole
+day of absence and more than 24 hours.
+
+`DayOptions.Default` is the employer of hours without a key, `Keys` maps keys to employers (`EmployerKeys(employers)`
+gives every employer one: `Employer.Key`, else the first free letter of its name, then two letters, then any letter),
+`Projects` the projects a word may name. `ProjectWord(p)` writes a project back so that it reads the same.
+
 A proposed day of a change request (`ProposedDay`) holds the same: minutes with `Part`, and next to half a day of an
 absence, minutes.
+
+## Preferences
+
+`Preferences` (catalog kind `preferences`, one record per person whose ID is the person's) keeps how the person likes
+the interface: the view of the start page, its detail and the employers whose projects stand open. The library keeps
+the words only; `Catalog.PreferencesOf(owner)` returns them, or empty ones. They travel with the private part of an
+export and are erased with it.
 
 ## Organizations and rights
 

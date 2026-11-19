@@ -515,8 +515,16 @@ func pages(t *testing.T) map[string]string {
 		paths := []string{"/account", "/admin", "/about", "/licenses", "/legal", "/nothing", "/setup?token=" + token, "/setup?token=bad",
 			"/reports", "/reports?month=2026-10", "/orgs", "/orgs/" + org}
 		for _, e := range employers {
-			paths = append(paths, "/?e="+e.ID, "/?e="+e.ID+"&w=2026-01-05", "/week?e="+e.ID, "/weeks?e="+e.ID, "/day?e="+e.ID+"&d=2026-11-16", "/report/week?e="+e.ID, "/all", "/employers/"+e.ID)
+			paths = append(paths, "/week?e="+e.ID, "/day?e="+e.ID+"&d=2026-11-16", "/report/week?e="+e.ID, "/employers/"+e.ID)
 		}
+		paths = append(paths, "/", "/?view=journal", "/?view=grid", "/?from=2026-01-05", "/all")
+		for _, detail := range sheetDetails {
+			s.post("/sheet/prefs", url.Values{"detail": {detail}, "back": {"/"}})
+			for _, v := range sheetViews {
+				out[lang+" /?view="+v+" "+detail] = s.get("/?view=" + v).body
+			}
+		}
+		s.post("/sheet/prefs", url.Values{"expand": {employers[3].ID}, "back": {"/"}})
 		for _, path := range paths {
 			out[lang+" "+path] = s.get(path).body
 		}

@@ -535,18 +535,21 @@ func (b *browser) credentials(authenticator string) int {
 const unreachable = `(() => {
 	const W = innerWidth, bad = [];
 	if (document.documentElement.scrollWidth > W) bad.push('the page scrolls sideways: ' + document.documentElement.scrollWidth + ' > ' + W);
+	// What lies in a part that scrolls sideways of its own (a wide table) is reached by scrolling it.
+	const sideways = (e) => { for (let p = e.parentElement; p; p = p.parentElement) { const x = getComputedStyle(p).overflowX; if (x === 'auto' || x === 'scroll') return true; } return false; };
 	for (const e of document.querySelectorAll('a, button, input, select, textarea, label')) {
-		if (!e.getClientRects().length || e.closest('dialog:not([open])')) continue;
+		if (!e.getClientRects().length || e.closest('dialog:not([open])') || sideways(e)) continue;
 		const r = e.getBoundingClientRect();
 		if (r.left < -1 || r.right > W + 1) bad.push('outside the screen: ' + e.outerHTML.slice(0, 80));
 	}
-	// Scrolled to the end, the last part of the page stays above the tab bar.
-	const bar = document.querySelector('.tab-bar'), main = document.querySelector('main');
+	// Scrolled to the end, the last part of the page stays above the tab bar; on the sheet the sheet scrolls, not the page.
+	const bar = document.querySelector('.tab-bar'), sheet = document.querySelector('[data-sheet-scroller]');
+	const main = sheet || document.querySelector('main');
 	if (bar && bar.getClientRects().length && main && main.lastElementChild) {
-		const y = scrollY;
-		scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'});
+		const y = sheet ? sheet.scrollTop : scrollY;
+		if (sheet) sheet.scrollTop = sheet.scrollHeight; else scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'});
 		if (main.lastElementChild.getBoundingClientRect().bottom > bar.getBoundingClientRect().top + 1) bad.push('the end of the page hides behind the tab bar');
-		scrollTo({top: y, behavior: 'instant'});
+		if (sheet) sheet.scrollTop = y; else scrollTo({top: y, behavior: 'instant'});
 	}
 	return JSON.stringify(bad);
 })()`

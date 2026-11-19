@@ -4,6 +4,7 @@ package web
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -27,15 +28,13 @@ func TestHalfDaysInTheList(t *testing.T) {
 	if page := s.get("/employers/" + ski.ID).body; !strings.Contains(page, "data-half-amount>half a day 70.00 EUR<") {
 		t.Error("the settings do not show the amount for half a day")
 	}
-	back := "/?e=" + ski.ID + "&w=2026-11-16"
-	s.mustPost("/book/list", url.Values{"employer": {ski.ID}, "back": {back},
-		"v-2026-11-16": {"6"}, "was-2026-11-16": {""},
-		"v-2026-11-17": {"3v"}, "was-2026-11-17": {""},
-		"v-2026-11-18": {"3 PM"}, "was-2026-11-18": {""},
-		"v-2026-11-19": {"½V 3p"}, "was-2026-11-19": {""}})
-	body := s.get(back).body
+	col := "e-" + ski.ID
+	for date, value := range map[string]string{"2026-11-16": "6", "2026-11-17": "3v", "2026-11-18": "3 PM", "2026-11-19": "½V 3p"} {
+		s.mustCell(core.MustDate(date), col, value)
+	}
+	body := s.get("/").body
 	for date, want := range map[string]string{"2026-11-16": "6", "2026-11-17": "3 AM", "2026-11-18": "3 PM", "2026-11-19": "½V 3 PM"} {
-		if got := rowValue(t, body, core.MustDate(date)); got != want {
+		if got := fieldValue(t, body, core.MustDate(date), col); got != want {
 			t.Errorf("%s shows %q, want %q", date, got, want)
 		}
 	}
@@ -51,15 +50,15 @@ func TestHalfDaysInTheList(t *testing.T) {
 		t.Errorf("absences %+v", a)
 	}
 	// Saved again unchanged, nothing is booked twice; the morning typed whole makes the day whole.
-	s.mustPost("/book/list", url.Values{"employer": {ski.ID}, "back": {back},
-		"v-2026-11-17": {"3"}, "was-2026-11-17": {"3 AM"}, "v-2026-11-19": {"½V 3 PM"}, "was-2026-11-19": {"½V 3 PM"}})
+	s.mustCell(core.MustDate("2026-11-17"), col, "3")
+	s.mustCell(core.MustDate("2026-11-19"), col, "½V 3 PM")
 	if e := s.entries(me.ID); len(e) != 4 {
 		t.Fatalf("%d entries", len(e))
 	}
-	if got := rowValue(t, s.get(back).body, core.MustDate("2026-11-17")); got != "3" {
+	if got := fieldValue(t, s.get("/").body, core.MustDate("2026-11-17"), col); got != "3" {
 		t.Errorf("the whole day shows %q", got)
 	}
-	s.mustPost("/book/list", url.Values{"employer": {ski.ID}, "back": {back}, "v-2026-11-17": {"3v"}, "was-2026-11-17": {"3"}})
+	s.mustCell(core.MustDate("2026-11-17"), col, "3v")
 
 	all := s.get("/all?w=2026-11-16").body
 	tuesday := all[strings.Index(all, `data-all-day="2026-11-17"`):strings.Index(all, `data-all-day="2026-11-18"`)]
@@ -147,13 +146,13 @@ func TestStandbyPayAndWorkingTime(t *testing.T) {
 // reads them, and approved, both are booked.
 func TestChangeRequestWithHalfLeaveAndHours(t *testing.T) {
 	s, worker, org, member, managed := approvalSite(t)
-	list := "/?e=" + managed.ID
-	worker.mustPost("/book/list", url.Values{"employer": {managed.ID}, "back": {list}, "v-2026-11-16": {"8"}, "was-2026-11-16": {""}})
+	worker.mustCell(monday, "e-"+managed.ID, "8")
 	worker.mustPost("/approval/submit", url.Values{"employer": {managed.ID}, "kind": {"period"}, "from": {monday.String()},
-		"to": {monday.AddDays(6).String()}, "back": {list}})
+		"to": {monday.AddDays(6).String()}, "back": {"/"}})
 	s.mustPost("/orgs/"+org+"/decide", url.Values{"submission": {submissions(t, s, member.ID)[0].ID}, "decision": {"approve"}, "back": {"/"}})
-	worker.mustPost("/book/list", url.Values{"employer": {managed.ID}, "back": {list}, "v-2026-11-16": {"½V 4p"}, "was-2026-11-16": {"8"},
-		"reason": {"left at noon"}})
+	if status, a := worker.cell(monday, "e-"+managed.ID, "½V 4p", "left at noon"); status != http.StatusOK || a.Done != "requested" {
+		t.Fatalf("%d %+v", status, a)
+	}
 	var request core.Submission
 	for _, x := range submissions(t, s, member.ID) {
 		if x.Kind == core.SubmitCorrection {
@@ -164,7 +163,7 @@ func TestChangeRequestWithHalfLeaveAndHours(t *testing.T) {
 		request.Proposal[0].Absence != core.AbsenceVacation || !request.Proposal[0].HalfDay {
 		t.Fatalf("change request %+v", request.Proposal)
 	}
-	if body := worker.get(list).body; !strings.Contains(body, "data-proposed>→ ½V 4 PM<") {
+	if body := worker.get("/").body; !strings.Contains(body, "data-proposed>→ ½V 4 PM<") {
 		t.Error("the list does not show the request")
 	}
 	if page := s.get("/orgs/" + org).body; !strings.Contains(page, "Mon 11-16: ½V 4 PM") {

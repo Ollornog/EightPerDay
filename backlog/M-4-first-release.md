@@ -3,7 +3,7 @@ id: M-4
 type: Milestone
 title: "The first release"
 status: offen
-blocked_by: [M-2]
+blocked_by: [M-2, M-6]
 tags: [release]
 created: 2026-11-17
 ---

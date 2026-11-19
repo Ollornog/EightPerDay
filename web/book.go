@@ -82,38 +82,6 @@ func (h *handler) weekTotal(w http.ResponseWriter, r *http.Request) {
 	h.back(w, r, h.replaceDayValue(r, cat, emp, week.StartOfWeek(emp.WeekStart), core.PrecisionWeek, "", minutes), "saved")
 }
 
-// dayTotals books the hours per day of the mode schedule, one field per day.
-func (h *handler) dayTotals(w http.ResponseWriter, r *http.Request) {
-	cat, emp, ok := h.bookingContext(w, r)
-	if !ok {
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		h.back(w, r, err, "")
-		return
-	}
-	for key, values := range r.PostForm {
-		raw, found := strings.CutPrefix(key, "day-")
-		if !found || len(values) != 1 {
-			continue
-		}
-		date, err := core.ParseDate(raw)
-		if err != nil {
-			continue
-		}
-		minutes, err := parseHours(values[0])
-		if err != nil || minutes < 0 {
-			h.message(w, r, http.StatusBadRequest, h.t(r, "track.error.title"), h.t(r, "track.error.hours"))
-			return
-		}
-		if err := h.replaceDayValue(r, cat, emp, date, core.PrecisionDay, "", minutes); err != nil {
-			h.back(w, r, err, "")
-			return
-		}
-	}
-	h.back(w, r, nil, "saved")
-}
-
 // projectTotals books the hours per project of a week, for the mode projects_only.
 func (h *handler) projectTotals(w http.ResponseWriter, r *http.Request) {
 	cat, emp, ok := h.bookingContext(w, r)

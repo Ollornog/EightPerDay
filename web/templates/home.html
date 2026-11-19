@@ -48,7 +48,7 @@
   {{end}}
 
   {{if eq $d.Mode "week_sum"}}{{template "mode-week-sum" $d}}{{end}}
-  {{if eq $d.Mode "schedule"}}{{template "mode-schedule" $d}}{{end}}
+  {{if eq $d.Mode "schedule"}}{{template "week-entries" $d}}{{end}}
   {{if eq $d.Mode "plan"}}{{template "mode-plan" $d}}{{end}}
   {{if eq $d.Mode "exact"}}{{template "mode-exact" $d}}{{end}}
   {{if eq $d.Mode "projects_only"}}{{template "mode-projects" $d}}{{end}}
@@ -106,6 +106,7 @@
   </div>
   {{end}}
   {{if $d.Approval}}{{template "approval" $d}}{{end}}
+  {{if and $d.CanSettings $d.HasSchedule}}{{template "corrections" $d}}{{end}}
 </div>
 <dialog id="new-employer" class="dialog" aria-labelledby="new-employer-title">
   <div>
@@ -221,31 +222,6 @@
 {{end}}
 {{end}}
 
-{{define "mode-schedule"}}
-<!-- C22 block data-entry/day-row: one per day -->
-<form method="post" action="{{base}}/book/days" class="card">
-  <header><h2 class="card-title">{{t "schedule.title"}}</h2><p class="card-description">{{t "schedule.lead"}}</p></header>
-  <section class="grid gap-3">
-    <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
-    {{$back := .Back}}
-    {{range .Days}}
-    <div class="grid gap-2 rounded-md border p-3" data-day="{{.Date}}">
-      {{template "day-head" .}}
-      <div class="flex items-center gap-2">
-        <label class="sr-only" for="day-{{.Date}}">{{t "schedule.hours"}}</label>
-        <input class="input w-24 tabular-nums" id="day-{{.Date}}" pattern="{{durationPattern}}" name="day-{{.Date}}" inputmode="decimal" value="{{.Input}}" placeholder="0:00" autocomplete="off">
-        <span class="min-w-0 flex-1 text-muted-foreground text-xs tabular-nums">{{t "schedule.target"}} {{hours .AdjustedTarget}} · {{t "schedule.actual"}} {{hours .Actual}}</span>
-        {{if not .Future}}<span class="font-semibold tabular-nums" data-balance>{{signed .Balance}}</span>{{end}}
-      </div>
-      {{template "entries" (entriesOf .Entries $back)}}
-    </div>
-    {{end}}
-    <div class="flex justify-between text-sm tabular-nums"><span>{{t "schedule.week"}}</span><span>{{hours .Total.Actual}} / {{hours .Total.AdjustedTarget}}</span></div>
-    <button type="submit" class="btn">{{t "action.save"}}</button>
-  </section>
-</form>
-{{end}}
-
 {{define "mode-plan"}}
 {{$d := .}}
 <div class="card">
@@ -335,8 +311,14 @@
   </form>
   </section>
 </details>
-<div class="card" data-size="sm">
-  <header><h2 class="card-title">{{t "exact.week"}}</h2></header>
+{{template "week-entries" .}}
+{{end}}
+
+{{/* The week's records, day by day, each to remove: spans, deviations, breaks. Hours are typed on the start page. */}}
+{{define "week-entries"}}
+{{$d := .}}
+<div class="card" data-size="sm" data-week-entries>
+  <header><h2 class="card-title">{{t "exact.week"}}</h2>{{if eq .Mode "schedule"}}<p class="card-description">{{t "schedule.lead.sheet"}} <a class="underline underline-offset-4" href="{{base}}/?from={{.Week}}#week-{{.Week}}">{{t "nav.list"}}</a></p>{{end}}</header>
   <section class="grid gap-3">
     {{range .Days}}
     {{if or .Entries .Holiday .Absences .IsToday}}
@@ -377,4 +359,33 @@
     <button type="submit" class="btn" data-variant="outline">{{template "icon-plus"}}{{t "projects.add"}}</button>
   </section>
 </form>
+{{end}}
+
+{{define "corrections"}}
+<details class="card" data-size="sm" data-corrections>
+  <summary><h3>{{t "correction.title"}}</h3></summary>
+  <section class="grid gap-3">
+    <p class="text-muted-foreground text-xs">{{t "correction.lead"}}</p>
+    <form method="post" action="{{base}}/book/correction" class="grid gap-2">
+      <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
+      <div class="grid gap-2 sm:grid-cols-2">
+        <div class="field" role="group"><label for="correction-date">{{t "correction.date"}}</label><input class="input" type="date" id="correction-date" name="date" value="{{.Today}}" required></div>
+        <div class="field" role="group"><label for="correction-hours">{{t "correction.hours"}}</label><input class="input tabular-nums" id="correction-hours" name="minutes" pattern="{{durationPattern}}" inputmode="decimal" placeholder="10" required autocomplete="off"></div>
+      </div>
+      <div class="field" role="group"><label for="correction-reason">{{t "correction.reason"}}</label><input class="input" id="correction-reason" name="reason" maxlength="200" required placeholder="{{t "correction.reason.example"}}"></div>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="submit" name="direction" value="less" class="btn" data-variant="outline" data-size="sm" data-correction-less>{{t "correction.less"}}</button>
+        <button type="submit" name="direction" value="more" class="btn" data-variant="outline" data-size="sm" data-correction-more>{{t "correction.more"}}</button>
+      </div>
+    </form>
+    {{$back := .Back}}
+    {{range .Corrections}}
+    <div class="flex items-center gap-2 text-sm" data-correction-item>
+      <span class="min-w-0 flex-1 tabular-nums">{{day .Date}} · {{sdec .Minutes}} · {{.Reason}}</span>
+      <form method="post" action="{{base}}/corrections/{{.ID}}/remove" data-confirm="{{t "correction.remove.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
+        <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>
+    </div>
+    {{end}}
+  </section>
+</details>
 {{end}}

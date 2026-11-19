@@ -39,7 +39,7 @@ const (
 // Kinds lists every catalog kind.
 var Kinds = []Kind{RecEmployer, RecModeChange, RecSchedule, RecPayRule, RecClient, RecProject, RecActivity,
 	RecTag, RecAbsenceType, RecConfirmation, RecAdjustment, RecPeriodClose, RecHoliday, RecLeaveNotice, RecPurgeLog,
-	RecAbsencePay, RecSurcharge, RecSubmission, RecIncome, RecDayInfo}
+	RecAbsencePay, RecSurcharge, RecSubmission, RecIncome, RecDayInfo, RecPreferences}
 
 // Meta is what a store needs to know about a catalog record to file it.
 type Meta struct {
@@ -97,6 +97,7 @@ type Catalog struct {
 	Submissions   []Submission   `json:"submissions,omitempty"`
 	Incomes       []Income       `json:"incomes,omitempty"`
 	DayInfos      []DayInfo      `json:"day_infos,omitempty"`
+	Preferences   []Preferences  `json:"preferences,omitempty"`
 }
 
 // Add files a record into the catalog. Stores use it to build a catalog from stored records.
@@ -142,6 +143,8 @@ func (c *Catalog) Add(r Record) {
 		c.Incomes = append(c.Incomes, v)
 	case DayInfo:
 		c.DayInfos = append(c.DayInfos, v)
+	case Preferences:
+		c.Preferences = append(c.Preferences, v)
 	}
 }
 
@@ -190,6 +193,8 @@ func DecodeRecord(kind Kind, data []byte) (Record, error) {
 		r, err = decode[Income](data)
 	case RecDayInfo:
 		r, err = decode[DayInfo](data)
+	case RecPreferences:
+		r, err = decode[Preferences](data)
 	default:
 		return nil, invalid("record kind %q", kind)
 	}

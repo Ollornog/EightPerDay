@@ -49,6 +49,8 @@ type homeData struct {
 	WeekLocked bool
 	// Reminders point out leave of this year still open towards its end (core.LeaveReminders), for the person only.
 	Reminders []reminderView
+	// Corrections of the time account, the newest first, for whoever may change the employer's settings.
+	Corrections []core.Adjustment
 }
 
 // reminderView is a leave reminder as the person reads it.
@@ -152,6 +154,12 @@ func (h *handler) week(r *http.Request, cat core.Catalog, emp core.Employer) (ho
 		return d, err
 	}
 	d.CanSettings = core.MayChangeSettings(emp, core.ActorFor(account.ID, emp.Organization, memberships, today))
+	for _, a := range cat.Adjustments {
+		if a.EmployerID == emp.ID && a.Kind == core.AdjustOvertime {
+			d.Corrections = append(d.Corrections, a)
+		}
+	}
+	slices.SortStableFunc(d.Corrections, func(a, b core.Adjustment) int { return b.Date.Compare(a.Date) })
 
 	// One load covers the week, the weeks before it, the year for the leave account and the time account since the
 	// first schedule.

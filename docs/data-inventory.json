@@ -25,6 +25,10 @@
           "purpose": "Employer, client or private work."
         },
         {
+          "name": "key",
+          "purpose": "Short key typed in front of hours to book them on this employer."
+        },
+        {
           "name": "holder",
           "purpose": "Private (the person's own records) or managed by an organization."
         },
@@ -284,6 +288,39 @@
         {
           "name": "callouts",
           "purpose": "Number of call-outs of active standby."
+        },
+        {
+          "name": "note",
+          "purpose": "The person's note on the day."
+        }
+      ]
+    },
+    {
+      "name": "Preferences",
+      "kind": "preferences",
+      "purpose": "How the person likes the interface to show the records.",
+      "holder": "The person alone.",
+      "deletion": "Changed by the person; erased with the private part of a person (Store.Erase).",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "view",
+          "purpose": "The view of the start page: table, journal or grid."
+        },
+        {
+          "name": "detail",
+          "purpose": "How much the start page shows: automatic, hours, projects or employers."
+        },
+        {
+          "name": "expanded",
+          "purpose": "Employers whose projects stand open next to them."
         }
       ]
     },
@@ -920,6 +957,10 @@
         {
           "name": "part",
           "purpose": "The half of the day the work took: morning or afternoon."
+        },
+        {
+          "name": "typed",
+          "purpose": "What was typed for the hours of a day when it said more than hours, such as a span with its break."
         },
         {
           "name": "project_id",

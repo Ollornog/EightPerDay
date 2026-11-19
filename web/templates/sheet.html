@@ -1,0 +1,295 @@
+{{define "header"}}{{end}}
+{{define "content"}}
+{{$s := .Data}}
+<div class="flex min-h-0 flex-1 flex-col" data-sheet data-view="{{$s.View}}"{{if $s.AutoView}} data-auto-view{{end}} data-first="{{$s.First}}" data-last="{{$s.Last}}" data-this-week="{{$s.ThisWeek}}" data-today="{{$s.Today}}">
+  <div class="grid gap-2 border-b px-4 py-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm tabular-nums" data-slot="stats">{{template "sheet-stats" $s}}</div>
+      <div class="ms-auto flex items-center gap-1">
+        <a href="#today" class="btn" data-variant="outline" data-size="sm" data-go-today>{{t "sheet.today"}}</a>
+        <details class="relative" data-view-menu>
+          <summary class="btn" data-variant="outline" data-size="sm">{{t "sheet.menu"}}</summary>
+          <form method="post" action="{{base}}/sheet/prefs" class="absolute end-1 top-full z-50 mt-1 grid w-72 gap-3 rounded-md border bg-popover p-3 shadow-md" data-sheet-prefs>
+            <input type="hidden" name="back" value="/">
+            <fieldset class="grid gap-1">
+              <legend class="label mb-2">{{t "sheet.view"}}</legend>
+              <div class="button-group">
+                {{range (sheetViews)}}<button type="submit" name="view" value="{{.}}" class="btn" data-variant="outline" data-size="sm" aria-pressed="{{if eq . $s.View}}true{{else}}false{{end}}" data-choose-view="{{.}}">{{t (print "sheet.view." .)}}</button>{{end}}
+              </div>
+            </fieldset>
+            <fieldset class="grid gap-1">
+              <legend class="label mb-2">{{t "sheet.detail"}}</legend>
+              <div class="flex flex-wrap gap-1">
+                {{range (sheetDetails)}}<button type="submit" name="detail" value="{{.}}" class="btn" data-variant="outline" data-size="sm" aria-pressed="{{if eq . $s.Detail}}true{{else}}false{{end}}" data-choose-detail="{{.}}">{{t (print "sheet.detail." .)}}</button>{{end}}
+              </div>
+              <p class="text-muted-foreground text-xs" data-level="{{$s.Level}}">{{t (print "sheet.detail." $s.Level ".hint")}}</p>
+            </fieldset>
+          </form>
+        </details>
+        {{if $s.Primary}}<a href="{{base}}/employers/{{$s.Primary.ID}}" class="btn" data-variant="outline" data-size="icon-sm" aria-label="{{t "home.settings"}}">{{template "icon-settings"}}</a>{{end}}
+        <button type="button" class="btn" data-variant="outline" data-size="icon-sm" data-open-dialog="new-employer" aria-label="{{t "home.addemployer"}}">{{template "icon-plus"}}</button>
+      </div>
+    </div>
+    {{if $s.Gaps}}
+    <details class="text-xs" data-gaps>
+      <summary class="cursor-pointer text-muted-foreground">{{t "sheet.gaps" (len $s.Gaps)}}</summary>
+      <ul class="mt-1 grid gap-1">
+        {{range $s.Gaps}}<li data-gap="{{.From}}"><a class="underline underline-offset-4" href="{{base}}/?from={{.From}}#week-{{.From}}">{{t "gap.week" .Number}}</a> · {{.Employer}}:
+          {{if .Missing}}<span data-gap-missing>{{t "gap.missing" .Missing}}</span>{{end}}
+          {{if .Unconfirmed}}<span data-gap-unconfirmed>{{t "gap.unconfirmed"}}</span>{{end}}
+          {{if .NotSubmitted}}<span data-gap-unsubmitted>{{t "gap.notsubmitted"}}</span>{{end}}</li>{{end}}
+      </ul>
+    </details>
+    {{end}}
+    <p class="flex items-center gap-x-4 overflow-x-auto whitespace-nowrap text-muted-foreground text-xs" data-hint>{{template "sheet-hint" $s}}</p>
+    <p class="text-destructive text-xs" role="alert" data-sheet-error hidden></p>
+  </div>
+  <div class="relative min-h-0 flex-1 overflow-auto pb-20" data-sheet-scroller>
+    {{if eq $s.View "journal"}}{{template "journal" $s}}{{else if eq $s.View "grid"}}{{template "grid" $s}}{{else}}{{template "table" $s}}{{end}}
+    <div class="px-4">{{template "footer" $}}</div>
+  </div>
+</div>
+<form method="post" action="{{base}}/sheet/prefs" id="sheet-prefs" hidden><input type="hidden" name="back" value="/?from={{$s.First}}"></form>
+<dialog id="reason-dialog" class="dialog" aria-labelledby="reason-dialog-title">
+  <div>
+    <header><h2 id="reason-dialog-title">{{t "sheet.reason.title"}}</h2><p>{{t "list.approved.hint"}}</p></header>
+    <section>
+      <div class="field" role="group"><label for="reason-text">{{t "list.reason"}}</label><input class="input" id="reason-text" maxlength="2000" autocomplete="off" data-reason-text></div>
+    </section>
+    <footer>
+      <button type="button" class="btn" data-variant="outline" data-close-dialog>{{t "dialog.cancel"}}</button>
+      <button type="button" class="btn" data-reason-ok>{{t "list.request"}}</button>
+    </footer>
+  </div>
+</dialog>
+<dialog id="new-employer" class="dialog" aria-labelledby="new-employer-title">
+  <div>
+    <header><h2 id="new-employer-title">{{t "home.addemployer"}}</h2></header>
+    <section>{{template "employer-form" (newEmployerForm)}}</section>
+    <button type="button" class="btn btn-close" data-variant="ghost" aria-label="{{t "dialog.close"}}" data-close-dialog>{{template "icon-x"}}</button>
+  </div>
+</dialog>
+{{end}}
+
+{{define "sheet-stats"}}
+<span>{{t "sheet.thisweek"}} <b data-stat-week>{{dec .Stats.Done}}{{if .Stats.Target}} / {{dec .Stats.Target}}{{end}} {{t "sheet.hours.unit"}}</b></span>
+{{if .Stats.HasBalance}}<span>{{t "list.balance"}} <b data-stat-balance>{{sdec .Stats.Balance}} {{t "sheet.hours.unit"}}</b></span>{{end}}
+{{if .Stats.Earned}}<span>{{t "sheet.earned"}} <b data-stat-earned>{{money .Stats.Earned .Currency}}</b></span>{{end}}
+{{end}}
+
+{{define "sheet-hint"}}
+{{if eq .View "journal"}}
+<span><kbd class="kbd">5</kbd> {{t "sheet.hint.default"}}</span>
+{{range .Employers}}<span><kbd class="kbd">{{.Key}}3</kbd> {{.Name}}</span>{{end}}
+{{range .Employers}}{{if .Projects}}<span data-hint-project><kbd class="kbd">{{.Key}}3 {{projectWord (index .Projects 0)}}</kbd> {{(index .Projects 0).Name}}</span>{{break}}{{end}}{{end}}
+<span><kbd class="kbd">U</kbd> <kbd class="kbd">K</kbd> <kbd class="kbd">F</kbd> <kbd class="kbd">½U 2,5n</kbd> {{t "sheet.hint.codes"}}</span>
+<span>{{t "sheet.hint.note"}}</span>
+<span><kbd class="kbd">Enter</kbd> {{t "sheet.hint.nextday"}}</span>
+{{else if eq .View "grid"}}
+<span><kbd class="kbd">Tab</kbd> {{t "sheet.hint.nextday"}}</span>
+<span><kbd class="kbd">Enter</kbd> {{t "sheet.hint.nextrow"}}</span>
+<span><kbd class="kbd">5</kbd> <kbd class="kbd">8-13:30 30m</kbd> <kbd class="kbd">4v</kbd></span>
+<span><kbd class="kbd">U</kbd> <kbd class="kbd">K</kbd> <kbd class="kbd">F</kbd> <kbd class="kbd">½U 2,5n</kbd> {{t "sheet.hint.codes"}}</span>
+<span>{{t "sheet.hint.sum"}}</span>
+{{else}}
+<span>{{t "sheet.hint.replace"}}</span>
+<span><kbd class="kbd">Enter</kbd> {{t "sheet.hint.nextday"}}</span>
+<span><kbd class="kbd">Tab</kbd> {{t "sheet.hint.nextcolumn"}}</span>
+<span><kbd class="kbd">Esc</kbd> {{t "sheet.hint.undo"}}</span>
+<span><kbd class="kbd">5</kbd> <kbd class="kbd">8-13:30 30m</kbd> <kbd class="kbd">4v</kbd></span>
+<span><kbd class="kbd">U</kbd> <kbd class="kbd">K</kbd> <kbd class="kbd">F</kbd> <kbd class="kbd">½U 2,5n</kbd> {{t "sheet.hint.codes"}}</span>
+<span>{{t "sheet.hint.sum"}}</span>
+{{end}}
+{{end}}
+
+{{/* The first row of the weeks: older weeks load from here. */}}
+{{define "sheet-older"}}
+{{if .HasOlder}}<a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/?from={{.Older}}" data-load-older data-part="{{base}}/?part=weeks&amp;view={{.View}}&amp;before={{.First}}">{{template "icon-left"}}{{t "weeks.older"}}</a>{{else}}<p class="text-muted-foreground text-xs" data-weeks-start>{{t "weeks.start"}}</p>{{end}}
+{{end}}
+
+{{/* What a week shows about itself: number, days, state, the save button without JavaScript. */}}
+{{define "week-title"}}{{template "week-name" .}} {{template "week-badges" .}}{{end}}
+{{define "week-name"}}<span class="font-semibold">{{t "gap.week" .W.Number}}</span> <span class="text-muted-foreground">{{short .W.From}} – {{short .W.To}}</span>{{end}}
+{{define "week-badges"}}
+{{$w := .W}}
+{{if $w.Current}}<span class="badge" data-variant="primary" data-this-week>{{t "sheet.thisweek"}}</span>{{end}}
+{{range $w.Status}}<span class="badge" data-variant="outline" data-state="{{.State}}">{{if gt (len $.S.Employers) 1}}{{upper .Employer.Key}} · {{end}}{{t (print "sheet.state." .State)}}</span>{{end}}
+{{end}}
+
+{{define "week-form"}}
+{{$w := .W}}
+<form method="post" action="{{base}}/sheet/week" id="wf-{{$w.From}}" class="inline-flex items-center gap-1" data-week-form>
+  <input type="hidden" name="back" value="/?from={{$.S.First}}#week-{{$w.From}}"><input type="hidden" name="view" value="{{$.S.View}}">
+  {{if $w.Approved}}<label class="sr-only" for="reason-{{$w.From}}">{{t "list.reason"}}</label><input class="input w-40" data-size="sm" id="reason-{{$w.From}}" name="reason" maxlength="2000" placeholder="{{t "list.reason"}}" autocomplete="off" data-week-reason>{{end}}
+  {{if $w.Editable}}<button type="submit" class="btn" data-variant="outline" data-size="sm" data-save-week>{{t "action.save"}}</button>{{end}}
+</form>
+{{range $w.Reports}}<a class="text-xs underline underline-offset-4" href="{{base}}/report/week?e={{.ID}}&amp;w={{$w.From}}" data-week-report>{{t "report.week.link"}}{{if gt (len $.S.Employers) 1}} {{upper .Key}}{{end}}</a> {{end}}
+{{if gt (len $.S.Employers) 1}}<a class="text-xs underline underline-offset-4" href="{{base}}/all?w={{$w.From}}" data-all-employers>{{t "all.link"}}</a>{{end}}
+{{end}}
+
+{{define "week-money"}}
+{{$w := .W}}
+{{if $w.HasBalance}}<span>{{t "list.balance"}} <b data-week-balance>{{sdec $w.Balance}}</b></span>{{end}}
+{{if $w.Earned}}<span data-week-earned>{{money $w.Earned $.S.Currency}}</span>{{end}}
+{{end}}
+
+{{/* A field of a day; the hidden "was" field tells the form without JavaScript what the page showed. */}}
+{{define "cell-input"}}
+{{$c := .C}}
+{{if $c.Fixed}}<span class="block px-2 py-1 text-end tabular-nums" id="c-{{.Date}}-{{$c.Column.Key}}" data-slot="c-{{.Date}}-{{$c.Column.Key}}" data-fixed>{{$c.Shown}}</span>
+{{else}}<input class="input w-full min-w-16 rounded-none border-0 bg-transparent shadow-none text-end tabular-nums" data-size="sm" id="c-{{.Date}}-{{$c.Column.Key}}" data-slot="c-{{.Date}}-{{$c.Column.Key}}" data-cell data-x="{{.X}}" data-date="{{.Date}}" data-col="{{$c.Column.Key}}" name="c:{{.Date}}:{{$c.Column.Key}}" form="wf-{{.Week}}" value="{{$c.Shown}}" data-raw="{{$c.Raw}}" placeholder="{{$c.Placeholder}}" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="{{.Label}}"{{if .Focus}} autofocus data-focus{{end}}><input type="hidden" name="w:{{.Date}}:{{$c.Column.Key}}" value="{{$c.Shown}}" form="wf-{{.Week}}">{{end}}
+<span class="block px-2 text-end text-muted-foreground text-xs tabular-nums" data-slot="m-{{.Date}}-{{$c.Column.Key}}">{{if $c.Open}}<span data-open>{{t "list.unbooked.short" (dec $c.Open)}}</span>{{end}}{{if $c.HasProposal}} <span data-proposed>→ {{$c.Proposed}}</span>{{end}}</span>
+{{end}}
+
+{{define "note-input"}}
+{{$d := .D}}
+{{if $d.NoteFixed}}<span class="block px-2 py-1 text-xs" data-slot="c-{{$d.Date}}-note" data-fixed>{{$d.Note}}</span>
+{{else if eq .X "note"}}<input class="input w-full min-w-32 rounded-none border-0 bg-transparent shadow-none" data-size="sm" id="c-{{$d.Date}}-note" data-slot="c-{{$d.Date}}-note" data-cell data-x="{{.X}}" data-date="{{$d.Date}}" data-col="note" name="c:{{$d.Date}}:note" form="wf-{{.Week}}" value="{{$d.Note}}" data-raw="{{$d.Note}}" maxlength="2000" autocomplete="off" aria-label="{{t "list.note.of" (t (print "weekday." $d.Weekday)) (short $d.Date)}}"><input type="hidden" name="w:{{$d.Date}}:note" value="{{$d.Note}}" form="wf-{{.Week}}">
+{{else}}<input class="input w-full min-w-16 rounded-none border-0 bg-transparent shadow-none" data-size="sm" id="c-{{$d.Date}}-note" data-slot="c-{{$d.Date}}-note" data-cell data-x="{{.X}}" data-date="{{$d.Date}}" data-col="note" name="c:{{$d.Date}}:note" form="wf-{{.Week}}" value="{{$d.Note}}" data-raw="{{$d.Note}}" maxlength="2000" autocomplete="off" aria-label="{{t "list.note.of" (t (print "weekday." $d.Weekday)) (short $d.Date)}}"><input type="hidden" name="w:{{$d.Date}}:note" value="{{$d.Note}}" form="wf-{{.Week}}">{{end}}
+{{end}}
+
+{{/* ---- A: the table. Days are rows, the employers and their projects columns; the week's row sticks on top. ---- */}}
+{{define "table"}}
+<table class="table" data-variant="grid" data-sheet-table>
+  <thead>
+    <tr>
+      <th class="sticky top-0 left-0 z-50 bg-background" scope="col">{{t "list.day"}}</th>
+      {{range .Columns}}<th class="sticky top-0 z-50 bg-background text-end" scope="col" data-col="{{.Key}}">{{if .Project}}<span class="block">{{.Project.Name}}</span><span class="block text-muted-foreground text-xs">{{.Project.Number}}</span>{{else}}<span class="inline-flex items-center gap-1"><span class="badge" data-variant="{{.Employer.Mark}}">{{upper .Employer.Key}}</span>{{.Employer.Name}}{{if .Expander}}<button type="submit" form="sheet-prefs" name="expand" value="{{.Employer.ID}}" class="btn" data-variant="ghost" data-size="sm" aria-expanded="{{if .Employer.Expanded}}true{{else}}false{{end}}" aria-label="{{t "sheet.projects.toggle"}}" data-expand="{{.Employer.ID}}">{{if .Employer.Expanded}}‹{{else}}›{{end}} {{len .Employer.Projects}}</button>{{end}}</span>{{end}}</th>{{end}}
+      <th class="sticky top-0 z-50 bg-background text-end" scope="col">Σ</th>
+      {{if .HasTarget}}<th class="sticky top-0 z-50 bg-background text-end" scope="col">{{t "list.target"}}</th><th class="sticky top-0 z-50 bg-background text-end" scope="col">Δ</th>{{end}}
+      <th class="sticky top-0 z-50 bg-background w-full" scope="col">{{t "list.note"}}</th>
+    </tr>
+  </thead>
+  <tbody data-sentinel><tr><td class="sticky left-0" colspan="{{add (len .Columns) 5}}" data-slot="older">{{template "sheet-older" .}}</td></tr></tbody>
+  {{template "table-weeks" .}}
+</table>
+{{end}}
+
+{{define "table-weeks"}}{{$s := .}}{{range .Weeks}}{{template "table-week" (withSheet $s .)}}{{end}}{{end}}
+
+{{define "table-week"}}
+{{$s := .S}}{{$w := .W}}
+<tbody id="week-{{$w.From}}" data-week="{{$w.From}}"{{if $w.Current}} data-current{{end}}>
+  <tr data-week-row>
+    {{if $w.Current}}<th class="sticky top-0 left-0 z-10 bg-accent text-start" scope="rowgroup" data-slot="wk-{{$w.From}}-head">{{else}}<th class="sticky top-0 left-0 z-10 bg-muted text-start" scope="rowgroup" data-slot="wk-{{$w.From}}-head">{{end}}{{template "week-name" .}}</th>
+    {{range $i, $sum := $w.Sums}}<td class="sticky top-0 z-10 bg-muted text-end tabular-nums font-semibold" data-sticky-row data-slot="wk-{{$w.From}}-c{{$i}}">{{if $sum}}{{dec $sum}}{{end}}</td>{{end}}
+    <td class="sticky top-0 z-10 bg-muted text-end tabular-nums font-semibold" data-sticky-row data-slot="wk-{{$w.From}}-sum" data-week-sum>{{dec $w.Total}}</td>
+    {{if $s.HasTarget}}<td class="sticky top-0 z-10 bg-muted text-end tabular-nums" data-sticky-row data-slot="wk-{{$w.From}}-target">{{dec $w.Target}}</td><td class="sticky top-0 z-10 bg-muted text-end tabular-nums font-semibold" data-sticky-row data-slot="wk-{{$w.From}}-diff" data-week-diff>{{if not $w.Future}}{{sdec $w.Diff}}{{end}}</td>{{end}}
+    <td class="sticky top-0 z-10 bg-muted text-muted-foreground text-xs" data-sticky-row data-slot="wk-{{$w.From}}-money"><span class="flex flex-wrap items-center gap-x-4 gap-y-1">{{template "week-badges" .}}{{template "week-money" .}}{{template "week-form" .}}</span></td>
+  </tr>
+  {{range $d := $w.Days}}
+  <tr data-line data-day="{{$d.Date}}"{{if $d.Today}} id="today" data-state="selected" aria-current="date"{{end}}>
+    {{if $d.Weekend}}<th class="sticky left-0 bg-background text-start text-muted-foreground font-normal" scope="row">{{else}}<th class="sticky left-0 bg-background text-start" scope="row">{{end}}<a class="tabular-nums" href="{{base}}/day?e={{$d.Default.ID}}&amp;d={{$d.Date}}" data-day-link>{{t (print "weekday." $d.Weekday)}} {{short $d.Date}}</a>{{if $d.Today}} <span class="badge" data-variant="primary">{{t "home.today"}}</span>{{end}}{{if $d.Holiday}} <span class="text-muted-foreground text-xs" data-holiday>{{$d.Holiday}}</span>{{end}}</th>
+    {{range $d.Cells}}<td class="p-0 align-top">{{template "cell-input" (cellOf $s $w $d . "table")}}</td>{{end}}
+    <td class="text-end tabular-nums" data-slot="d-{{$d.Date}}-sum" data-day-sum>{{if $d.HasTotal}}{{dec $d.Total}}{{end}}{{if $d.Others}}<span class="block text-muted-foreground text-xs" data-others>{{t "sheet.others" (dec $d.Others)}}</span>{{end}}</td>
+    {{if $s.HasTarget}}<td class="text-end tabular-nums text-muted-foreground" data-slot="d-{{$d.Date}}-target">{{if $d.Target}}{{dec $d.Target}}{{end}}</td><td class="text-end tabular-nums" data-slot="d-{{$d.Date}}-diff" data-day-diff>{{if $d.HasDiff}}{{sdec $d.Diff}}{{end}}</td>{{end}}
+    <td class="p-0">{{template "note-input" (noteOf $w $d "note")}}</td>
+  </tr>
+  {{end}}
+</tbody>
+{{end}}
+
+{{/* ---- B: the journal. One line per day; without the focus the line shows as chips. ---- */}}
+{{define "journal"}}
+<div class="mx-auto grid w-full max-w-3xl px-4" data-sheet-journal>
+  <div class="py-2" data-sentinel data-slot="older">{{template "sheet-older" .}}</div>
+  {{template "journal-weeks" .}}
+</div>
+{{end}}
+
+{{define "journal-weeks"}}{{$s := .}}{{range .Weeks}}{{template "journal-week" (withSheet $s .)}}{{end}}{{end}}
+
+{{define "journal-week"}}
+{{$s := .S}}{{$w := .W}}
+<section class="grid" id="week-{{$w.From}}" data-week="{{$w.From}}"{{if $w.Current}} data-current{{end}}>
+  {{if $w.Current}}<div class="sticky top-0 z-10 mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md bg-accent px-3 py-2 text-xs tabular-nums" data-week-row data-slot="wk-{{$w.From}}-head">{{else}}<div class="sticky top-0 z-10 mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md bg-muted px-3 py-2 text-xs tabular-nums" data-week-row data-slot="wk-{{$w.From}}-head">{{end}}
+    {{template "week-title" .}}
+    <span><b data-week-sum>{{dec $w.Total}}</b>{{if $s.HasTarget}} / {{dec $w.Target}}{{end}} {{t "sheet.hours.unit"}}</span>
+    {{if and $s.HasTarget (not $w.Future)}}<span>Δ <b data-week-diff>{{sdec $w.Diff}}</b></span>{{end}}
+    {{template "week-money" .}}
+    <span class="ms-auto inline-flex items-center gap-2">{{template "week-form" .}}</span>
+  </div>
+  {{range $d := $w.Days}}
+  <div class="flex items-center gap-2 border-b py-1" data-line data-day="{{$d.Date}}"{{if $d.Today}} id="today" aria-current="date"{{end}}>
+    {{if $d.Weekend}}<a class="w-20 shrink-0 text-muted-foreground text-sm tabular-nums" href="{{base}}/day?e={{$d.Default.ID}}&amp;d={{$d.Date}}" data-day-link>{{else}}<a class="w-20 shrink-0 text-sm tabular-nums" href="{{base}}/day?e={{$d.Default.ID}}&amp;d={{$d.Date}}" data-day-link>{{end}}{{t (print "weekday." $d.Weekday)}} {{short $d.Date}}{{if $d.Today}} <span class="badge" data-variant="primary">{{t "home.today"}}</span>{{end}}{{if $d.Holiday}}<span class="block text-xs" data-holiday>{{$d.Holiday}}</span>{{end}}</a>
+    <div class="group relative min-w-0 flex-1">
+      {{if $d.LineFixed}}<div class="flex flex-wrap items-center gap-1 px-2 py-1" data-slot="c-{{$d.Date}}-line" data-fixed>{{template "chips" $d}}</div>
+      {{else}}<input class="input absolute inset-0 z-10 h-full w-full opacity-0 group-focus-within:opacity-100" data-size="sm" id="c-{{$d.Date}}-line" data-slot="c-{{$d.Date}}-line" data-cell data-x="line" data-date="{{$d.Date}}" data-col="line" name="c:{{$d.Date}}:line" form="wf-{{$w.From}}" value="{{$d.Line}}" data-raw="{{$d.Line}}" maxlength="500" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="{{t (print "weekday." $d.Weekday)}} {{short $d.Date}}"{{if (focusOn $s $w $d)}} autofocus data-focus{{end}}><input type="hidden" name="w:{{$d.Date}}:line" value="{{$d.Line}}" form="wf-{{$w.From}}">
+      <div class="pointer-events-none flex min-h-8 flex-wrap items-center gap-1 px-2 py-1" data-slot="ch-{{$d.Date}}" data-chips>{{template "chips" $d}}{{if and $d.Today (not $d.Chips) (not $d.Note)}}<span class="text-muted-foreground text-xs italic">{{t "sheet.journal.example"}}</span>{{end}}</div>{{end}}
+    </div>
+    <span class="w-12 shrink-0 text-end text-sm tabular-nums" data-slot="d-{{$d.Date}}-sum" data-day-sum>{{if $d.HasTotal}}{{dec $d.Total}}{{end}}</span>
+    {{if $s.HasTarget}}<span class="w-12 shrink-0 text-end text-sm tabular-nums" data-slot="d-{{$d.Date}}-diff" data-day-diff>{{if $d.HasDiff}}{{sdec $d.Diff}}{{end}}</span>{{end}}
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+{{define "chips"}}
+{{range .Chips}}{{if .Open}}<span class="badge" data-variant="warning" data-chip-open>{{.Text}}</span>{{else if .Code}}<span class="badge" data-variant="secondary" data-chip>{{upper .Employer.Key}} · {{.Text}}</span>{{else}}<span class="badge" data-variant="outline" data-chip><span class="badge" data-variant="{{.Employer.Mark}}">{{upper .Employer.Key}}</span>{{.Text}}</span>{{end}}{{end}}
+{{if .Note}}<span class="truncate text-muted-foreground text-xs italic" data-chip-note>{{.Note}}</span>{{end}}
+{{end}}
+
+{{/* ---- C: the grid. Every week a card: employers and projects as rows, the days as columns. ---- */}}
+{{define "grid"}}
+<div class="mx-auto grid w-full max-w-5xl gap-4 px-4" data-sheet-grid>
+  <div class="pt-2" data-sentinel data-slot="older">{{template "sheet-older" .}}</div>
+  {{template "grid-weeks" .}}
+</div>
+{{end}}
+
+{{define "grid-weeks"}}{{$s := .}}{{range .Weeks}}{{template "grid-week" (withSheet $s .)}}{{end}}{{end}}
+
+{{define "grid-week"}}
+{{$s := .S}}{{$w := .W}}
+<section class="card" data-size="sm" id="week-{{$w.From}}" data-week="{{$w.From}}"{{if $w.Current}} data-current{{end}}>
+  {{if $w.Current}}<header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md bg-accent px-3 py-2 text-xs tabular-nums" data-week-row data-slot="wk-{{$w.From}}-head">{{else}}<header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs tabular-nums" data-week-row data-slot="wk-{{$w.From}}-head">{{end}}
+    {{template "week-title" .}}
+    <span><b data-week-sum>{{dec $w.Total}}</b>{{if $s.HasTarget}} / {{dec $w.Target}}{{end}} {{t "sheet.hours.unit"}}</span>
+    {{if and $s.HasTarget (not $w.Future)}}<span>Δ <b data-week-diff>{{sdec $w.Diff}}</b></span>{{end}}
+    {{template "week-money" .}}
+    <span class="ms-auto inline-flex items-center gap-2">{{template "week-form" .}}</span>
+  </header>
+  <section class="overflow-x-auto">
+    <table class="table" data-variant="grid">
+      <thead><tr>
+        <th scope="col"></th>
+        {{range $w.Days}}{{if .Today}}<th class="bg-accent text-end" scope="col" aria-current="date">{{else}}<th class="text-end" scope="col">{{end}}{{t (print "weekday." .Weekday)}} <span class="text-muted-foreground text-xs">{{short .Date}}</span>{{if .Holiday}} <span class="text-muted-foreground text-xs" title="{{.Holiday}}" data-holiday>{{t "code.public"}}</span>{{end}}</th>{{end}}
+        <th class="text-end" scope="col">Σ</th>
+      </tr></thead>
+      <tbody>
+        {{range $i, $col := $s.Columns}}
+        <tr data-line data-row="{{$col.Key}}">
+          {{if $col.Project}}<th class="ps-4 text-start font-normal text-muted-foreground" scope="row">{{$col.Project.Name}} <span class="text-xs">{{$col.Project.Number}}</span></th>
+          {{else}}<th class="text-start" scope="row"><span class="inline-flex items-center gap-1"><span class="badge" data-variant="{{$col.Employer.Mark}}">{{upper $col.Employer.Key}}</span>{{$col.Employer.Name}}{{if $col.Expander}}<button type="submit" form="sheet-prefs" name="expand" value="{{$col.Employer.ID}}" class="btn" data-variant="ghost" data-size="sm" aria-expanded="{{if $col.Employer.Expanded}}true{{else}}false{{end}}" aria-label="{{t "sheet.projects.toggle"}}" data-expand="{{$col.Employer.ID}}">{{if $col.Employer.Expanded}}‹{{else}}›{{end}} {{len $col.Employer.Projects}}</button>{{end}}</span></th>{{end}}
+          {{range $d := $w.Days}}<td class="p-0 align-top">{{template "cell-input" (cellOf $s $w $d (index $d.Cells $i) "grid")}}</td>{{end}}
+          <td class="text-end tabular-nums text-muted-foreground" data-slot="wk-{{$w.From}}-c{{$i}}">{{with index $w.Sums $i}}{{dec .}}{{end}}</td>
+        </tr>
+        {{end}}
+        <tr>
+          <th class="text-start" scope="row">Σ</th>
+          {{range $w.Days}}<td class="text-end tabular-nums font-semibold" data-slot="d-{{.Date}}-sum" data-day-sum>{{if .HasTotal}}{{dec .Total}}{{end}}{{if .Others}}<span class="block text-muted-foreground text-xs" data-others>{{t "sheet.others" (dec .Others)}}</span>{{end}}</td>{{end}}
+          <td class="text-end tabular-nums font-semibold" data-slot="wk-{{$w.From}}-sum">{{dec $w.Total}}</td>
+        </tr>
+        {{if $s.HasTarget}}<tr>
+          <th class="text-start text-muted-foreground font-normal" scope="row">Δ</th>
+          {{range $w.Days}}<td class="text-end tabular-nums text-muted-foreground" data-slot="d-{{.Date}}-diff" data-day-diff>{{if .HasDiff}}{{sdec .Diff}}{{end}}</td>{{end}}
+          <td class="text-end tabular-nums" data-slot="wk-{{$w.From}}-diff">{{if not $w.Future}}{{sdec $w.Diff}}{{end}}</td>
+        </tr>{{end}}
+        <tr data-line data-row="note">
+          <th class="text-start text-muted-foreground font-normal" scope="row">{{t "list.note"}}</th>
+          {{range $d := $w.Days}}<td class="p-0 align-top">{{template "note-input" (noteOf $w $d $d.Date.String)}}</td>{{end}}
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+{{end}}
+
+{{/* What a load of older weeks and a saved field answer: the weeks in the view asked for, and the numbers on top. */}}
+{{define "sheet-part"}}<div data-sheet-part>
+  <div data-slot="older">{{template "sheet-older" .}}</div>
+  <div data-slot="stats">{{template "sheet-stats" .}}</div>
+  {{if eq .View "journal"}}<div data-weeks>{{template "journal-weeks" .}}</div>{{else if eq .View "grid"}}<div data-weeks>{{template "grid-weeks" .}}</div>{{else}}<table data-weeks>{{template "table-weeks" .}}</table>{{end}}
+</div>
+{{end}}

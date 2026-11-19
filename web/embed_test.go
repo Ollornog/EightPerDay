@@ -292,3 +292,36 @@ func TestMountedRedirects(t *testing.T) {
 		t.Error("no base: the handler itself")
 	}
 }
+
+// The sheet inside another application: its links, its loads and its fields stay below the mount path, and a field
+// saves through the application's sign-in.
+func TestEmbeddedSheet(t *testing.T) {
+	h := newHost(t)
+	ctx := context.Background()
+	h.do(http.MethodPost, "/time/employers", "u-anna", url.Values{"name": {"Office"}, "kind": {"employer"}, "mode": {"schedule"},
+		"weekday_hours": {"8"}}, nil)
+	cat, _ := h.store.Catalog(ctx, "u-anna")
+	emp := cat.Employers[0]
+	page := h.do(http.MethodGet, "/time/", "u-anna", nil, nil).body
+	for _, want := range []string{`data-sheet `, `action="/time/sheet/prefs"`, `action="/time/sheet/week"`, `data-base="/time"`,
+		`href="/time/day?e=` + emp.ID} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the embedded sheet lacks %s", want)
+		}
+	}
+	a := h.do(http.MethodPost, "/time/sheet/cell", "u-anna", url.Values{"date": {"2026-11-16"}, "col": {"e-" + emp.ID}, "value": {"7,5"},
+		"view": {"journal"}, "to": {"2026-11-30"}}, nil)
+	if a.status != http.StatusOK || !strings.Contains(a.body, `"html"`) || !strings.Contains(a.body, `href=\"/time/`) {
+		t.Fatalf("a field of the embedded sheet: %d %.300s", a.status, a.body)
+	}
+	if entries, _ := h.store.Entries(ctx, core.EntryFilter{Owner: "u-anna"}); len(entries) != 1 || entries[0].Minutes != 450 {
+		t.Errorf("entries %+v", entries)
+	}
+	if a := h.do(http.MethodPost, "/time/sheet/prefs", "u-anna", url.Values{"view": {"grid"}, "back": {"/"}}, nil); a.status != http.StatusSeeOther ||
+		!strings.HasPrefix(a.header.Get("Location"), "/time/") {
+		t.Errorf("preferences: %d %s", a.status, a.header.Get("Location"))
+	}
+	if cat, _ := h.store.Catalog(ctx, "u-anna"); cat.PreferencesOf("u-anna").View != "grid" {
+		t.Error("the embedded preferences are not kept in the application's store")
+	}
+}

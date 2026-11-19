@@ -438,7 +438,8 @@ func TestEveryKindRoundTrips(t *testing.T) {
 		RecIncome: Income{ID: "x", Owner: owner, EmployerID: "e1", Date: d("2026-01-01"), Kind: IncomeTip, Amount: 500,
 			Currency: "EUR", PaidBy: PaidCash},
 		RecDayInfo: DayInfo{ID: DayInfoID("e1", d("2026-01-01")), Owner: owner, EmployerID: "e1", Date: d("2026-01-01"),
-			Place: "Valley", KmOneWay: 125},
+			Place: "Valley", KmOneWay: 125, Note: "a note"},
+		RecPreferences: Preferences{ID: owner, Owner: owner, View: "journal", Detail: "auto", Expanded: []string{"e1"}},
 	}
 	if len(samples) != len(Kinds) {
 		t.Fatalf("%d samples for %d kinds", len(samples), len(Kinds))

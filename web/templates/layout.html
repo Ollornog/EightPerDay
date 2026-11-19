@@ -13,7 +13,8 @@
   <script defer src="{{base}}/assets/c22/js/basecoat.all.min.js?v={{.Version}}"></script>
   <script defer src="{{base}}/assets/app/app.js?v={{.Version}}"></script>
 </head>
-<body class="min-h-svh bg-background text-foreground" data-base="{{base}}" data-text-confirm="{{t "dialog.confirm"}}" data-text-cancel="{{t "dialog.cancel"}}">
+{{if .Sheet}}<body class="flex h-screen flex-col overflow-hidden bg-background text-foreground" data-base="{{base}}" data-text-confirm="{{t "dialog.confirm"}}" data-text-cancel="{{t "dialog.cancel"}}">
+{{else}}<body class="min-h-svh bg-background text-foreground" data-base="{{base}}" data-text-confirm="{{t "dialog.confirm"}}" data-text-cancel="{{t "dialog.cancel"}}">{{end}}
   {{if .Print}}
   <main class="print-sheet mx-auto w-full max-w-3xl px-4 py-6">
     {{block "content" .}}{{end}}
@@ -36,7 +37,12 @@
       </div>
     </div>
   </header>
-  {{if .Narrow}}
+  {{if .Sheet}}
+  <main class="flex min-h-0 w-full flex-1 flex-col">
+    {{if or .Notice .Error}}<div class="px-4 pt-2">{{template "messages" .}}</div>{{end}}
+    {{block "content" .}}{{end}}
+  </main>
+  {{else if .Narrow}}
   <main class="mx-auto w-full max-w-sm px-4 py-6">
     {{template "messages" .}}
     {{block "content" .}}{{end}}
@@ -106,54 +112,6 @@
   <span aria-hidden="true">·</span>
   <a href="{{base}}/about" class="underline underline-offset-4" data-open-dialog="about-dialog">{{t "about.title"}}</a>
 </footer>
-{{end}}
-
-{{/* A week of the list, on the start page and in the list of every week. */}}
-{{define "list-week"}}
-{{$w := .Week}}
-<form method="post" action="{{base}}/book/list" class="card" data-size="sm" id="week-{{$w.From}}" data-week="{{$w.From}}">
-  <header>
-    <h2 class="card-title">{{t "gap.week" $w.Number}}</h2>
-    <p class="card-description tabular-nums">{{short $w.From}} – {{short $w.To}}{{if $w.Locked}} · {{t "approval.locked"}}{{end}} · <a class="underline underline-offset-4" href="{{base}}/report/week?e={{.EmployerID}}&amp;w={{$w.From}}" data-week-report>{{t "report.week.link"}}</a></p>
-    {{if $w.Approved}}<div class="flex flex-wrap gap-2"><span class="badge" data-variant="secondary" data-approved>{{template "icon-check-small"}}{{t "list.approved"}}</span>{{if $w.Requested}}<span class="badge" data-variant="outline" data-requested>{{t "list.requested"}}</span>{{end}}</div>{{end}}
-  </header>
-  <section>
-    <input type="hidden" name="employer" value="{{.EmployerID}}"><input type="hidden" name="back" value="{{$w.Back}}">
-    <div class="table-container">
-      <table class="table">
-        <thead><tr><th class="px-1">{{t "list.day"}}</th><th class="px-1">{{t "list.hours"}}</th><th class="px-1 text-end">{{t "list.target"}}</th><th class="px-1 text-end">{{t "list.diff"}}</th><th class="px-1 w-full">{{t "list.note"}}</th></tr></thead>
-        <tbody>
-          {{range $w.Rows}}
-          <tr data-day="{{.Date}}"{{if .IsToday}} aria-current="date"{{end}}>
-            <td class="px-1 tabular-nums"><a class="block py-1 underline underline-offset-4" href="{{base}}/day?e={{$.EmployerID}}&amp;d={{.Date}}" data-day-link><span class="font-medium">{{t (print "weekday." .Weekday)}}</span>{{if .Day.Holiday}} <abbr title="{{.Day.Holiday}}">{{t "code.public"}}</abbr>{{end}}<br><span class="text-muted-foreground text-xs">{{short .Date}}</span></a>{{if .Day.Unbooked}}<br><span class="text-xs" data-unbooked>{{t "list.unbooked.short" (dec .Day.Unbooked)}}</span>{{end}}</td>
-            <td class="px-1">{{if .Fixed}}<span class="tabular-nums" data-fixed>{{.Value}}</span>{{else}}
-              <input type="hidden" name="was-{{.Date}}" value="{{.Value}}">
-              <input class="input w-20 tabular-nums" data-size="sm" id="v-{{.Date}}" name="v-{{.Date}}" value="{{.Value}}" placeholder="{{.Placeholder}}" pattern="{{dayPattern}}" autocomplete="off" autocapitalize="characters" aria-label="{{t "list.hours.of" (t (print "weekday." .Weekday)) (short .Date)}}"{{if .Focus}} autofocus data-focus{{end}}>{{if .HasProposal}}<br><span class="badge" data-variant="outline" data-proposed>→ {{.Proposed}}</span>{{end}}{{end}}</td>
-            <td class="px-1 text-end tabular-nums">{{if .Day.AdjustedTarget}}{{dec .Day.AdjustedTarget}}{{end}}</td>
-            <td class="px-1 text-end tabular-nums" data-diff>{{if and .Counted .Day.HasTarget (or .Day.AdjustedTarget .Day.Actual)}}{{sdec .Day.Balance}}{{end}}</td>
-            <td class="px-1">{{if .Fixed}}<span class="text-xs">{{.Note}}</span>{{else}}
-              <input type="hidden" name="wasn-{{.Date}}" value="{{.Note}}">
-              <input class="input w-full min-w-16" data-size="sm" name="n-{{.Date}}" value="{{.Note}}" maxlength="200" autocomplete="off" aria-label="{{t "list.note.of" (t (print "weekday." .Weekday)) (short .Date)}}">{{end}}</td>
-          </tr>
-          {{end}}
-        </tbody>
-        <tfoot>
-          <tr data-week-total><td class="px-1">{{t "list.sum"}}</td><td class="px-1 tabular-nums" data-week-sum>{{dec $w.Total.Actual}}</td><td class="text-end tabular-nums">{{dec $w.Total.AdjustedTarget}}</td><td class="text-end tabular-nums" data-week-diff>{{sdec $w.Total.Balance}}</td><td></td></tr>
-          {{if $w.Total.Unbooked}}<tr><td colspan="5" class="px-1 text-xs" data-week-unbooked>{{t "list.unbooked" (dec $w.Total.Unbooked)}}</td></tr>{{end}}
-          {{range $w.Corrections}}<tr data-correction><td colspan="3" class="text-xs">{{t "list.correction"}} {{short .Date}}: {{.Reason}}</td><td class="text-end tabular-nums">{{sdec .Minutes}}</td><td></td></tr>{{end}}
-          {{if .HasAccount}}<tr><td colspan="2" class="tabular-nums" data-carry>{{t "list.carry"}} {{sdec $w.CarryOver}}</td><td colspan="3" class="text-end tabular-nums" data-week-balance>{{t "list.balance"}} {{sdec $w.Balance}}</td></tr>{{end}}
-        </tfoot>
-      </table>
-    </div>
-  </section>
-  {{if $w.Approved}}
-  <footer class="flex-col gap-2">
-    <p class="text-muted-foreground text-xs">{{t "list.approved.hint"}}</p>
-    <div class="field w-full" role="group"><label for="reason-{{$w.From}}">{{t "list.reason"}}</label><input class="input" id="reason-{{$w.From}}" name="reason" maxlength="2000" autocomplete="off"></div>
-    <button type="submit" class="btn w-full" data-variant="outline" data-size="sm" data-request-change>{{t "list.request"}}</button>
-  </footer>
-  {{else if not $w.Locked}}<footer><button type="submit" class="btn w-full" data-variant="outline" data-size="sm">{{t "action.save"}}</button></footer>{{end}}
-</form>
 {{end}}
 
 {{define "totp-enrollment"}}

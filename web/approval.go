@@ -230,7 +230,7 @@ func (h *handler) reviews(r *http.Request, org core.Organization, actor core.Act
 		v := reviewView{Submission: s, Member: names[s.Owner], Own: s.Owner == actor.Person}
 		for _, p := range s.Proposal {
 			v.Changes = append(v.Changes, h.t(r, "weekday."+strconv.Itoa(int(p.Date.Weekday())))+" "+shortDate(h.lang(r), p.Date)+": "+
-				h.proposedText(r, data.Catalog.AbsenceTypes, p)+noteSuffix(p.Note))
+				h.proposedTextIn(h.lang(r), data.Catalog.AbsenceTypes, p)+noteSuffix(p.Note))
 		}
 		for i, a := range data.Absences {
 			if a.ID == s.AbsenceID && a.Owner == s.Owner {

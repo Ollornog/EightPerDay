@@ -38,33 +38,52 @@ Parts used beyond the plain components:
 A duration field carries `pattern` from `durationPattern` (Go, `track.go`), which a test keeps in step with
 `parseHours`: the browser refuses early what the server would refuse, and nothing it would take.
 
-## The list
+## The sheet
 
-The start page (`list.go`, `templates/list.html`) is the list of one employer: the week before and the week shown
-side by side (`lg:grid-cols-2`, one above the other on a phone), each a form with a row per day. A row's field takes
-hours or a short code; its pattern `dayPattern` follows `parseDayValue` (hours without a sign, optionally with the
-half of the day behind them, `4v`/`4a` morning and `4n`/`4p` afternoon; a short code of `core.ParseDayCode`; or half
-a day of a code next to hours, `½U 4n`), and a test keeps them in step. The row writes a half back as `4 NM` or
-`4 PM`. Only rows whose field or note changed are written (`was-` and
-`wasn-` carry what the page showed): hours become the day's one manual entry, a code an absence of that day alone,
-and whatever the row booked before goes through the history. A day handed in for approval, an absence of several days
-or of every employer, and a requested one show as text instead of a field. The first empty working day of the week
-shown gets `autofocus`, so Enter after a number leads to the next day. `core.Ledger` gives the sums and the balance,
-`core.WeekGaps` the notices on top (the last eight weeks), and the grids show the codes of the month and the year.
-Corrections of the time account (`POST /book/correction`, `/corrections/{id}/remove`) are for whoever may change the
-employer's settings (`core.MayChangeSettings`). Everything else of a mode stays on `/week`.
+The start page (`sheet.go`, `sheet_save.go`, `templates/sheet.html`; [ADR-4](../backlog/ADR-4-views-of-one-view-model.md))
+is one endless list of weeks for every employer of the person. It opens at this week (three weeks before it, two to plan
+after it), `?from=…` opens it further up, and `?part=weeks&before=…` answers the eight weeks before a week as a part
+(`sheet-part`), which `app.js` puts above when the link at the top comes into view, keeping the view where it was.
 
-`/weeks` lists every week with the same template (`list-week` in `layout.html`), the newest at the bottom. `app.js`
-scrolls it to the bottom and, when the link at the top comes into view, fetches the eight weeks before
-(`part=1` answers only the part, `weeks-part`) and puts them above, keeping the view where it was; the link itself
-opens the page from an older week on. Each week's form returns to its own week (`from=…#week-…`).
+- **One view model, three views.** `buildSheet` reads the weeks: the employers with their keys (`core.EmployerKeys`),
+  the columns of the detail, per day a field per column (`sheetCell`: shown value, typed value, placeholder, hours not
+  booked on projects, fixed, the value a change request asks for), the sums per column, total, target, difference,
+  balance (`core.Ledger` per employer with a schedule), earnings (`core.ComputeEarnings`) and the state of each
+  employer's week. The table, the journal and the grid (`table`, `journal`, `grid` in the template) only render it.
+- **Detail.** Automatic: hours for one employer without projects, its projects as columns once it has some, a column
+  per employer for several (their projects open next to them, kept in the preferences). Hours only and projects show
+  the first employer with a schedule and sum the others into the day (`data-others`). A day belongs to the first
+  employer with a target that day: hours without a key and the note go there.
+- **Fields.** A field has `data-x` (its column, or its day in the grid) and sits in a `data-line` (the row of a day, or
+  of a column in the grid); `app.js` moves with Enter, Shift+Enter and the arrows along them and leaves Tab to the
+  browser. A field shows its value (`value`) and gives back what was typed while it has the focus (`data-raw`, such as
+  a span with its break, `Entry.Typed`). Leaving a changed field posts it to `POST /sheet/cell` (`date`, `col`:
+  `e-<employer>`, `p-<project>`, `note` or `line`, `value`, `view`, `to`, and `reason` for a change request); the
+  answer is JSON with the weeks from the one changed on, and the page takes over only the parts marked `data-slot`.
+  A value the server refuses comes back as `error` (status 200) and stays in its field with `aria-invalid`; a change to
+  an approved week answers `reason` and the page asks for it in a dialog. `data-saving` on the sheet is set while
+  answers are due.
+- **Without JavaScript** every week is a form (`POST /sheet/week`) for the fields that name it (`form="wf-…"`): `c:` is
+  what a field says now and `w:` what the page showed, and only fields that changed are written.
+- **The line of a day** (journal) is read by `core.ParseDay` with the keys and projects of the person; it is written
+  back with the day's own employer first, other employers with their key, and a project by its word
+  (`core.ProjectWord`). What the line no longer says goes; employers whose day is handed in keep it.
+- **Saving** goes through `setDay` (the day's hours as one manual entry with its half and typed text, a short code as
+  an absence of that day alone), `setProjectDay` (one entry per project and day) and `setDayNote` (the note in the
+  day's details). A day handed in refuses changes; a day of an approved week where the organization approves weeks
+  becomes a change request (`requestChange`, merged into an open one), which the organization's page lists and
+  `applyChange` books once approved.
+- **Preferences** (`POST /sheet/prefs`: `view`, `detail`, `expand`) are the person's `core.Preferences`. Without a view
+  chosen the table opens; `Sec-CH-UA-Mobile: ?1` or, in the script, a screen narrower than 640 pixels opens the journal.
+- **Layout.** `view.Sheet` makes the page not scroll itself: the sheet's own scroller does, so the head of the table,
+  the column of days and the week's rows stick (C22 utilities `sticky`, `top-0`, `left-0`); the script sets the week
+  rows' offset to the height of the head. The journal hides its field behind the chips until it has the focus
+  (`opacity-0 group-focus-within:opacity-100`).
 
-A day of a week handed in shows as text. A day of an approved week keeps its field where the organization approves
-weeks: what is typed there goes, with the reason the week's footer asks for, into a change request (a correction
-with `Proposal`; an open one takes further days in). The row shows the approved value and the value asked for; the
-organization's page lists the days asked for. Approving it books the values in the administrator's name
-(`applyChange`), hands the period in anew approved by the same decision, and logs the change in the member's access
-log; a rejection changes nothing.
+The week page (`/week`) keeps the tools of a mode (stopwatch, spans, plan, the week's total, projects only, free text,
+absences of several days, handing in) and the correction of the time account (`POST /book/correction`,
+`/corrections/{id}/remove`, for whoever may change the employer's settings, `core.MayChangeSettings`).
+
 ## Leave
 
 `/leave` (`leave.go`) shows the leave account of a year as of today (`core.LeaveAt`) and the year as twelve month
@@ -78,7 +97,7 @@ the data read for the reviews, leave types only).
 
 A row's weekday links to the day (`day.go`, `/day`): its bookings on projects or clients with order numbers, a form
 to book more (`POST /book/project-day`; a project is found by name and number, or made), and what the typed hours
-leave unbooked. The list shows that rest per day and week. `/report/week` renders a week to print (`view.Print`: no
+leave unbooked. The sheet shows that rest per day ("open"). `/report/week` renders a week to print (`view.Print`: no
 header, tab bar or footer, the page inside C22's `print-sheet`), with a button that calls the browser's print.
 
 ## All employers, income, details of a day

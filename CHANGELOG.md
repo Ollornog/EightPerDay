@@ -8,6 +8,23 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- The start page is one sheet in three views (M-6, T-13 to T-16, ADR-4): every employer of the person in one endless
+  list of weeks that opens at this week (older weeks load while scrolling up, two weeks to plan follow), as a table
+  (days as rows, employers and their projects as columns, the head, the dates and the week's row with its sums,
+  balance and earnings stick), as a journal (one line per day, shown as chips without the focus) or as a grid per week
+  (employers and projects as rows, days as columns). One view model (`web/sheet.go`) feeds all three, one keyboard
+  model drives them (Enter and ↓ to the next day, Shift+Enter and ↑ back, Tab and the arrows to the next field, Esc
+  takes back), each field saves itself (`POST /sheet/cell`) and shows an error at the field; without JavaScript each
+  week is a form (`POST /sheet/week`). A week of five days takes at most ten keys in every view.
+- The detail of the sheet: automatic (hours for one employer, its projects as columns, a column per employer for
+  several, their projects to open), hours only, projects or employers; what a detail hides is summed into the day.
+  View, detail and the open employers are kept per person (`core.Preferences`, `POST /sheet/prefs`); without a choice
+  the table opens, on a narrow screen the journal.
+- `core.ParseDay` reads the line of a day: plain hours, spans with their break (given back as typed, `Entry.Typed`),
+  codes, half days, the key of an employer in front (`f3`, `Employer.Key`, `core.EmployerKeys`), a project by a word
+  behind (`f3 studio`, `core.MatchProject`, `core.ProjectWord`), the rest a note (`DayInfo.Note`, with or without
+  hours). Changes to an approved week become change requests in all three views.
+
 - Half days and standby pay (M-5, T-12, ADR-3): a `per_assignment` rule per day pays a morning or an afternoon at
   its own amount (`PayRule.HalfAmount`), or half the amount without one. The list takes half a day behind the hours
   (`4v`, `4 NM`, `4a`, `4 PM`; `Entry.Part`, `Day.Part`) and half a day of leave next to hours on the same day
@@ -133,6 +150,13 @@ All notable changes to this project are documented in this file. The format foll
   that list goes into each member's access log once a day, and a recorded notice as a change.
 - The backlog names the next milestone, the first release (M-4), with publishing the container image as its open task
   (T-5).
+
+### Removed
+
+- The list of one employer on the start page (`POST /book/list`, its month and year grid), the list of every week
+  (`/weeks`) and the form with the hours per day on the week page (`POST /book/days`): the sheet does all of it. The
+  correction of the time account moved to the week page; the weekly report, the week of every employer and the day
+  page are linked from the sheet.
 
 ### Changed
 
