@@ -144,6 +144,10 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	signedIn.HandleFunc("GET /week", h.home)
 	signedIn.HandleFunc("GET /day", h.dayPage)
 	signedIn.HandleFunc("POST /book/project-day", h.bookProjectDay)
+	signedIn.HandleFunc("POST /book/income", h.bookIncome)
+	signedIn.HandleFunc("POST /incomes/{id}/remove", h.removeIncome)
+	signedIn.HandleFunc("POST /book/dayinfo", h.bookDayInfo)
+	signedIn.HandleFunc("GET /all", h.allEmployers)
 	signedIn.HandleFunc("GET /report/week", h.weekReport)
 	signedIn.HandleFunc("GET /weeks", h.allWeeks)
 	signedIn.HandleFunc("GET /leave", h.leavePage)
@@ -216,6 +220,7 @@ func (h *handler) parseTemplates() error {
 			"signed":    signedMinutes,
 			"half":      func(days float64) string { return formatDays(lang, days) },
 			"add":       func(a, b int) int { return a + b },
+			"addDays":   func(d core.Date, n int) core.Date { return d.AddDays(n) },
 			"entriesOf": func(entries []entryView, back string) entriesData { return entriesData{Entries: entries, Back: back} },
 			"projectChoice": func(id string, projects []core.Project) projectChoice {
 				return projectChoice{ID: id, Projects: projects}

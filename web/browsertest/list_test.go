@@ -241,3 +241,45 @@ func TestProjectsAndWeeklyReportOnAPhone(t *testing.T) {
 	b.reachable("weekly report")
 	b.shot("week-report")
 }
+
+// Two jobs of a season on the phone: hours for each in its list, a tandem flight with its photos booked on the day,
+// and both in one week with what was earned and how it was taken.
+func TestTwoEmployersAndIncomeOnAPhone(t *testing.T) {
+	b := setup(t)
+	b.signUp("sam", false)
+	b.addEmployer("Ski school", "schedule", "")
+	b.typeInto(`#v-2026-11-16`, "6")
+	b.tap(`[data-week="2026-11-16"] footer button[type=submit]`)
+	b.must(`document.querySelector('#v-2026-11-16')?.value === '6'`, "the ski school has its day")
+	b.settle()
+	b.tap(`[data-open-dialog="new-employer"]`)
+	b.typeInto("#new-employer #new-name", "Tandem flights")
+	b.tap("#new-employer label[for=new-mode-schedule]")
+	b.tap("#new-employer form[data-employer-form] button[type=submit]")
+	b.must(`location.search.includes('done=created')`, "the second employer is added")
+	b.settle()
+	b.tap(`[data-day="2026-11-17"] [data-day-link]`)
+	b.must(`location.pathname === '/day' && location.search.includes('d=2026-11-17')`, "Tuesday opens")
+	b.settle()
+	b.typeInto(`#in-amount`, "110")
+	b.typeInto(`#in-client`, "A guest")
+	b.eval(`document.querySelector('#in-paid').value = 'card'`)
+	b.tap(`[data-income-form] button[type=submit]`)
+	b.must(`location.search.includes('done=saved') && document.querySelectorAll('[data-income]').length === 1`, "the flight is booked")
+	b.settle()
+	b.eval(`document.querySelector('#in-kind').value = 'photos'; document.querySelector('#in-paid').value = 'cash'`)
+	b.typeInto(`#in-amount`, "30")
+	b.tap(`[data-income-form] button[type=submit]`)
+	b.must(`document.querySelectorAll('[data-income]').length === 2`, "the photos are booked")
+	b.settle()
+	b.reachable("day with income")
+	b.shot("day-income")
+	b.open("/")
+	b.tap(`[data-all-employers]`)
+	b.must(`location.pathname === '/all' && document.querySelectorAll('[data-column]').length === 2 &&
+		document.querySelector('[data-card]').textContent === '110.00 EUR' && document.querySelector('[data-cash]').textContent === '30.00 EUR'`,
+		"both employers in one week, with what was taken")
+	b.settle()
+	b.reachable("all employers")
+	b.shot("all-employers")
+}

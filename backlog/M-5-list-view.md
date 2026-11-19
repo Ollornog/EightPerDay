@@ -2,7 +2,7 @@
 id: M-5
 type: Milestone
 title: "List view and leave planning: a start page that gives an overview"
-status: in-arbeit
+status: erledigt
 tags: [ui, simplicity, leave]
 created: 2026-11-19
 ---

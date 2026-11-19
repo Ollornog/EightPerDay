@@ -123,7 +123,7 @@
         <tbody>
           {{range $w.Rows}}
           <tr data-day="{{.Date}}"{{if .IsToday}} aria-current="date"{{end}}>
-            <td class="px-1 tabular-nums"><a class="font-medium underline underline-offset-4" href="/day?e={{$.EmployerID}}&amp;d={{.Date}}" data-day-link>{{t (print "weekday." .Weekday)}}</a>{{if .Day.Holiday}} <abbr title="{{.Day.Holiday}}">{{t "code.public"}}</abbr>{{end}}<br><span class="text-muted-foreground text-xs">{{short .Date}}</span>{{if .Day.Unbooked}}<br><span class="text-xs" data-unbooked>{{t "list.unbooked.short" (dec .Day.Unbooked)}}</span>{{end}}</td>
+            <td class="px-1 tabular-nums"><a class="block py-1 underline underline-offset-4" href="/day?e={{$.EmployerID}}&amp;d={{.Date}}" data-day-link><span class="font-medium">{{t (print "weekday." .Weekday)}}</span>{{if .Day.Holiday}} <abbr title="{{.Day.Holiday}}">{{t "code.public"}}</abbr>{{end}}<br><span class="text-muted-foreground text-xs">{{short .Date}}</span></a>{{if .Day.Unbooked}}<br><span class="text-xs" data-unbooked>{{t "list.unbooked.short" (dec .Day.Unbooked)}}</span>{{end}}</td>
             <td class="px-1">{{if .Fixed}}<span class="tabular-nums" data-fixed>{{.Value}}</span>{{else}}
               <input type="hidden" name="was-{{.Date}}" value="{{.Value}}">
               <input class="input w-14 tabular-nums" id="v-{{.Date}}" name="v-{{.Date}}" value="{{.Value}}" placeholder="{{.Placeholder}}" pattern="{{dayPattern}}" autocomplete="off" autocapitalize="characters" aria-label="{{t "list.hours.of" (t (print "weekday." .Weekday)) (short .Date)}}"{{if .Focus}} autofocus data-focus{{end}}>{{if .HasProposal}}<br><span class="badge" data-variant="outline" data-proposed>→ {{.Proposed}}</span>{{end}}{{end}}</td>

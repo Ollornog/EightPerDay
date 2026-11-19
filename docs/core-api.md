@@ -89,6 +89,17 @@ by basis and reason:
   holiday; on a Sunday that is a holiday, a holiday surcharge replaces the Sunday one. A minute counts by its own clock
   time, whatever day its entry counts for. The base is the minute's hourly rate, or `BaseAmount` for salaried staff.
 
+Income and the details of a day, two catalog kinds per employer and day:
+
+- `Income` (kind `income`): money earned beyond the pay rules: the amount of a job with its client (a flight, a
+  lesson), commission, photos, tips (`IncomeKind`), and how it was taken (`PaidBy`: cash, card, transfer).
+  `ComputeEarnings` lists incomes as lines of the basis `income` with the kind as reason, and `Earnings.Taken` sums
+  them by how they were taken.
+- `DayInfo` (kind `day_info`, ID `DayInfoID(employer, day)`): place of work, kilometres one way and in all (tenths),
+  standby passive and active (minutes).
+- `PayRule.Salaries`: a monthly `flat_period` rule with 13 or 14 salaries a year pays the extra months spread over
+  the year (0 means 12).
+
 Pay: `ApplyRate` stores the rate as a snapshot on an entry, `Revalue` lists entries whose snapshot differs from the
 current rule (store them with `UpdateEntry` to re-value on purpose).
 

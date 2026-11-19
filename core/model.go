@@ -192,6 +192,9 @@ type PayRule struct {
 	Currency   string   `json:"currency"`
 	// Unit: for per_assignment "day" (default) or "assignment"; for flat_period "week", "month" (default) or "year".
 	Unit string `json:"unit,omitempty"`
+	// Salaries is the number of monthly salaries a year of a monthly flat_period rule (13 or 14 with extra month pay,
+	// spread over the year); 0 means 12.
+	Salaries int `json:"salaries,omitempty"`
 }
 
 // Client is a customer below an employer or client.
@@ -649,6 +652,9 @@ func (p PayRule) Validate() error {
 	case PayFlatPeriod:
 		if p.Unit != "" && p.Unit != UnitWeek && p.Unit != UnitMonth && p.Unit != UnitYear {
 			return invalid("flat_period unit %q", p.Unit)
+		}
+		if p.Salaries != 0 && (p.Salaries < 12 || p.Salaries > 15 || (p.Unit != "" && p.Unit != UnitMonth)) {
+			return invalid("%d salaries a year", p.Salaries)
 		}
 	default:
 		return invalid("pay basis %q", p.Basis)

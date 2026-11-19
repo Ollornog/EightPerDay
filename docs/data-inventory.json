@@ -174,6 +174,104 @@
         {
           "name": "unit",
           "purpose": "Day, assignment, week, month or year, depending on the basis."
+        },
+        {
+          "name": "salaries",
+          "purpose": "Monthly salaries a year of a monthly rule (13th and 14th month pay)."
+        }
+      ]
+    },
+    {
+      "name": "Income",
+      "kind": "income",
+      "purpose": "Money earned on a day beyond the pay rules: a job with its client, commission, photos, tips.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "date",
+          "purpose": "Day it was earned."
+        },
+        {
+          "name": "kind",
+          "purpose": "Job, commission, photos, tip or other."
+        },
+        {
+          "name": "client",
+          "purpose": "Customer of a job, as typed."
+        },
+        {
+          "name": "amount",
+          "purpose": "Amount in minor units."
+        },
+        {
+          "name": "currency",
+          "purpose": "Currency (ISO 4217)."
+        },
+        {
+          "name": "paid_by",
+          "purpose": "Taken in cash, by card or by transfer."
+        },
+        {
+          "name": "note",
+          "purpose": "The person's note."
+        }
+      ]
+    },
+    {
+      "name": "DayInfo",
+      "kind": "day_info",
+      "purpose": "Details of a day of an employer: place of work, kilometres, standby.",
+      "holder": "The person; for a managed employer also the organization (Store.Managed). Records for every employer of a person count only for private employers.",
+      "deletion": "Deleted by whoever may change the employer's settings; erased with the private part of a person (Store.Erase); records of a managed employer stay with the organization.",
+      "fields": [
+        {
+          "name": "id",
+          "purpose": "Identifier of the record."
+        },
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "date",
+          "purpose": "The day."
+        },
+        {
+          "name": "place",
+          "purpose": "Where the work was, as typed."
+        },
+        {
+          "name": "km_one_way",
+          "purpose": "Kilometres of the way there, in tenths."
+        },
+        {
+          "name": "km_total",
+          "purpose": "Kilometres of the whole day, in tenths."
+        },
+        {
+          "name": "standby_passive",
+          "purpose": "Minutes on standby, reachable only."
+        },
+        {
+          "name": "standby_active",
+          "purpose": "Minutes on standby, called out."
         }
       ]
     },

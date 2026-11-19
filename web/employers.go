@@ -390,6 +390,11 @@ func payRuleFromForm(r *http.Request, owner, employerID string) (core.PayRule, e
 	if p.Currency == "" {
 		p.Currency = "EUR"
 	}
+	if raw := r.PostFormValue("salaries"); raw != "" {
+		if p.Salaries, err = strconv.Atoi(raw); err != nil {
+			return p, core.ErrInvalid
+		}
+	}
 	if raw := strings.TrimSpace(r.PostFormValue("to")); raw != "" {
 		if p.ValidTo, err = core.ParseDate(raw); err != nil {
 			return p, err

@@ -43,8 +43,10 @@ type Earnings struct {
 	To         Date             `json:"to"`
 	Lines      []EarningLine    `json:"lines"`
 	Total      map[string]int64 `json:"total"`
-	// Reasons splits the total by basis and reason: work, each paid absence, each surcharge.
+	// Reasons splits the total by basis and reason: work, each paid absence, each surcharge, each kind of income.
 	Reasons []ReasonTotal `json:"reasons"`
+	// Taken sums the incomes by how they were taken (cash, card, transfer) and currency.
+	Taken map[PaidBy]map[string]int64 `json:"taken,omitempty"`
 }
 
 // rulesFor returns the pay rules of the employer with the basis.
@@ -289,7 +291,11 @@ func (b *earningsBuilder) work() {
 			length := ps.DaysUntil(pe) + 1
 			k := b.workLine(r)
 			k.direct = true
-			b.add(k, covered, roundDiv(int64(covered)*r.Amount, int64(length)))
+			amount := r.Amount
+			if unit == UnitMonth && r.Salaries > 12 {
+				amount = roundDiv(amount*int64(r.Salaries), 12)
+			}
+			b.add(k, covered, roundDiv(int64(covered)*amount, int64(length)))
 			p = pe.AddDays(1)
 		}
 	}
@@ -575,6 +581,7 @@ func (b *earningsBuilder) finish() Earnings {
 //   - flat_period: the amount per week, month or year, prorated by days for a part of it.
 //   - paid_absence: absent time that an AbsencePay rule pays (public holidays, leave, sickness, own types).
 //   - surcharge: the Surcharge rules on night, Sunday, holiday and overtime minutes.
+//   - income: the Income records of the range (a job with its client, commission, photos, tips), as booked.
 //
 // Entries count for the day DaySplit gives them. PayAverage needs the entries of its reference weeks in d (see
 // EarningsDataFrom); overtime surcharges look at the whole periods of the overtime basis, so ask for whole periods.
@@ -586,7 +593,12 @@ func ComputeEarnings(d Data, employerID string, from, to Date) (Earnings, error)
 	b.work()
 	b.absences()
 	b.surcharges()
-	return b.finish(), nil
+	taken := b.incomes()
+	out := b.finish()
+	if len(taken) > 0 {
+		out.Taken = taken
+	}
+	return out, nil
 }
 
 // EarningsDataFrom returns the first day ComputeEarnings needs entries from, for a range that starts on from: the day

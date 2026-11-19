@@ -3,8 +3,10 @@
 package web
 
 import (
+	"errors"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Ollornog/EightPerDay/core"
@@ -25,6 +27,13 @@ type dayData struct {
 	Back     string
 	List     string
 	Locked   bool
+	// Incomes of the day (a job with its client, commission, photos, tips) and the details of the day.
+	Incomes     []core.Income
+	IncomeKinds []core.IncomeKind
+	Info        core.DayInfo
+	KmOneWay    string
+	KmTotal     string
+	Currency    string
 }
 
 type bookingView struct {
@@ -75,6 +84,18 @@ func (h *handler) dayPage(w http.ResponseWriter, r *http.Request) {
 			d.Bookings = append(d.Bookings, bookingView{Entry: e, Project: p.Name, Number: p.Number})
 		}
 	}
+	d.IncomeKinds, d.Currency = core.IncomeKinds, employerCurrency(cat, emp.ID)
+	for _, i := range cat.Incomes {
+		if i.EmployerID == emp.ID && i.Date == date {
+			d.Incomes = append(d.Incomes, i)
+		}
+	}
+	for _, i := range cat.DayInfos {
+		if i.ID == core.DayInfoID(emp.ID, date) {
+			d.Info = i
+		}
+	}
+	d.KmOneWay, d.KmTotal = kmText(h.lang(r), d.Info.KmOneWay), kmText(h.lang(r), d.Info.KmTotal)
 	h.render(w, r, http.StatusOK, "day", view{Title: h.t(r, "day.title"), Data: d})
 }
 
@@ -198,4 +219,122 @@ func (h *handler) weekReport(w http.ResponseWriter, r *http.Request) {
 		d.Days = append(d.Days, rd)
 	}
 	h.render(w, r, http.StatusOK, "report_week", view{Title: h.t(r, "report.week.title"), Data: d, Print: true})
+}
+
+// employerCurrency is the currency of the employer's latest pay rule, or euros.
+func employerCurrency(cat core.Catalog, employerID string) string {
+	currency, since := "EUR", core.Date{}
+	for _, p := range cat.PayRules {
+		if p.EmployerID == employerID && !p.ValidFrom.Before(since) {
+			currency, since = p.Currency, p.ValidFrom
+		}
+	}
+	return currency
+}
+
+// kmText writes tenths of kilometres as typed: 12,5 or 40.
+func kmText(lang string, tenths int) string {
+	if tenths == 0 {
+		return ""
+	}
+	text := strconv.Itoa(tenths / 10)
+	if tenths%10 != 0 {
+		text += "." + strconv.Itoa(tenths%10)
+	}
+	if lang == "de" {
+		text = strings.ReplaceAll(text, ".", ",")
+	}
+	return text
+}
+
+// parseKm reads kilometres such as 12,5 or 40 as tenths; empty is zero.
+func parseKm(input string) (int, error) {
+	s := strings.ReplaceAll(strings.TrimSpace(input), ",", ".")
+	if s == "" {
+		return 0, nil
+	}
+	km, err := strconv.ParseFloat(s, 64)
+	if err != nil || km < 0 || km > 10000 {
+		return 0, core.ErrInvalid
+	}
+	return int(km*10 + 0.5), nil
+}
+
+// bookIncome books money earned on a day: a job with its client, a commission, photos, a tip, and how it was taken.
+func (h *handler) bookIncome(w http.ResponseWriter, r *http.Request) {
+	cat, emp, ok := h.bookingContext(w, r)
+	if !ok {
+		return
+	}
+	date, err := formDate(r, "date")
+	if err != nil {
+		h.back(w, r, err, "")
+		return
+	}
+	amount, err := parseMoney(r.PostFormValue("amount"))
+	if err != nil {
+		h.back(w, r, core.ErrInvalid, "")
+		return
+	}
+	i := core.Income{ID: core.NewID(), Owner: emp.Owner, EmployerID: emp.ID, Date: date, Kind: core.IncomeKind(r.PostFormValue("kind")),
+		Client: strings.TrimSpace(r.PostFormValue("client")), Amount: amount, Currency: employerCurrency(cat, emp.ID),
+		PaidBy: core.PaidBy(r.PostFormValue("paid_by")), Note: strings.TrimSpace(r.PostFormValue("note"))}
+	h.back(w, r, h.options.Store.Put(r.Context(), i), "saved")
+}
+
+// removeIncome takes an income back.
+func (h *handler) removeIncome(w http.ResponseWriter, r *http.Request) {
+	cat, err := h.ownCatalog(r.Context())
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	for _, i := range cat.Incomes {
+		if i.ID != r.PathValue("id") {
+			continue
+		}
+		emp, ok := cat.Employer(i.EmployerID)
+		if !ok || !core.MayBook(emp, core.Actor{Person: accountFrom(r.Context()).ID}) {
+			h.back(w, r, errForbidden, "")
+			return
+		}
+		h.back(w, r, h.options.Store.Delete(r.Context(), core.RecIncome, i.Owner, i.ID), "removed")
+		return
+	}
+	h.back(w, r, core.ErrNotFound, "")
+}
+
+// bookDayInfo keeps the details of a day: place of work, kilometres, standby. All empty removes them.
+func (h *handler) bookDayInfo(w http.ResponseWriter, r *http.Request) {
+	_, emp, ok := h.bookingContext(w, r)
+	if !ok {
+		return
+	}
+	date, err := formDate(r, "date")
+	if err != nil {
+		h.back(w, r, err, "")
+		return
+	}
+	i := core.DayInfo{ID: core.DayInfoID(emp.ID, date), Owner: emp.Owner, EmployerID: emp.ID, Date: date,
+		Place: strings.TrimSpace(r.PostFormValue("place"))}
+	var errs [4]error
+	i.KmOneWay, errs[0] = parseKm(r.PostFormValue("km_one_way"))
+	i.KmTotal, errs[1] = parseKm(r.PostFormValue("km_total"))
+	i.StandbyPassive, errs[2] = parseHours(r.PostFormValue("standby_passive"))
+	i.StandbyActive, errs[3] = parseHours(r.PostFormValue("standby_active"))
+	for _, err := range errs {
+		if err != nil {
+			h.message(w, r, http.StatusBadRequest, h.t(r, "track.error.title"), h.t(r, "day.error.details"))
+			return
+		}
+	}
+	if i == (core.DayInfo{ID: i.ID, Owner: i.Owner, EmployerID: i.EmployerID, Date: date}) {
+		err := h.options.Store.Delete(r.Context(), core.RecDayInfo, i.Owner, i.ID)
+		if errors.Is(err, core.ErrNotFound) {
+			err = nil
+		}
+		h.back(w, r, err, "saved")
+		return
+	}
+	h.back(w, r, h.options.Store.Put(r.Context(), i), "saved")
 }

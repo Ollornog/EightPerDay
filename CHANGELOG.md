@@ -8,6 +8,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- Several employers in one week (M-5, T-10, `/all`): a column per employer, a cell only on its active days, the
+  earnings per day and week and the average working day, and what was taken in cash or by card. The day page takes
+  incomes beyond the pay rules (a job with its client, commission, photos, tips; `core.Income`, in `ComputeEarnings`
+  as basis `income`, `Earnings.Taken`) and the details of the day (place, kilometres, standby; `core.DayInfo`).
+  A monthly salary may name 13 or 14 salaries a year (`PayRule.Salaries`).
 - Projects per day and the weekly report (M-5, T-7): a page per day (`/day`, from the list) books hours on projects
   or clients with an order number (`Project.Number`). Hours typed in the list hold these bookings and the list shows
   what is not booked on projects, per day and week; without typed hours the bookings make the day (`core.DayTotal`,
