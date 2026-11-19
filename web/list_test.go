@@ -60,6 +60,15 @@ func TestListIsTheStartPage(t *testing.T) {
 	if !strings.Contains(body, `data-weeks`) || !strings.Contains(body, "lg:grid-cols-2") {
 		t.Error("the two weeks do not stand side by side")
 	}
+	// The year grid has a row of 31 cells per month; what a month lacks is outside it (2026: 7 days in all).
+	year := body[strings.Index(body, `class="year-grid"`):]
+	year = year[:strings.Index(year, "</table>")]
+	if rows := strings.Count(year, `<th scope="row">`); rows != 12 {
+		t.Errorf("the year grid has %d rows", rows)
+	}
+	if cells, outside := strings.Count(year, "<td"), strings.Count(year, "<td data-outside>"); cells != 12*31 || outside != 7 {
+		t.Errorf("the year grid has %d cells, %d outside", cells, outside)
+	}
 	if focus := regexp.MustCompile(`name="v-([0-9-]+)"[^>]*autofocus`).FindStringSubmatch(body); focus == nil || focus[1] != "2026-11-16" {
 		t.Errorf("the focus is on %v, not on Monday", focus)
 	}

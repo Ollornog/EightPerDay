@@ -429,6 +429,10 @@ func (h *handler) grids(r *http.Request, data core.Data, emp core.Employer, code
 		for day := core.NewDate(year, m, 1); day.Month == m; day = day.AddDays(1) {
 			ym.Days = append(ym.Days, cells[day])
 		}
+		// Every month is a row of 31 cells; the days a month does not have are cells outside it.
+		for len(ym.Days) < 31 {
+			ym.Days = append(ym.Days, gridCell{})
+		}
 		y.Months = append(y.Months, ym)
 	}
 	month := anchor

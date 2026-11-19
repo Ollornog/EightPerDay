@@ -122,6 +122,13 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- C22 vendored at `8b0d603`, and its new building blocks replace what the interface had pieced together: the months of
+  the leave planning and of the list are C22's month sheet (weekends toned, today framed, a picked day framed and
+  checked), the year is C22's year grid with a row of 31 cells per month (the days a month lacks are hatched), the access
+  log is a timeline, the states of a request carry an icon besides the word, the fields of the list are compact, the
+  buttons of the weekly report stay off paper, and the tab bar makes its own room below the page (no `pb-20` any more).
+  Leave months stand three in a row on wide screens. Rejecting a request is sent with the destructive button.
+
 - The web interface takes everything from C22 (vendored at `e8153c2`): the tab bar, the QR code, the key of an
   authenticator app, the wrapped license texts and the collapsible cards are C22's own now, and `assets/app/app.css`
   is gone. The week views follow C22's data-entry blocks; duration fields tell the accepted forms and refuse other

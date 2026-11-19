@@ -2,7 +2,7 @@
 {{define "content"}}
 {{$d := .Data}}{{$w := $d.Week}}
 <div class="grid gap-4" data-week-report>
-  <div class="flex flex-wrap items-center justify-between gap-2">
+  <div class="flex flex-wrap items-center justify-between gap-2 print:hidden">
     <a class="btn" data-variant="outline" data-size="sm" href="{{$d.Back}}">{{template "icon-left"}}{{t "action.back"}}</a>
     <button type="button" class="btn" data-size="sm" data-print>{{t "report.week.print"}}</button>
   </div>

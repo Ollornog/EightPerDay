@@ -31,7 +31,7 @@
             <summary class="btn" data-variant="outline" data-size="sm">{{t "org.reviews.reject"}}</summary>
             <form method="post" action="/orgs/{{$d.Org.ID}}/decide" class="mt-2 grid gap-2"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="submission" value="{{.ID}}"><input type="hidden" name="decision" value="reject">
               <div class="field" role="group"><label for="reason-{{.ID}}">{{t "approval.reason"}}</label><textarea class="textarea" id="reason-{{.ID}}" name="reason" maxlength="2000" required></textarea></div>
-              <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "org.reviews.reject.submit"}}</button>
+              <button type="submit" class="btn" data-variant="destructive" data-size="sm">{{t "org.reviews.reject.submit"}}</button>
             </form>
           </details>
         </div>
