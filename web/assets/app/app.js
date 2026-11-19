@@ -251,6 +251,35 @@
     setInterval(tick, 15000);
   }
 
+  // ---- The list of every week: it opens at the newest week, at the bottom, and the weeks before load while
+  // scrolling up. The page's own link at the top does the same without JavaScript.
+  if (document.querySelector("[data-endless]")) {
+    if (!location.hash) window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+    let loading = false;
+    const observer = new IntersectionObserver(async (seen) => {
+      const link = document.querySelector("[data-load-older]");
+      if (loading || !link || !seen.some((entry) => entry.isIntersecting)) return;
+      loading = true;
+      try {
+        const response = await fetch(link.dataset.part, { credentials: "same-origin" });
+        if (!response.ok) return;
+        const part = new DOMParser().parseFromString(await response.text(), "text/html").querySelector("[data-weeks-part]");
+        if (!part) return;
+        const height = document.documentElement.scrollHeight;
+        observer.unobserve(link);
+        link.replaceWith(...part.childNodes);
+        // What was on the screen stays there: the page grew above it.
+        window.scrollBy({ top: document.documentElement.scrollHeight - height, behavior: "instant" });
+        const next = document.querySelector("[data-load-older]");
+        if (next) observer.observe(next);
+      } finally {
+        loading = false;
+      }
+    }, { rootMargin: "300px 0px 0px 0px" });
+    const first = document.querySelector("[data-load-older]");
+    if (first) observer.observe(first);
+  }
+
   // ---- Installable on a phone: the service worker keeps the assets of this build.
   if ("serviceWorker" in navigator && window.isSecureContext) {
     navigator.serviceWorker.register("/sw.js").catch(() => { /* a browser that refuses still works */ });

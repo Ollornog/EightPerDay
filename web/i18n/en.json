@@ -614,5 +614,17 @@
   "month.short.9": "Sep",
   "month.short.10": "Oct",
   "month.short.11": "Nov",
-  "month.short.12": "Dec"
+  "month.short.12": "Dec",
+  "list.approved": "Approved",
+  "list.requested": "Change requested",
+  "list.approved.hint": "The organization approved this week. A change goes to it as a request; until it decides, the approved values count.",
+  "list.reason": "Why the change",
+  "list.request": "Request the change",
+  "list.error.reason": "A change to an approved week says why.",
+  "done.requested": "The change is requested. The approved values count until the organization decides.",
+  "weeks.title": "Every week",
+  "weeks.link": "Every week",
+  "weeks.back": "Back to the list",
+  "weeks.older": "Earlier weeks",
+  "weeks.start": "The first week with records."
 }

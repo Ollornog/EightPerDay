@@ -2,7 +2,7 @@
 id: T-9
 type: Task
 title: "The whole period as an endless list; change requests on approved weeks"
-status: offen
+status: erledigt
 milestone: M-5
 tags: [ui, approval, company-features]
 created: 2026-11-19

@@ -122,6 +122,12 @@ Only for an organization with `Features.Approval` on; without it there are no su
   decision itself is written (`LeaveDecision` then `UpdateAbsence`; `Catalog.LeaveLocked`). An approved correction
   opens the period or the absence again; the person changes it and hands it in anew.
 - A submission is replaced only while it is open and never deleted (`ErrLocked`); decided ones stay as they are.
+- A change request is a correction that carries the values it asks for (`Submission.Proposal`, `ProposedDay`: hours
+  or an absence with a short code, and a note, per day of the approved period; `SubmitRequest.Proposal`). Until it is
+  decided the period stays binding and its approved values count. Approved, it opens the period like any correction;
+  the caller then books the proposed values and hands the period in anew, approved by the same decision (the
+  standalone program does both in one step). `Catalog.PeriodAt` gives the binding period of a day,
+  `Catalog.OpenCorrection` the open correction of a submission.
 - `ReviewData(org, data)` is what a reviewer sees of `Store.Managed`: the days handed in and the absences asked for,
   nothing else. `ReviewRange(catalog, today)` gives the days to read for it: from the first to the last day of any
   open submission, and today, so a leave request far ahead or a correction of an old week comes with its records.

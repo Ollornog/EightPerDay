@@ -397,3 +397,65 @@ func TestNoticesOwed(t *testing.T) {
 		t.Fatalf("too early in the year: %+v %v", early, err)
 	}
 }
+
+// A change request is a correction with the values it asks for: inside the approved period, one value per day,
+// hours or an absence with a short code. Until it is decided the period stays binding.
+func TestChangeRequest(t *testing.T) {
+	data := approvalData()
+	s, _ := Submit(approvalOn, data, period("2026-03-02", "2026-03-08"))
+	approved, _ := Decide(s, acmeEmployer(), boss, true, "", decidedAt)
+	data.Catalog.Submissions = []Submission{approved}
+	if got, ok := data.Catalog.PeriodAt("e1", d("2026-03-04")); !ok || got.ID != approved.ID {
+		t.Fatalf("PeriodAt %+v %v", got, ok)
+	}
+	if _, ok := data.Catalog.PeriodAt("e1", d("2026-03-09")); ok {
+		t.Error("a day outside every period lies in one")
+	}
+	request := func(days ...ProposedDay) SubmitRequest {
+		return SubmitRequest{Kind: SubmitCorrection, EmployerID: "e1", Supersedes: approved.ID, Note: "forgot the dentist",
+			Proposal: days, At: decidedAt}
+	}
+	c, err := Submit(approvalOn, data, request(ProposedDay{Date: d("2026-03-03"), Minutes: 360, Note: "dentist"},
+		ProposedDay{Date: d("2026-03-04"), Absence: AbsenceVacation, HalfDay: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.From != approved.From || len(c.Proposal) != 2 || c.Proposal[0].Minutes != 360 {
+		t.Fatalf("change request %+v", c)
+	}
+	data.Catalog.Submissions = append(data.Catalog.Submissions, c)
+	if open, ok := data.Catalog.OpenCorrection(approved.ID); !ok || open.ID != c.ID {
+		t.Error("the open change request is not found")
+	}
+	if !data.Catalog.SubmittedLocked("e1", d("2026-03-03")) {
+		t.Error("the approved values stop counting before the decision")
+	}
+	for name, days := range map[string][]ProposedDay{
+		"outside the period":    {{Date: d("2026-03-09"), Minutes: 60}},
+		"twice the same day":    {{Date: d("2026-03-03"), Minutes: 60}, {Date: d("2026-03-03"), Minutes: 120}},
+		"more than a day":       {{Date: d("2026-03-03"), Minutes: 24*60 + 1}},
+		"negative":              {{Date: d("2026-03-03"), Minutes: -1}},
+		"a type without a code": {{Date: d("2026-03-03"), Absence: AbsenceUnpaid}},
+		"absence with minutes":  {{Date: d("2026-03-03"), Absence: AbsenceVacation, Minutes: 60}},
+		"half a day of hours":   {{Date: d("2026-03-03"), Minutes: 240, HalfDay: true}},
+		"a note over 200 chars": {{Date: d("2026-03-03"), Minutes: 60, Note: string(make([]byte, 201))}},
+	} {
+		if _, err := Submit(approvalOn, data, request(days...)); !errors.Is(err, ErrInvalid) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	p := period("2026-03-09", "2026-03-15")
+	p.Proposal = []ProposedDay{{Date: d("2026-03-09"), Minutes: 60}}
+	if _, err := Submit(approvalOn, data, p); !errors.Is(err, ErrInvalid) {
+		t.Errorf("a period with proposed values: %v", err)
+	}
+	// Approved, the change request opens the period again; the caller books the values and hands in the period anew.
+	decided, err := Decide(c, acmeEmployer(), boss, true, "", decidedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data.Catalog.Submissions[1] = decided
+	if _, ok := data.Catalog.PeriodAt("e1", d("2026-03-03")); ok {
+		t.Error("the approved change request did not open the period")
+	}
+}

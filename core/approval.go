@@ -58,6 +58,19 @@ type Submission struct {
 	DecidedAt *time.Time `json:"decided_at,omitempty"`
 	DecidedBy string     `json:"decided_by,omitempty"`
 	Reason    string     `json:"reason,omitempty"`
+	// Proposal is what a correction asks the days of an approved period to hold (a change request). Approving it
+	// books these values and approves the period as corrected; until then the approved values count.
+	Proposal []ProposedDay `json:"proposal,omitempty"`
+}
+
+// ProposedDay is what a change request asks one day to hold: hours, or an absence of a type with a short code, and a
+// note.
+type ProposedDay struct {
+	Date    Date   `json:"date"`
+	Minutes int    `json:"minutes,omitempty"`
+	Absence string `json:"absence,omitempty"`
+	HalfDay bool   `json:"half_day,omitempty"`
+	Note    string `json:"note,omitempty"`
 }
 
 // Meta files the submission.
@@ -117,7 +130,47 @@ func (s Submission) Validate() error {
 	if len(s.Note) > 2000 || len(s.Reason) > 2000 {
 		return invalid("note or reason longer than 2000 characters")
 	}
+	if len(s.Proposal) > 0 && s.Kind != SubmitCorrection {
+		return invalid("only a correction proposes values")
+	}
+	seen := map[Date]bool{}
+	for _, p := range s.Proposal {
+		switch {
+		case !p.Date.Within(s.From, s.To) || seen[p.Date]:
+			return invalid("a proposed day lies outside the period or twice in it")
+		case p.Minutes < 0 || p.Minutes > 24*60:
+			return invalid("proposed minutes out of range")
+		case p.Absence != "" && (p.Minutes != 0 || !CodedAbsence(p.Absence)):
+			return invalid("a proposed absence has a short code and no minutes")
+		case p.Absence == "" && p.HalfDay:
+			return invalid("only an absence is half a day")
+		case len(p.Note) > 200:
+			return invalid("a proposed note is longer than 200 characters")
+		}
+		seen[p.Date] = true
+	}
 	return nil
+}
+
+// PeriodAt returns the period submission that holds the day of the employer: handed in or approved, and not opened
+// again by a correction.
+func (c Catalog) PeriodAt(employerID string, d Date) (Submission, bool) {
+	for _, s := range c.Submissions {
+		if s.Kind == SubmitPeriod && s.EmployerID == employerID && d.Within(s.From, s.To) && c.binding(s) {
+			return s, true
+		}
+	}
+	return Submission{}, false
+}
+
+// OpenCorrection returns the correction that waits for a decision on the submission.
+func (c Catalog) OpenCorrection(id string) (Submission, bool) {
+	for _, s := range c.Submissions {
+		if s.Kind == SubmitCorrection && s.Supersedes == id && s.Status == SubmissionSubmitted {
+			return s, true
+		}
+	}
+	return Submission{}, false
 }
 
 // reopened reports whether an approved correction opened the submission again.
@@ -187,7 +240,9 @@ type SubmitRequest struct {
 	AbsenceID  string
 	Supersedes string
 	Note       string
-	At         time.Time
+	// Proposal: the values a correction asks for (a change request); the days lie in the corrected period.
+	Proposal []ProposedDay
+	At       time.Time
 }
 
 // Submit makes a submission of the person's data, for an organization that has switched approval on. A period gets
@@ -210,7 +265,7 @@ func Submit(o Organization, d Data, r SubmitRequest) (Submission, error) {
 	}
 	s := Submission{ID: NewID(), Owner: emp.Owner, EmployerID: emp.ID, Kind: r.Kind, From: r.From, To: r.To,
 		AbsenceID: r.AbsenceID, Supersedes: r.Supersedes, Status: SubmissionSubmitted, Note: r.Note,
-		SubmittedAt: at.UTC()}
+		SubmittedAt: at.UTC(), Proposal: r.Proposal}
 	switch r.Kind {
 	case SubmitPeriod:
 		for _, x := range d.Catalog.Submissions {

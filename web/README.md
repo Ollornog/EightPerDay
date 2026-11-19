@@ -44,6 +44,18 @@ shown gets `autofocus`, so Enter after a number leads to the next day. `core.Led
 Corrections of the time account (`POST /book/correction`, `/corrections/{id}/remove`) are for whoever may change the
 employer's settings (`core.MayChangeSettings`). Everything else of a mode stays on `/week`.
 
+`/weeks` lists every week with the same template (`list-week` in `layout.html`), the newest at the bottom. `app.js`
+scrolls it to the bottom and, when the link at the top comes into view, fetches the eight weeks before
+(`part=1` answers only the part, `weeks-part`) and puts them above, keeping the view where it was; the link itself
+opens the page from an older week on. Each week's form returns to its own week (`from=…#week-…`).
+
+A day of a week handed in shows as text. A day of an approved week keeps its field where the organization approves
+weeks: what is typed there goes, with the reason the week's footer asks for, into a change request (a correction
+with `Proposal`; an open one takes further days in). The row shows the approved value and the value asked for; the
+organization's page lists the days asked for. Approving it books the values in the administrator's name
+(`applyChange`), hands the period in anew approved by the same decision, and logs the change in the member's access
+log; a rejection changes nothing.
+
 ## Company features, access log, pay
 
 - Approval (`approval.go`): when an organization switches it on, a member hands in a week with a tap; leave (and

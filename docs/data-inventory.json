@@ -745,6 +745,10 @@
         {
           "name": "reason",
           "purpose": "Reason of the decision; always given for a rejection."
+        },
+        {
+          "name": "proposal",
+          "purpose": "The values a change request asks the days of an approved period to hold: hours or an absence, and a note."
         }
       ]
     },

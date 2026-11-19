@@ -42,10 +42,11 @@ type listData struct {
 	Corrections []core.Adjustment
 }
 
-// listWeekView hands a week and its list to the template of a week.
+// listWeekView hands a week to the template of a week.
 type listWeekView struct {
-	Week listWeek
-	List listData
+	Week       listWeek
+	EmployerID string
+	HasAccount bool
 }
 
 var days31 = func() []int {
@@ -60,7 +61,12 @@ type listWeek struct {
 	core.LedgerWeek
 	Number int // the ISO week
 	Rows   []listRow
+	// Locked: handed in and waiting for a decision; nothing changes.
 	Locked bool
+	// Approved: approved by the organization; a change becomes a change request, Requested while one is open.
+	Approved, Requested bool
+	// Back is where the week's form returns to.
+	Back string
 }
 
 type listRow struct {
@@ -80,6 +86,9 @@ type listRow struct {
 	// Fixed: the day cannot be typed over in the row (handed in, or an absence of several days or of every employer).
 	Fixed bool
 	Focus bool
+	// Proposed is what an open change request asks the day to hold.
+	Proposed    string
+	HasProposal bool
 }
 
 type gapView struct {
@@ -192,52 +201,11 @@ func (h *handler) listOf(r *http.Request, cat core.Catalog, emp core.Employer) (
 	if err != nil {
 		return d, err
 	}
-	codes := h.dayCodes(r, cat, emp, data)
-	manual, notes := manualDays(data, emp.ID)
-	focused := false
-	for i, wk := range weeks {
-		_, number := toTime(wk.From).ISOWeek()
-		lw := listWeek{LedgerWeek: wk, Number: number}
-		for _, day := range wk.Days {
-			row := listRow{Date: day.Date, Day: day, Weekday: int(day.Date.Weekday()), IsToday: day.Date == today,
-				Counted: !day.Date.After(today), Weekend: day.Date.Weekday() == time.Saturday || day.Date.Weekday() == time.Sunday}
-			if day.HasTarget {
-				d.HasTarget = true
-			}
-			c := codes[day.Date]
-			row.Code = c.text
-			row.Note = notes[day.Date]
-			switch {
-			case cat.SubmittedLocked(emp.ID, day.Date):
-				row.Fixed, lw.Locked = true, true
-				row.Value = h.dayText(r, manual[day.Date], c)
-			case c.fixed:
-				row.Fixed = true
-				row.Value = c.text
-			case manual[day.Date] > 0:
-				row.Value = hoursText(h.lang(r), manual[day.Date])
-			case c.replaceable:
-				row.Value = c.text
-				row.Note = c.note
-			}
-			if row.Value == "" && day.Actual > 0 {
-				row.Placeholder = hoursText(h.lang(r), day.Actual)
-			} else if row.Value == "" && c.text != "" {
-				row.Placeholder = c.text
-			}
-			working := day.Target > 0 || (!day.HasTarget && !row.Weekend)
-			if i == len(weeks)-1 && !focused && working && !row.Fixed && row.Value == "" && day.Holiday == "" && day.Actual == 0 {
-				row.Focus, focused = true, true
-			}
-			lw.Rows = append(lw.Rows, row)
-		}
-		d.Weeks = append(d.Weeks, lw)
-	}
-
 	_, approval, err := h.approvalOrg(ctx, emp)
 	if err != nil {
 		return d, err
 	}
+	d.Weeks, d.HasTarget = h.listWeeks(r, cat, emp, data, weeks, today, approval, true, func(core.Date) string { return d.Back })
 	gaps, err := core.WeekGaps(data, emp.ID, start, gapsFrom, today, approval)
 	if err != nil {
 		return d, err
@@ -258,10 +226,89 @@ func (h *handler) listOf(r *http.Request, cat core.Catalog, emp core.Employer) (
 		}
 		d.HasLeave = d.Leave.Entitlement > 0 || d.Leave.Taken > 0
 	}
-	if d.Month, d.Year, err = h.grids(r, data, emp, codes, gridYear, anchor, today); err != nil {
+	if d.Month, d.Year, err = h.grids(r, data, emp, h.dayCodes(r, cat, emp, data), gridYear, anchor, today); err != nil {
 		return d, err
 	}
 	return d, nil
+}
+
+// listWeeks turns the weeks of a ledger into the weeks of a list: a row per day with what its field holds. A day of a
+// week handed in shows as text; a day of an approved week, where the organization approves weeks, keeps its field,
+// and a change becomes a change request. focus gives the first empty working day of the last week the focus; back is
+// where each week's form returns to.
+func (h *handler) listWeeks(r *http.Request, cat core.Catalog, emp core.Employer, data core.Data, weeks []core.LedgerWeek,
+	today core.Date, approval, focus bool, back func(core.Date) string) ([]listWeek, bool) {
+	lang := h.lang(r)
+	codes := h.dayCodes(r, cat, emp, data)
+	manual, notes := manualDays(data, emp.ID)
+	types := cat.AbsenceTypesFor(emp.ID)
+	focused, hasTarget := !focus, false
+	var out []listWeek
+	for i, wk := range weeks {
+		_, number := toTime(wk.From).ISOWeek()
+		lw := listWeek{LedgerWeek: wk, Number: number, Back: back(wk.From)}
+		for _, day := range wk.Days {
+			row := listRow{Date: day.Date, Day: day, Weekday: int(day.Date.Weekday()), IsToday: day.Date == today,
+				Counted: !day.Date.After(today), Weekend: day.Date.Weekday() == time.Saturday || day.Date.Weekday() == time.Sunday}
+			if day.HasTarget {
+				hasTarget = true
+			}
+			c := codes[day.Date]
+			row.Code = c.text
+			row.Note = notes[day.Date]
+			period, inPeriod := cat.PeriodAt(emp.ID, day.Date)
+			changeable := inPeriod && approval && period.Status == core.SubmissionApproved
+			switch {
+			case inPeriod && !changeable:
+				row.Fixed, lw.Locked = true, true
+				row.Value = h.dayText(r, manual[day.Date], c)
+			case c.fixed:
+				row.Fixed = true
+				row.Value = c.text
+			case manual[day.Date] > 0:
+				row.Value = hoursText(lang, manual[day.Date])
+			case c.replaceable:
+				row.Value = c.text
+				row.Note = c.note
+			}
+			if changeable {
+				lw.Approved = true
+				if request, open := cat.OpenCorrection(period.ID); open {
+					lw.Requested = true
+					for _, p := range request.Proposal {
+						if p.Date == day.Date {
+							row.Proposed, row.HasProposal = h.proposedText(r, types, p), true
+						}
+					}
+				}
+			}
+			if row.Value == "" && day.Actual > 0 {
+				row.Placeholder = hoursText(lang, day.Actual)
+			} else if row.Value == "" && c.text != "" {
+				row.Placeholder = c.text
+			}
+			working := day.Target > 0 || (!day.HasTarget && !row.Weekend)
+			if i == len(weeks)-1 && !focused && working && !row.Fixed && !changeable && row.Value == "" && day.Holiday == "" && day.Actual == 0 {
+				row.Focus, focused = true, true
+			}
+			lw.Rows = append(lw.Rows, row)
+		}
+		out = append(out, lw)
+	}
+	return out, hasTarget
+}
+
+// proposedText is what a change request asks a day to hold, as the list writes it.
+func (h *handler) proposedText(r *http.Request, types []core.AbsenceType, p core.ProposedDay) string {
+	switch {
+	case p.Absence != "" && p.HalfDay:
+		return "½" + h.absenceCode(r, types, p.Absence)
+	case p.Absence != "":
+		return h.absenceCode(r, types, p.Absence)
+	case p.Minutes > 0:
+		return hoursText(h.lang(r), p.Minutes)
+	}
+	return "–"
 }
 
 // dayText is what a handed-in day shows instead of its field.
@@ -476,6 +523,9 @@ func (h *handler) listDays(w http.ResponseWriter, r *http.Request) {
 		h.back(w, r, err, "")
 		return
 	}
+	// Days of an approved week become a change request per period; every other day is booked at once.
+	proposals := map[string][]core.ProposedDay{}
+	var periods []core.Submission
 	for key, values := range r.PostForm {
 		raw, found := strings.CutPrefix(key, "v-")
 		if !found || len(values) != 1 {
@@ -498,19 +548,128 @@ func (h *handler) listDays(w http.ResponseWriter, r *http.Request) {
 			h.message(w, r, http.StatusBadRequest, h.t(r, "track.error.title"), h.t(r, "list.error.note"))
 			return
 		}
-		if err := h.setDay(r, cat, emp, date, parsed, note); err != nil {
+		if period, ok := cat.PeriodAt(emp.ID, date); ok && period.Status == core.SubmissionApproved {
+			if _, seen := proposals[period.ID]; !seen {
+				periods = append(periods, period)
+			}
+			proposals[period.ID] = append(proposals[period.ID], parsed.proposed(date, note))
+			continue
+		}
+		if err := h.setDay(r, cat, emp, date, parsed, note, "", false); err != nil {
 			h.back(w, r, err, "")
 			return
 		}
 	}
-	h.back(w, r, nil, "saved")
+	if len(periods) == 0 {
+		h.back(w, r, nil, "saved")
+		return
+	}
+	reason := strings.TrimSpace(r.PostFormValue("reason"))
+	if reason == "" {
+		h.message(w, r, http.StatusBadRequest, h.t(r, "track.error.title"), h.t(r, "list.error.reason"))
+		return
+	}
+	for _, period := range periods {
+		if err := h.requestChange(r, cat, emp, period, proposals[period.ID], reason); err != nil {
+			h.back(w, r, err, "")
+			return
+		}
+	}
+	h.back(w, r, nil, "requested")
 }
 
-// setDay makes a day hold what its row says (the store refuses a day handed in for approval): the hours as the one manual entry of the day, or the code as an absence
-// of the day alone; whatever the row booked before and no longer says goes, through the history.
-func (h *handler) setDay(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, v dayValue, note string) error {
+// proposed is the value of a row as a change request asks for it.
+func (v dayValue) proposed(date core.Date, note string) core.ProposedDay {
+	p := core.ProposedDay{Date: date, Minutes: v.minutes, Note: note}
+	if v.code != nil {
+		p = core.ProposedDay{Date: date, Absence: v.code.Absence, HalfDay: v.code.HalfDay, Note: note}
+	}
+	return p
+}
+
+// requestChange asks the organization to change days of an approved period (a correction with the proposed values,
+// core.Submit). An open change request of the period takes the new days in, a day asked for again its new value.
+// The approved values count until the organization decides.
+func (h *handler) requestChange(r *http.Request, cat core.Catalog, emp core.Employer, period core.Submission, days []core.ProposedDay,
+	reason string) error {
 	ctx := r.Context()
-	owner := accountFrom(ctx).ID
+	org, on, err := h.approvalOrg(ctx, emp)
+	if err != nil {
+		return err
+	}
+	if !on {
+		return core.ErrLocked
+	}
+	if open, ok := cat.OpenCorrection(period.ID); ok {
+		merged := open.Proposal
+		for _, d := range days {
+			replaced := false
+			for i := range merged {
+				if merged[i].Date == d.Date {
+					merged[i], replaced = d, true
+				}
+			}
+			if !replaced {
+				merged = append(merged, d)
+			}
+		}
+		slices.SortFunc(merged, func(a, b core.ProposedDay) int { return a.Date.Compare(b.Date) })
+		open.Proposal, open.Note, open.SubmittedAt = merged, reason, h.now().UTC()
+		if err := open.Validate(); err != nil {
+			return err
+		}
+		return h.options.Store.Put(ctx, open)
+	}
+	slices.SortFunc(days, func(a, b core.ProposedDay) int { return a.Date.Compare(b.Date) })
+	s, err := core.Submit(org, core.Data{Catalog: cat}, core.SubmitRequest{Kind: core.SubmitCorrection, EmployerID: emp.ID,
+		Supersedes: period.ID, Note: reason, Proposal: days, At: h.now()})
+	if err != nil {
+		return err
+	}
+	return h.options.Store.Put(ctx, s)
+}
+
+// applyChange books the values of an approved change request on the member's days and approves the period again as
+// corrected, in the name of the administrator who decided; the member's access log shows the change.
+func (h *handler) applyChange(r *http.Request, org core.Organization, actor core.Actor, emp core.Employer, c core.Submission) error {
+	ctx := r.Context()
+	data, err := h.options.Store.Managed(ctx, org.ID, c.From, c.To)
+	if err != nil {
+		return err
+	}
+	for _, p := range c.Proposal {
+		v := dayValue{minutes: p.Minutes}
+		if p.Absence != "" {
+			v = dayValue{code: &core.DayCode{Absence: p.Absence, HalfDay: p.HalfDay}}
+		}
+		if err := h.setDay(r, data.Catalog, emp, p.Date, v, p.Note, "change request "+c.ID, true); err != nil {
+			return err
+		}
+	}
+	if data, err = h.options.Store.Managed(ctx, org.ID, c.From, c.To); err != nil {
+		return err
+	}
+	s, err := core.Submit(org, data, core.SubmitRequest{Kind: core.SubmitPeriod, EmployerID: emp.ID, From: c.From, To: c.To,
+		Note: c.Note, At: h.now()})
+	if err != nil {
+		return err
+	}
+	if s, err = core.Decide(s, emp, actor, true, "", h.now()); err != nil {
+		return err
+	}
+	if err := h.options.Store.Put(ctx, s); err != nil {
+		return err
+	}
+	return h.logAccess(ctx, actor.Person, org.ID, emp.Owner, emp.ID, core.AccessChange, "change request applied", c.From, c.To)
+}
+
+// setDay makes a day hold what its row says (the store refuses a day handed in for approval): the hours as the one
+// manual entry of the day, or the code as an absence of the day alone; whatever the row booked before and no longer
+// says goes, through the history. direct books an absence as approved without asking (an approved change request).
+func (h *handler) setDay(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, v dayValue, note, reason string,
+	direct bool) error {
+	ctx := r.Context()
+	owner := emp.Owner
 	entries, err := h.options.Store.Entries(ctx, core.EntryFilter{Owner: owner, EmployerID: emp.ID, From: date, To: date})
 	if err != nil {
 		return err
@@ -529,13 +688,13 @@ func (h *handler) setDay(r *http.Request, cat core.Catalog, emp core.Employer, d
 			keep = a.ID
 			if a.Note != note && !healthType(cat, emp, a.Type) {
 				a.Note = note
-				if _, err := h.options.Store.UpdateAbsence(ctx, a, change(r, "")); err != nil {
+				if _, err := h.options.Store.UpdateAbsence(ctx, a, change(r, reason)); err != nil {
 					return err
 				}
 			}
 			continue
 		}
-		if err := h.options.Store.DeleteAbsence(ctx, owner, a.ID, a.Version, change(r, "")); err != nil {
+		if err := h.options.Store.DeleteAbsence(ctx, owner, a.ID, a.Version, change(r, reason)); err != nil {
 			return err
 		}
 	}
@@ -543,7 +702,7 @@ func (h *handler) setDay(r *http.Request, cat core.Catalog, emp core.Employer, d
 	if v.code != nil {
 		minutes = 0
 	}
-	if err := h.setManualDay(r, cat, emp, date, entries, minutes, note); err != nil {
+	if err := h.setManualDay(r, cat, emp, date, entries, minutes, note, reason); err != nil {
 		return err
 	}
 	if v.code == nil || keep != "" {
@@ -552,6 +711,11 @@ func (h *handler) setDay(r *http.Request, cat core.Catalog, emp core.Employer, d
 	a := core.Absence{Owner: owner, EmployerID: emp.ID, Type: v.code.Absence, From: date, To: date, HalfDay: v.code.HalfDay}
 	if !healthType(cat, emp, a.Type) {
 		a.Note = note
+	}
+	if direct {
+		a.Status = core.StatusApproved
+		_, err := h.options.Store.CreateAbsence(ctx, a, change(r, reason))
+		return err
 	}
 	return h.createAbsence(r, cat, emp, a)
 }
@@ -567,21 +731,21 @@ func healthType(cat core.Catalog, emp core.Employer, key string) bool {
 
 // setManualDay keeps one manual entry for the day with the minutes and the note; zero removes it.
 func (h *handler) setManualDay(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, entries []core.Entry, minutes int,
-	note string) error {
+	note, reason string) error {
 	ctx := r.Context()
 	for _, e := range entries {
 		if !isManualDay(e, emp.ID) {
 			continue
 		}
 		if minutes == 0 {
-			if err := h.options.Store.DeleteEntry(ctx, e.Owner, e.ID, e.Version, change(r, "")); err != nil {
+			if err := h.options.Store.DeleteEntry(ctx, e.Owner, e.ID, e.Version, change(r, reason)); err != nil {
 				return err
 			}
 			continue
 		}
 		if e.Minutes != minutes || e.Note != note {
 			e.Minutes, e.Note = minutes, note
-			if _, err := h.options.Store.UpdateEntry(ctx, e, change(r, "")); err != nil {
+			if _, err := h.options.Store.UpdateEntry(ctx, e, change(r, reason)); err != nil {
 				return err
 			}
 		}
@@ -592,7 +756,7 @@ func (h *handler) setManualDay(r *http.Request, cat core.Catalog, emp core.Emplo
 	}
 	loc, _ := emp.Location()
 	return h.book(r, cat, []core.Entry{{Owner: emp.Owner, EmployerID: emp.ID, Kind: core.EntryWork, Date: date, TimeZone: loc.String(),
-		Minutes: minutes, Precision: core.PrecisionDay, Source: core.SourceManual, Note: note}}, "")
+		Minutes: minutes, Precision: core.PrecisionDay, Source: core.SourceManual, Note: note}}, reason)
 }
 
 // addCorrection books a correction of the time account (a payout, a cap) with its reason, for whoever may change the

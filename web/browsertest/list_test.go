@@ -90,3 +90,120 @@ func TestListNoticesAndOlderWeeks(t *testing.T) {
 	b.shot("list-wide")
 	b.reachable(fmt.Sprintf("list at %v wide", 1280))
 }
+
+// The list of every week opens at the newest week, at the bottom; scrolling up loads the weeks before it until the
+// first week with records, and what was on the screen stays there.
+func TestEveryWeekWhileScrolling(t *testing.T) {
+	b := setup(t)
+	b.signUp("eva", false)
+	b.addEmployer("Office", "schedule", "8")
+	// A day in June makes the first week with records.
+	b.open("/?w=2026-06-01")
+	b.typeInto(`#v-2026-06-02`, "8")
+	b.tap(`[data-week="2026-06-01"] footer button[type=submit]`)
+	b.must(`document.querySelector('#v-2026-06-02')?.value === '8'`, "June has its day")
+	b.settle()
+	b.tap(`[data-all-weeks]`)
+	b.must(`location.pathname === '/weeks' && document.querySelectorAll('[data-week]').length === 8`, "eight weeks at first")
+	b.settle()
+	b.must(`scrollY + innerHeight >= document.documentElement.scrollHeight - 2`, "the page opens at the bottom")
+	b.must(`[...document.querySelectorAll('[data-week]')].at(-1).dataset.week === '2026-11-16'`, "the newest week is the last")
+	for loads := 0; b.eval(`!!document.querySelector('[data-weeks-start]')`) != "true"; loads++ {
+		if loads > 6 {
+			t.Fatal("scrolling up does not reach the first week")
+		}
+		count := b.eval(`document.querySelectorAll('[data-week]').length`)
+		anchor := b.eval(`document.querySelector('[data-week]').dataset.week`)
+		b.eval(`window.scrollTo({top: 0, behavior: 'instant'})`)
+		b.must(`document.querySelectorAll('[data-week]').length > `+count, "older weeks load")
+		// The week that was first is still where the eye left it, not pushed away by what loaded above it.
+		b.must(`Math.abs(document.querySelector('[data-week="`+anchor+`"]').getBoundingClientRect().top) < innerHeight`, "the view stays")
+	}
+	b.must(`document.querySelector('[data-week]').dataset.week === '2026-06-01' && document.querySelectorAll('[data-week]').length === 25`,
+		"every week since June, in order")
+	b.reachable("every week")
+	b.shot("every-week")
+	// A week far up is changed in place and the page returns to it.
+	b.typeInto(`#v-2026-06-03`, "6")
+	b.tap(`[data-week="2026-06-01"] footer button[type=submit]`)
+	b.must(`location.search.includes('from=2026-06-01') && location.hash === '#week-2026-06-01' && document.querySelector('#v-2026-06-03')?.value === '6'`,
+		"the change returns to its week")
+	b.settle()
+}
+
+// On a managed employer a change to an approved week becomes a change request; the approved values count until the
+// administrator approves it, and then the week holds the new values, approved again.
+func TestChangeRequestOnAPhone(t *testing.T) {
+	b := setup(t)
+	b.signUp("tom", false)
+	b.signOut()
+	b.signUp("boss", true)
+	b.open("/orgs")
+	b.typeInto("#org-name", "ACME")
+	b.tap(`form[action="/orgs"] button[type=submit]`)
+	b.must(`location.pathname.startsWith('/orgs/')`, "the organization is founded")
+	b.settle()
+	org := b.eval(`location.pathname`)
+	b.tap(`details:has(form[action$="/member"]) summary`)
+	b.tap(`form[action$="/member"] button[type=submit]`)
+	b.must(`document.querySelectorAll('[data-member]').length === 2`, "the member joins")
+	b.settle()
+	b.tap(`label[for=feature-approval]`)
+	b.typeInto(`#feature-agreement`, "Works agreement 2026, v1")
+	b.tap(`label[for=feature-confirm]`)
+	b.tap(`form[data-features] button[type=submit]`)
+	b.must(`!!document.querySelector('[data-reviews-none]')`, "approval is on")
+	b.settle()
+	b.signOut()
+
+	b.signIn("tom")
+	b.must(`document.querySelectorAll('[data-week]').length === 2`, "tom's start page is the list")
+	b.typeInto(`#v-2026-11-16`, "9")
+	b.tap(`[data-week="2026-11-16"] footer button[type=submit]`)
+	b.must(`document.querySelector('#v-2026-11-16')?.value === '9'`, "Monday is booked")
+	b.settle()
+	b.open("/week")
+	b.tap(`[data-submit-week]`)
+	b.must(`location.search.includes('done=submitted')`, "the week is handed in")
+	b.settle()
+	b.open("/")
+	b.must(`!!document.querySelector('[data-week="2026-11-16"] [data-fixed]') && !document.querySelector('#v-2026-11-16')`, "a week handed in has no fields")
+	b.signOut()
+
+	b.signIn("boss")
+	b.open(org)
+	b.tap(`[data-review] [data-approve]`)
+	b.must(`location.search.includes('done=decided')`, "the week is approved")
+	b.settle()
+	b.signOut()
+
+	b.signIn("tom")
+	b.must(`!!document.querySelector('[data-week="2026-11-16"] [data-approved]') && document.querySelector('#v-2026-11-16')?.value === '9'`,
+		"the approved week can be changed")
+	b.typeInto(`#v-2026-11-16`, "7")
+	b.typeInto(`#reason-2026-11-16`, "Left for the dentist")
+	b.tap(`[data-week="2026-11-16"] [data-request-change]`)
+	b.must(`location.search.includes('done=requested') && !!document.querySelector('[data-week="2026-11-16"] [data-requested]') &&
+		document.querySelector('#v-2026-11-16')?.value === '9' && document.querySelector('[data-day="2026-11-16"] [data-proposed]')?.textContent === '→ 7'`,
+		"the request is marked and the approved value still counts")
+	b.settle()
+	b.reachable("change requested")
+	b.shot("change-requested")
+	b.signOut()
+
+	b.signIn("boss")
+	b.open(org)
+	b.must(`document.querySelector('[data-review] [data-changes]')?.textContent.includes('Mon 11-16: 7')`, "the administrator reads what is asked")
+	b.shot("change-review")
+	b.tap(`[data-review] [data-approve]`)
+	b.must(`location.search.includes('done=decided') && !!document.querySelector('[data-reviews-none]')`, "the change is approved")
+	b.settle()
+	b.signOut()
+
+	b.signIn("tom")
+	b.must(`document.querySelector('#v-2026-11-16')?.value === '7' && !document.querySelector('[data-requested]') && !!document.querySelector('[data-week="2026-11-16"] [data-approved]')`,
+		"the week holds the new value, approved again")
+	b.open("/access")
+	b.must(`!!document.querySelector('[data-access="change"]')`, "the access log shows the change")
+	b.settle()
+}

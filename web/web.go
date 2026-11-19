@@ -142,6 +142,7 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	signedIn := http.NewServeMux()
 	signedIn.HandleFunc("GET /{$}", h.list)
 	signedIn.HandleFunc("GET /week", h.home)
+	signedIn.HandleFunc("GET /weeks", h.allWeeks)
 	signedIn.HandleFunc("POST /book/list", h.listDays)
 	signedIn.HandleFunc("POST /book/correction", h.addCorrection)
 	signedIn.HandleFunc("POST /corrections/{id}/remove", h.removeCorrection)
@@ -223,12 +224,14 @@ func (h *handler) parseTemplates() error {
 			"dec":             func(minutes int) string { return hoursText(lang, minutes) },
 			"sdec":            func(minutes int) string { return signedDecimal(lang, minutes) },
 			"dayPattern":      func() string { return dayPattern },
-			"listWeekOf":      func(w listWeek, d listData) listWeekView { return listWeekView{Week: w, List: d} },
-			"monthNumber":     func(m time.Month) int { return int(m) },
-			"weekdayOf":       func(d core.Date) int { return int(d.Weekday()) },
-			"days31":          func() []int { return days31 },
-			"short":           func(d core.Date) string { return shortDate(lang, d) },
-			"clock":           clockText,
+			"listWeekOf": func(w listWeek, employerID string, hasAccount bool) listWeekView {
+				return listWeekView{Week: w, EmployerID: employerID, HasAccount: hasAccount}
+			},
+			"monthNumber": func(m time.Month) int { return int(m) },
+			"weekdayOf":   func(d core.Date) int { return int(d.Weekday()) },
+			"days31":      func() []int { return days31 },
+			"short":       func(d core.Date) string { return shortDate(lang, d) },
+			"clock":       clockText,
 			"noticeForm": func(employer, owner, back string, today core.Date) noticeForm {
 				return noticeForm{EmployerID: employer, Owner: owner, Back: back, Today: today}
 			},
