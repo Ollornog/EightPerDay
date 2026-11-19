@@ -207,3 +207,79 @@ func TestChangeRequestOnAPhone(t *testing.T) {
 	b.must(`!!document.querySelector('[data-access="change"]')`, "the access log shows the change")
 	b.settle()
 }
+
+// A craftsman on the phone: eight hours in the list, then the day's clients with their order numbers, and the weekly
+// report to print.
+func TestProjectsAndWeeklyReportOnAPhone(t *testing.T) {
+	b := setup(t)
+	b.signUp("max", false)
+	b.addEmployer("Workshop", "schedule", "8")
+	b.press("8")
+	b.press("Enter")
+	b.must(`document.querySelector('#v-2026-11-16')?.value === '8'`, "Monday has its hours")
+	b.settle()
+	b.tap(`[data-day="2026-11-16"] [data-day-link]`)
+	b.must(`location.pathname === '/day'`, "the day opens")
+	b.settle()
+	b.typeInto(`#pd-project`, "Miller")
+	b.typeInto(`#pd-number`, "A-17")
+	b.typeInto(`#pd-hours`, "6,5")
+	b.tap(`[data-project-day] button[type=submit]`)
+	b.must(`location.search.includes('done=saved') && document.querySelectorAll('[data-booking]').length === 1 &&
+		document.querySelector('[data-day-unbooked]').textContent === '1.5'`, "the client is booked and the rest is open")
+	b.settle()
+	b.reachable("day")
+	b.shot("day")
+	b.tap(`a[aria-label="Back"]`)
+	b.must(`location.pathname === '/' && document.querySelector('[data-day="2026-11-16"] [data-unbooked]')?.textContent === '1.5 open'`,
+		"the list shows what is not booked on projects")
+	b.settle()
+	b.tap(`[data-week="2026-11-16"] [data-week-report]`)
+	b.must(`location.pathname === '/report/week' && document.querySelector('[data-report-project]')?.textContent.includes('Miller · A-17 · 6.5')`,
+		"the weekly report names the client with its number")
+	b.settle()
+	b.reachable("weekly report")
+	b.shot("week-report")
+}
+
+// Two jobs of a season on the phone: hours for each in its list, a tandem flight with its photos booked on the day,
+// and both in one week with what was earned and how it was taken.
+func TestTwoEmployersAndIncomeOnAPhone(t *testing.T) {
+	b := setup(t)
+	b.signUp("sam", false)
+	b.addEmployer("Ski school", "schedule", "")
+	b.typeInto(`#v-2026-11-16`, "6")
+	b.tap(`[data-week="2026-11-16"] footer button[type=submit]`)
+	b.must(`document.querySelector('#v-2026-11-16')?.value === '6'`, "the ski school has its day")
+	b.settle()
+	b.tap(`[data-open-dialog="new-employer"]`)
+	b.typeInto("#new-employer #new-name", "Tandem flights")
+	b.tap("#new-employer label[for=new-mode-schedule]")
+	b.tap("#new-employer form[data-employer-form] button[type=submit]")
+	b.must(`location.search.includes('done=created')`, "the second employer is added")
+	b.settle()
+	b.tap(`[data-day="2026-11-17"] [data-day-link]`)
+	b.must(`location.pathname === '/day' && location.search.includes('d=2026-11-17')`, "Tuesday opens")
+	b.settle()
+	b.typeInto(`#in-amount`, "110")
+	b.typeInto(`#in-client`, "A guest")
+	b.eval(`document.querySelector('#in-paid').value = 'card'`)
+	b.tap(`[data-income-form] button[type=submit]`)
+	b.must(`location.search.includes('done=saved') && document.querySelectorAll('[data-income]').length === 1`, "the flight is booked")
+	b.settle()
+	b.eval(`document.querySelector('#in-kind').value = 'photos'; document.querySelector('#in-paid').value = 'cash'`)
+	b.typeInto(`#in-amount`, "30")
+	b.tap(`[data-income-form] button[type=submit]`)
+	b.must(`document.querySelectorAll('[data-income]').length === 2`, "the photos are booked")
+	b.settle()
+	b.reachable("day with income")
+	b.shot("day-income")
+	b.open("/")
+	b.tap(`[data-all-employers]`)
+	b.must(`location.pathname === '/all' && document.querySelectorAll('[data-column]').length === 2 &&
+		document.querySelector('[data-card]').textContent === '110.00 EUR' && document.querySelector('[data-cash]').textContent === '30.00 EUR'`,
+		"both employers in one week, with what was taken")
+	b.settle()
+	b.reachable("all employers")
+	b.shot("all-employers")
+}

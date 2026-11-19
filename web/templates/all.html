@@ -1,0 +1,42 @@
+{{define "header"}}{{end}}
+{{define "content"}}
+{{$d := .Data}}
+<div class="grid gap-4" data-all>
+  <div class="flex items-center justify-between gap-2">
+    <a class="btn" data-variant="ghost" data-size="sm" href="/all?w={{$d.Prev}}">{{template "icon-left"}}{{t "list.earlier"}}</a>
+    <div class="text-center"><h1 class="font-semibold">{{t "all.heading" $d.Number}}</h1><p class="text-muted-foreground text-xs tabular-nums">{{day $d.Week}} – {{day (addDays $d.Week 6)}}</p></div>
+    <a class="btn" data-variant="ghost" data-size="sm" href="/all?w={{$d.Next}}">{{t "list.later"}}{{template "icon-right"}}</a>
+  </div>
+  <div class="card" data-size="sm">
+    <section>
+      <div class="table-container">
+        <table class="table">
+          <thead><tr><th class="px-1">{{t "list.day"}}</th>{{range $d.Columns}}<th class="px-1 text-end" data-column="{{.Employer.ID}}">{{.Employer.Name}}</th>{{end}}<th class="px-1 text-end">{{t "all.earned"}}</th><th class="px-1">{{t "all.place"}}</th></tr></thead>
+          <tbody>
+            {{range $d.Rows}}
+            <tr data-all-day="{{.Date}}"{{if .IsToday}} aria-current="date"{{end}}>
+              <td class="px-1 tabular-nums"><span class="font-medium">{{t (print "weekday." .Weekday)}}</span><br><span class="text-muted-foreground text-xs">{{short .Date}}</span></td>
+              {{range .Cells}}<td class="px-1 text-end tabular-nums">{{if .Active}}<span data-hours>{{if .Hours}}{{.Hours}}{{else}}{{.Code}}{{end}}</span>{{if .Earned}}<br><span class="text-muted-foreground text-xs">{{money .Earned $d.Currency}}</span>{{end}}{{end}}</td>{{end}}
+              <td class="px-1 text-end tabular-nums" data-day-earned>{{if .Earned}}{{money .Earned $d.Currency}}{{end}}</td>
+              <td class="px-1 text-xs">{{.Place}}{{if .Km}} · {{.Km}} km{{end}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+          <tfoot>
+            <tr><td class="px-1">{{t "list.sum"}}</td>{{range $d.Columns}}<td class="px-1 text-end tabular-nums">{{dec .Minutes}}<br><span class="text-xs">{{money .Earned $d.Currency}}</span></td>{{end}}<td class="px-1 text-end tabular-nums" data-week-earned>{{money $d.Earned $d.Currency}}</td><td></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+  </div>
+  <!-- C22 block data-entry/stat-row -->
+  <div class="card" data-size="sm">
+    <section class="grid grid-cols-3 gap-2 text-center">
+      <div><p class="text-muted-foreground text-xs">{{t "all.average"}}</p><p class="font-semibold tabular-nums" data-average>{{money $d.Average $d.Currency}}</p></div>
+      <div><p class="text-muted-foreground text-xs">{{t "all.cash"}}</p><p class="font-semibold tabular-nums" data-cash>{{money $d.Cash $d.Currency}}</p></div>
+      <div><p class="text-muted-foreground text-xs">{{t "all.card"}}</p><p class="font-semibold tabular-nums" data-card>{{money $d.Card $d.Currency}}</p></div>
+    </section>
+    <footer><p class="text-muted-foreground text-xs">{{t "all.hint"}}</p></footer>
+  </div>
+</div>
+{{end}}

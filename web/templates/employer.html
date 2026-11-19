@@ -120,6 +120,9 @@
           <div class="field" role="group"><label for="pay-unit">{{t "employer.pay.unit"}}</label>
             <select class="select w-full" id="pay-unit" name="unit"><option value="">–</option><option value="day">{{t "unit.day"}}</option><option value="assignment">{{t "unit.assignment"}}</option><option value="week">{{t "unit.week"}}</option><option value="month">{{t "unit.month"}}</option><option value="year">{{t "unit.year"}}</option></select>
             <p class="text-muted-foreground text-xs">{{t "employer.pay.unit.hint"}}</p></div>
+          <div class="field" role="group"><label for="pay-salaries">{{t "employer.pay.salaries"}}</label>
+            <select class="select w-full" id="pay-salaries" name="salaries"><option value="">12</option><option value="13">13</option><option value="14">14</option></select>
+            <p class="text-muted-foreground text-xs">{{t "employer.pay.salaries.hint"}}</p></div>
           {{template "project-select" (projectChoice "pay-project" $d.Projects)}}
           <div class="field" role="group"><label for="pay-from">{{t "employer.validfrom"}}</label><input class="input" type="date" id="pay-from" name="from" value="{{$d.Today}}" required></div>
           <button type="submit" class="btn">{{t "employer.pay.save"}}</button>

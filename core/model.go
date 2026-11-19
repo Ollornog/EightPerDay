@@ -192,6 +192,9 @@ type PayRule struct {
 	Currency   string   `json:"currency"`
 	// Unit: for per_assignment "day" (default) or "assignment"; for flat_period "week", "month" (default) or "year".
 	Unit string `json:"unit,omitempty"`
+	// Salaries is the number of monthly salaries a year of a monthly flat_period rule (13 or 14 with extra month pay,
+	// spread over the year); 0 means 12.
+	Salaries int `json:"salaries,omitempty"`
 }
 
 // Client is a customer below an employer or client.
@@ -205,11 +208,13 @@ type Client struct {
 
 // Project groups entries. CompletedOn triggers a per_project pay rule.
 type Project struct {
-	ID          string `json:"id"`
-	Owner       string `json:"owner"`
-	EmployerID  string `json:"employer_id,omitempty"`
-	ClientID    string `json:"client_id,omitempty"`
-	Name        string `json:"name"`
+	ID         string `json:"id"`
+	Owner      string `json:"owner"`
+	EmployerID string `json:"employer_id,omitempty"`
+	ClientID   string `json:"client_id,omitempty"`
+	Name       string `json:"name"`
+	// Number is the order or job number the work is reported under, such as on a craftsman's weekly report.
+	Number      string `json:"number,omitempty"`
 	Billable    bool   `json:"billable,omitempty"`
 	CompletedOn Date   `json:"completed_on,omitempty"`
 	// TargetMinutes per TargetPeriod (week, month) is an optional goal, mostly for ModeProjectsOnly.
@@ -648,6 +653,9 @@ func (p PayRule) Validate() error {
 		if p.Unit != "" && p.Unit != UnitWeek && p.Unit != UnitMonth && p.Unit != UnitYear {
 			return invalid("flat_period unit %q", p.Unit)
 		}
+		if p.Salaries != 0 && (p.Salaries < 12 || p.Salaries > 15 || (p.Unit != "" && p.Unit != UnitMonth)) {
+			return invalid("%d salaries a year", p.Salaries)
+		}
 	default:
 		return invalid("pay basis %q", p.Basis)
 	}
@@ -678,6 +686,9 @@ func (p Project) Validate() error {
 	}
 	if p.TargetMinutes < 0 {
 		return invalid("negative project target")
+	}
+	if len(p.Number) > 100 {
+		return invalid("order number longer than 100 characters")
 	}
 	switch p.TargetPeriod {
 	case "", UnitDay, UnitWeek, UnitMonth, UnitYear:

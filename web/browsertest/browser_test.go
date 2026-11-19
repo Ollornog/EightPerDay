@@ -427,14 +427,18 @@ func (b *browser) phone(width, height int) {
 	b.call("Emulation.setEmulatedMedia", map[string]any{"features": []map[string]string{{"name": "hover", "value": "none"}, {"name": "pointer", "value": "coarse"}}}, nil)
 }
 
-type box struct{ X, Y, Left, Right, Top, Bottom, Width, Height float64 }
+// box is where an element is: X and Y its middle in the layout viewport (as elementFromPoint reads it), TX and TY the
+// same point for a touch, which lands relative to the visual viewport. They differ when the visual viewport moved,
+// for example after the on-screen keyboard of a dialog pushed it up.
+type box struct{ X, Y, TX, TY, Left, Right, Top, Bottom, Width, Height float64 }
 
 // rect scrolls an element into view, as a thumb would, and returns where it is on the screen.
 func (b *browser) rect(selector string) box {
 	b.t.Helper()
 	b.must(`!!document.querySelector(`+strconv.Quote(selector)+`)`, "no element "+selector)
 	raw := b.eval(`JSON.stringify((() => { const e = document.querySelector(` + strconv.Quote(selector) + `); e.scrollIntoView({block: 'center', behavior: 'instant'}); const r = e.getBoundingClientRect();
-		return {X: r.left + r.width / 2, Y: r.top + r.height / 2, Left: r.left, Right: r.right, Top: r.top, Bottom: r.bottom, Width: r.width, Height: r.height}; })())`)
+		const v = window.visualViewport || {offsetLeft: 0, offsetTop: 0};
+		return {X: r.left + r.width / 2, Y: r.top + r.height / 2, TX: r.left + r.width / 2 - v.offsetLeft, TY: r.top + r.height / 2 - v.offsetTop, Left: r.left, Right: r.right, Top: r.top, Bottom: r.bottom, Width: r.width, Height: r.height}; })())`)
 	var r box
 	if err := json.Unmarshal([]byte(raw), &r); err != nil {
 		b.t.Fatalf("%s: %s", selector, raw)
@@ -469,7 +473,7 @@ func (b *browser) tap(selector string) {
 				b.eval(fmt.Sprintf(`document.elementFromPoint(%f, %f)?.outerHTML.slice(0, 160)`, r.X, r.Y)))
 		}
 	}
-	b.call("Input.dispatchTouchEvent", map[string]any{"type": "touchStart", "touchPoints": []map[string]any{{"x": r.X, "y": r.Y}}}, nil)
+	b.call("Input.dispatchTouchEvent", map[string]any{"type": "touchStart", "touchPoints": []map[string]any{{"x": r.TX, "y": r.TY}}}, nil)
 	time.Sleep(60 * time.Millisecond)
 	b.call("Input.dispatchTouchEvent", map[string]any{"type": "touchEnd", "touchPoints": []map[string]any{}}, nil)
 }

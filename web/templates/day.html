@@ -1,0 +1,99 @@
+{{define "header"}}{{end}}
+{{define "content"}}
+{{$d := .Data}}
+<div class="grid gap-4">
+  <div class="flex items-center gap-2">
+    <a class="btn" data-variant="ghost" data-size="icon-sm" href="{{$d.List}}" aria-label="{{t "action.back"}}">{{template "icon-left"}}</a>
+    <h1 class="font-semibold">{{t (print "weekday." $d.Weekday)}} {{day $d.Date}} · {{$d.Employer.Name}}</h1>
+  </div>
+  <!-- C22 block data-entry/stat-row -->
+  <div class="card" data-size="sm" data-day-summary>
+    <section class="grid grid-cols-3 gap-2 text-center">
+      <div><p class="text-muted-foreground text-xs">{{t "day.typed"}}</p><p class="font-semibold tabular-nums" data-typed>{{if $d.Typed}}{{dec $d.Typed}}{{else}}–{{end}}</p></div>
+      <div><p class="text-muted-foreground text-xs">{{t "day.worked"}}</p><p class="font-semibold tabular-nums" data-worked>{{dec $d.Day.Worked}}</p></div>
+      <div><p class="text-muted-foreground text-xs">{{t "day.unbooked"}}</p><p class="font-semibold tabular-nums" data-day-unbooked>{{dec $d.Day.Unbooked}}</p></div>
+    </section>
+    <footer><p class="text-muted-foreground text-xs">{{if $d.Typed}}{{t "day.lead.typed"}}{{else}}{{t "day.lead.projects"}}{{end}}</p></footer>
+  </div>
+
+  <div class="card" data-size="sm">
+    <header><h2 class="card-title">{{t "day.bookings"}}</h2></header>
+    <section class="grid gap-2">
+      {{range $d.Bookings}}
+      <div class="flex items-center gap-2 text-sm" data-booking>
+        <span class="min-w-0 flex-1">{{.Project}}{{if .Number}} · <span class="tabular-nums">{{.Number}}</span>{{end}}{{if .Note}} · {{.Note}}{{end}}</span>
+        <span class="font-semibold tabular-nums">{{dec .Minutes}}</span>
+        {{if not $d.Locked}}<form method="post" action="/entries/{{.ID}}/remove" data-confirm="{{t "entry.remove.confirm"}}">
+          <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$d.Back}}">
+          <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
+        </form>{{end}}
+      </div>
+      {{else}}
+      <p class="text-muted-foreground text-sm">{{t "day.none"}}</p>
+      {{end}}
+    </section>
+  </div>
+
+  <div class="card" data-size="sm" data-incomes>
+    <header><h2 class="card-title">{{t "day.incomes"}}</h2><p class="card-description">{{t "day.incomes.lead"}}</p></header>
+    <section class="grid gap-3">
+      {{range $d.Incomes}}
+      <div class="flex items-center gap-2 text-sm" data-income>
+        <span class="min-w-0 flex-1">{{t (print "income." .Kind)}}{{if .Client}} · {{.Client}}{{end}}{{if .PaidBy}} · {{t (print "paidby." .PaidBy)}}{{end}}{{if .Note}} · {{.Note}}{{end}}</span>
+        <span class="font-semibold tabular-nums">{{money .Amount .Currency}}</span>
+        <form method="post" action="/incomes/{{.ID}}/remove" data-confirm="{{t "day.income.remove"}}"><input type="hidden" name="back" value="{{$d.Back}}">
+          <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>
+      </div>
+      {{end}}
+      <form method="post" action="/book/income" class="grid gap-2" data-income-form>
+        <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{$d.Date}}">
+        <div class="grid grid-cols-2 gap-2">
+          <div class="field" role="group"><label for="in-kind">{{t "day.income.kind"}}</label>
+            <select class="select w-full" id="in-kind" name="kind">{{range $d.IncomeKinds}}<option value="{{.}}">{{t (print "income." .)}}</option>{{end}}</select></div>
+          <div class="field" role="group"><label for="in-amount">{{t "day.income.amount"}} ({{$d.Currency}})</label><input class="input tabular-nums" id="in-amount" name="amount" inputmode="decimal" required autocomplete="off"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="field" role="group"><label for="in-client">{{t "day.income.client"}}</label><input class="input" id="in-client" name="client" maxlength="200" autocomplete="off"></div>
+          <div class="field" role="group"><label for="in-paid">{{t "day.income.paidby"}}</label>
+            <select class="select w-full" id="in-paid" name="paid_by"><option value="">–</option><option value="cash">{{t "paidby.cash"}}</option><option value="card">{{t "paidby.card"}}</option><option value="transfer">{{t "paidby.transfer"}}</option></select></div>
+        </div>
+        <button type="submit" class="btn" data-variant="outline">{{template "icon-plus"}}{{t "day.income.add"}}</button>
+      </form>
+    </section>
+  </div>
+
+  <details class="card" data-size="sm" data-day-info{{if or $d.Info.Place $d.Info.KmTotal $d.Info.StandbyPassive $d.Info.StandbyActive}} open{{end}}>
+    <summary><h3>{{t "day.info"}}</h3></summary>
+    <section>
+      <form method="post" action="/book/dayinfo" class="grid gap-2">
+        <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{$d.Date}}">
+        <div class="field" role="group"><label for="di-place">{{t "day.info.place"}}</label><input class="input" id="di-place" name="place" value="{{$d.Info.Place}}" maxlength="200" autocomplete="off"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="field" role="group"><label for="di-km1">{{t "day.info.kmoneway"}}</label><input class="input tabular-nums" id="di-km1" name="km_one_way" value="{{$d.KmOneWay}}" inputmode="decimal" autocomplete="off"></div>
+          <div class="field" role="group"><label for="di-km">{{t "day.info.kmtotal"}}</label><input class="input tabular-nums" id="di-km" name="km_total" value="{{$d.KmTotal}}" inputmode="decimal" autocomplete="off"></div>
+          <div class="field" role="group"><label for="di-sp">{{t "day.info.standby.passive"}}</label><input class="input tabular-nums" id="di-sp" name="standby_passive" value="{{if $d.Info.StandbyPassive}}{{dec $d.Info.StandbyPassive}}{{end}}" pattern="{{durationPattern}}" inputmode="decimal" autocomplete="off"></div>
+          <div class="field" role="group"><label for="di-sa">{{t "day.info.standby.active"}}</label><input class="input tabular-nums" id="di-sa" name="standby_active" value="{{if $d.Info.StandbyActive}}{{dec $d.Info.StandbyActive}}{{end}}" pattern="{{durationPattern}}" inputmode="decimal" autocomplete="off"></div>
+        </div>
+        <button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button>
+      </form>
+    </section>
+  </details>
+
+  {{if not $d.Locked}}
+  <form method="post" action="/book/project-day" class="card" data-size="sm" data-project-day>
+    <header><h2 class="card-title">{{t "day.add"}}</h2></header>
+    <section class="grid gap-2">
+      <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{$d.Date}}">
+      <div class="field" role="group"><label for="pd-project">{{t "day.project"}}</label><input class="input" id="pd-project" name="project" list="pd-projects" maxlength="200" required autocomplete="off"></div>
+      <datalist id="pd-projects">{{range $d.Projects}}<option value="{{.Name}}">{{.Number}}</option>{{end}}</datalist>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="field" role="group"><label for="pd-number">{{t "day.number"}}</label><input class="input tabular-nums" id="pd-number" name="number" maxlength="100" autocomplete="off"></div>
+        <div class="field" role="group"><label for="pd-hours">{{t "list.hours"}}</label><input class="input tabular-nums" id="pd-hours" name="hours" pattern="{{durationPattern}}" inputmode="decimal" required autocomplete="off"></div>
+      </div>
+      <div class="field" role="group"><label for="pd-note">{{t "entry.note"}}</label><input class="input" id="pd-note" name="note" maxlength="200" autocomplete="off"></div>
+      <button type="submit" class="btn">{{template "icon-plus"}}{{t "day.submit"}}</button>
+    </section>
+  </form>
+  {{end}}
+</div>
+{{end}}

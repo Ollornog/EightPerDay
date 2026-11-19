@@ -371,3 +371,34 @@ func TestDaysErrors(t *testing.T) {
 		t.Fatalf("no schedule: %+v", got[0])
 	}
 }
+
+// The hours typed for a day hold its bookings on projects: what they leave is not booked on any; without typed hours
+// the projects make the day, and a free-text line still adds to them.
+func TestDayTotalHoldsProjects(t *testing.T) {
+	on := func(e Entry, project string) Entry { e.ProjectID = project; return e }
+	parsed := work("2026-03-05", 120)
+	parsed.Source = SourceParse
+	data := Data{Catalog: Catalog{Employers: []Employer{employerOf(ModeSchedule, "")},
+		Schedules: []Schedule{week("s", "2026-01-01", 480, 480, 480, 480, 480, 0, 0)}},
+		Entries: []Entry{
+			work("2026-03-02", 480), on(work("2026-03-02", 180), "p1"), on(work("2026-03-02", 120), "p2"),
+			work("2026-03-03", 240), on(work("2026-03-03", 300), "p1"),
+			on(work("2026-03-04", 180), "p1"),
+			parsed, on(work("2026-03-05", 180), "p2"),
+		}}
+	days := mustDays(t, data, "2026-03-02", "2026-03-05")
+	for i, want := range []struct{ worked, unbooked int }{{480, 180}, {300, 0}, {180, 0}, {300, 0}} {
+		if days[i].Worked != want.worked || days[i].Unbooked != want.unbooked {
+			t.Errorf("%s: worked %d unbooked %d, want %d %d", days[i].Date, days[i].Worked, days[i].Unbooked, want.worked, want.unbooked)
+		}
+	}
+	if days[0].Projects["p1"] != 180 || days[0].Projects["p2"] != 120 {
+		t.Errorf("projects %v", days[0].Projects)
+	}
+	if total := Sum(days); total.Unbooked != 180 || total.Worked != 1260 {
+		t.Errorf("total %+v", total)
+	}
+	if !DayTotal(work("2026-03-02", 1)) || DayTotal(parsed) || DayTotal(on(work("2026-03-02", 1), "p1")) {
+		t.Error("DayTotal")
+	}
+}

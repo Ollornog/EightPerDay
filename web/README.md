@@ -64,6 +64,21 @@ organization that approves leave gets a request at once. Marked days with only f
 absence. On the organization's page a leave request names the other members away on its days (`core.Overlaps` on
 the data read for the reviews, leave types only).
 
+## Projects of a day, weekly report
+
+A row's weekday links to the day (`day.go`, `/day`): its bookings on projects or clients with order numbers, a form
+to book more (`POST /book/project-day`; a project is found by name and number, or made), and what the typed hours
+leave unbooked. The list shows that rest per day and week. `/report/week` renders a week to print (`view.Print`: no
+header, tab bar or footer, the page inside C22's `print-sheet`), with a button that calls the browser's print.
+
+## All employers, income, details of a day
+
+`/all` (`all.go`) shows a week of every employer: a column per employer active in the week, a cell only on its
+active days (hours, a code or an income), the earnings of each day (`core.ComputeEarnings` per employer and day, in
+the currency of the first employer's pay), the week's sum, the average working day and what was taken in cash or by
+card. The day page books incomes (`POST /book/income`, `/incomes/{id}/remove`) and the details of the day
+(`POST /book/dayinfo`; all fields empty removes them).
+
 ## Company features, access log, pay
 
 - Approval (`approval.go`): when an organization switches it on, a member hands in a week with a tap; leave (and

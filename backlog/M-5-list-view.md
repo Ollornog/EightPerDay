@@ -2,7 +2,7 @@
 id: M-5
 type: Milestone
 title: "List view and leave planning: a start page that gives an overview"
-status: in-arbeit
+status: erledigt
 tags: [ui, simplicity, leave]
 created: 2026-11-19
 ---
@@ -40,4 +40,4 @@ list of days and weeks, the way people keep their hours in a spreadsheet; everyt
 - An optional estimate of pay: a yearly or monthly salary or an hourly rate, with 13th and 14th month pay.
 
 Tasks: [T-6](T-6-list-and-codes.md), [T-9](T-9-endless-list-and-change-requests.md),
-[T-7](T-7-projects-report-employers.md), [T-8](T-8-leave-planning.md).
+[T-7](T-7-projects-report-employers.md), [T-8](T-8-leave-planning.md), [T-10](T-10-employers-in-one-list.md).

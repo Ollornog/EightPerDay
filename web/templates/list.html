@@ -44,6 +44,7 @@
     <a class="btn" data-variant="ghost" data-size="sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Prev}}" data-older>{{template "icon-left"}}{{t "list.earlier"}}</a>
     {{if not $d.ThisWeek}}<a class="btn" data-variant="ghost" data-size="sm" href="/?e={{$d.Employer.ID}}" data-today>{{t "list.today"}}</a>{{end}}
     <a class="btn" data-variant="ghost" data-size="sm" href="/weeks?e={{$d.Employer.ID}}" data-all-weeks>{{t "weeks.link"}}</a>
+    {{if gt (len $d.Employers) 1}}<a class="btn" data-variant="ghost" data-size="sm" href="/all" data-all-employers>{{t "all.link"}}</a>{{end}}
     <a class="btn" data-variant="ghost" data-size="sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Next}}" data-newer>{{t "list.later"}}{{template "icon-right"}}</a>
   </div>
 

@@ -1,0 +1,37 @@
+{{define "header"}}{{end}}
+{{define "content"}}
+{{$d := .Data}}{{$w := $d.Week}}
+<div class="grid gap-4" data-week-report>
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <a class="btn" data-variant="outline" data-size="sm" href="{{$d.Back}}">{{template "icon-left"}}{{t "action.back"}}</a>
+    <button type="button" class="btn" data-size="sm" data-print>{{t "report.week.print"}}</button>
+  </div>
+  <header class="grid gap-1">
+    <h1 class="text-xl font-semibold">{{t "report.week.heading" $w.Number}}</h1>
+    <p class="text-sm tabular-nums">{{day $w.From}} – {{day $w.To}} · {{$d.Employer.Name}}{{if $d.Org}} ({{$d.Org}}){{end}} · {{$d.Person}}</p>
+  </header>
+  <table class="table">
+    <thead><tr><th>{{t "list.day"}}</th><th>{{t "report.week.projects"}}</th><th class="text-end">{{t "list.hours"}}</th></tr></thead>
+    <tbody>
+      {{range $d.Days}}
+      <tr data-report-day="{{.Date}}">
+        <td class="align-top tabular-nums"><span class="font-medium">{{t (print "weekday." .Weekday)}}</span> {{day .Date}}{{if .Code}} · {{.Code}}{{end}}{{if .Holiday}} · {{.Holiday}}{{end}}</td>
+        <td class="align-top">{{range .Projects}}<div class="tabular-nums" data-report-project>{{.Name}}{{if .Number}} · {{.Number}}{{end}} · {{dec .Minutes}}</div>{{end}}{{if .Unbooked}}<div class="text-xs" data-report-unbooked>{{t "list.unbooked" (dec .Unbooked)}}</div>{{end}}</td>
+        <td class="align-top text-end tabular-nums">{{if .Actual}}{{dec .Actual}}{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="2">{{t "list.sum"}}</td><td class="text-end tabular-nums" data-report-sum>{{dec $w.Total.Actual}}</td></tr>
+      <tr><td colspan="2">{{t "list.target"}}</td><td class="text-end tabular-nums">{{dec $w.Total.AdjustedTarget}}</td></tr>
+      <tr><td colspan="2">{{t "list.diff"}}</td><td class="text-end tabular-nums" data-report-diff>{{sdec $w.Total.Balance}}</td></tr>
+      {{if $d.HasAccount}}
+      <tr><td colspan="2">{{t "list.carry"}}</td><td class="text-end tabular-nums" data-report-carry>{{sdec $w.CarryOver}}</td></tr>
+      {{range $w.Corrections}}<tr><td colspan="2">{{t "list.correction"}} {{day .Date}}: {{.Reason}}</td><td class="text-end tabular-nums">{{sdec .Minutes}}</td></tr>{{end}}
+      <tr><td colspan="2">{{t "list.balance"}}</td><td class="text-end tabular-nums" data-report-balance>{{sdec $w.Balance}}</td></tr>
+      {{end}}
+    </tfoot>
+  </table>
+  <p class="text-xs">{{t "report.week.printed" $d.Printed}}</p>
+</div>
+{{end}}

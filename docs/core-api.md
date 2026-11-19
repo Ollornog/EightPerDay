@@ -65,6 +65,11 @@ below the state's and every holiday of the state, plus or minus those days; the 
 
 `HolidayRule.Except` takes a day away from a part; `AddHolidayRule` adds parts of one's own.
 
+Hours typed for a day (`DayTotal`: work by the day, by hand, without span or project) hold the bookings on projects
+of the same day by the day: the day counts the larger of both, and `Day.Unbooked` (summed in `Total.Unbooked`) is
+what the projects leave of the typed hours. Without typed hours the bookings on projects make the day; a free-text
+line or a span still adds. `Project.Number` holds an order or job number.
+
 Night shifts: `Employer.DaySplit` says which day a span past midnight counts for, for target, balance, earnings
 and the overview: `start_day` (the default, the whole span on the day it starts) or `midnight` (each day its part,
 with the real length on daylight saving nights: 22:00 to 06:00 is 9 hours in late October, 7 in late March). Keeping
@@ -83,6 +88,17 @@ by basis and reason:
   an own full holiday), and on the `overtime` of each period of the overtime basis. Night adds up with Sunday and
   holiday; on a Sunday that is a holiday, a holiday surcharge replaces the Sunday one. A minute counts by its own clock
   time, whatever day its entry counts for. The base is the minute's hourly rate, or `BaseAmount` for salaried staff.
+
+Income and the details of a day, two catalog kinds per employer and day:
+
+- `Income` (kind `income`): money earned beyond the pay rules: the amount of a job with its client (a flight, a
+  lesson), commission, photos, tips (`IncomeKind`), and how it was taken (`PaidBy`: cash, card, transfer).
+  `ComputeEarnings` lists incomes as lines of the basis `income` with the kind as reason, and `Earnings.Taken` sums
+  them by how they were taken.
+- `DayInfo` (kind `day_info`, ID `DayInfoID(employer, day)`): place of work, kilometres one way and in all (tenths),
+  standby passive and active (minutes).
+- `PayRule.Salaries`: a monthly `flat_period` rule with 13 or 14 salaries a year pays the extra months spread over
+  the year (0 means 12).
 
 Pay: `ApplyRate` stores the rate as a snapshot on an entry, `Revalue` lists entries whose snapshot differs from the
 current rule (store them with `UpdateEntry` to re-value on purpose).
