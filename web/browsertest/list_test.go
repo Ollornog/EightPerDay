@@ -207,3 +207,37 @@ func TestChangeRequestOnAPhone(t *testing.T) {
 	b.must(`!!document.querySelector('[data-access="change"]')`, "the access log shows the change")
 	b.settle()
 }
+
+// A craftsman on the phone: eight hours in the list, then the day's clients with their order numbers, and the weekly
+// report to print.
+func TestProjectsAndWeeklyReportOnAPhone(t *testing.T) {
+	b := setup(t)
+	b.signUp("max", false)
+	b.addEmployer("Workshop", "schedule", "8")
+	b.press("8")
+	b.press("Enter")
+	b.must(`document.querySelector('#v-2026-11-16')?.value === '8'`, "Monday has its hours")
+	b.settle()
+	b.tap(`[data-day="2026-11-16"] [data-day-link]`)
+	b.must(`location.pathname === '/day'`, "the day opens")
+	b.settle()
+	b.typeInto(`#pd-project`, "Miller")
+	b.typeInto(`#pd-number`, "A-17")
+	b.typeInto(`#pd-hours`, "6,5")
+	b.tap(`[data-project-day] button[type=submit]`)
+	b.must(`location.search.includes('done=saved') && document.querySelectorAll('[data-booking]').length === 1 &&
+		document.querySelector('[data-day-unbooked]').textContent === '1.5'`, "the client is booked and the rest is open")
+	b.settle()
+	b.reachable("day")
+	b.shot("day")
+	b.tap(`a[aria-label="Back"]`)
+	b.must(`location.pathname === '/' && document.querySelector('[data-day="2026-11-16"] [data-unbooked]')?.textContent === '1.5 open'`,
+		"the list shows what is not booked on projects")
+	b.settle()
+	b.tap(`[data-week="2026-11-16"] [data-week-report]`)
+	b.must(`location.pathname === '/report/week' && document.querySelector('[data-report-project]')?.textContent.includes('Miller · A-17 · 6.5')`,
+		"the weekly report names the client with its number")
+	b.settle()
+	b.reachable("weekly report")
+	b.shot("week-report")
+}

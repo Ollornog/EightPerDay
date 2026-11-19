@@ -205,11 +205,13 @@ type Client struct {
 
 // Project groups entries. CompletedOn triggers a per_project pay rule.
 type Project struct {
-	ID          string `json:"id"`
-	Owner       string `json:"owner"`
-	EmployerID  string `json:"employer_id,omitempty"`
-	ClientID    string `json:"client_id,omitempty"`
-	Name        string `json:"name"`
+	ID         string `json:"id"`
+	Owner      string `json:"owner"`
+	EmployerID string `json:"employer_id,omitempty"`
+	ClientID   string `json:"client_id,omitempty"`
+	Name       string `json:"name"`
+	// Number is the order or job number the work is reported under, such as on a craftsman's weekly report.
+	Number      string `json:"number,omitempty"`
 	Billable    bool   `json:"billable,omitempty"`
 	CompletedOn Date   `json:"completed_on,omitempty"`
 	// TargetMinutes per TargetPeriod (week, month) is an optional goal, mostly for ModeProjectsOnly.
@@ -678,6 +680,9 @@ func (p Project) Validate() error {
 	}
 	if p.TargetMinutes < 0 {
 		return invalid("negative project target")
+	}
+	if len(p.Number) > 100 {
+		return invalid("order number longer than 100 characters")
 	}
 	switch p.TargetPeriod {
 	case "", UnitDay, UnitWeek, UnitMonth, UnitYear:

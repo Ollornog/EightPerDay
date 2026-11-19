@@ -14,6 +14,11 @@
   <script defer src="/assets/app/app.js?v={{.Version}}"></script>
 </head>
 <body class="min-h-svh bg-background text-foreground" data-text-confirm="{{t "dialog.confirm"}}" data-text-cancel="{{t "dialog.cancel"}}">
+  {{if .Print}}
+  <main class="print-sheet mx-auto w-full max-w-3xl px-4 py-6">
+    {{block "content" .}}{{end}}
+  </main>
+  {{else}}
   <header class="sticky top-0 z-10 border-b bg-card">
     {{if .Wide}}<div class="mx-auto flex w-full max-w-5xl items-center gap-2 px-4 py-2">{{else}}<div class="mx-auto flex w-full max-w-3xl items-center gap-2 px-4 py-2">{{end}}
       <a href="/" class="flex shrink-0 items-center gap-2 font-bold"><img src="/assets/logo.png" alt="" class="size-6"><span>EightPerDay</span></a>
@@ -52,6 +57,7 @@
   {{end}}
   {{if .Account}}
   <nav class="tab-bar" aria-label="{{t "nav.label"}}">{{template "tablinks" .}}</nav>
+  {{end}}
   {{end}}
   {{template "about-dialog" .}}
   <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-dialog-title">
@@ -106,7 +112,7 @@
 <form method="post" action="/book/list" class="card" data-size="sm" id="week-{{$w.From}}" data-week="{{$w.From}}">
   <header>
     <h2 class="card-title">{{t "gap.week" $w.Number}}</h2>
-    <p class="card-description tabular-nums">{{short $w.From}} – {{short $w.To}}{{if $w.Locked}} · {{t "approval.locked"}}{{end}}</p>
+    <p class="card-description tabular-nums">{{short $w.From}} – {{short $w.To}}{{if $w.Locked}} · {{t "approval.locked"}}{{end}} · <a class="underline underline-offset-4" href="/report/week?e={{.EmployerID}}&amp;w={{$w.From}}" data-week-report>{{t "report.week.link"}}</a></p>
     {{if $w.Approved}}<div class="flex flex-wrap gap-2"><span class="badge" data-variant="secondary" data-approved>{{template "icon-check-small"}}{{t "list.approved"}}</span>{{if $w.Requested}}<span class="badge" data-variant="outline" data-requested>{{t "list.requested"}}</span>{{end}}</div>{{end}}
   </header>
   <section>
@@ -117,7 +123,7 @@
         <tbody>
           {{range $w.Rows}}
           <tr data-day="{{.Date}}"{{if .IsToday}} aria-current="date"{{end}}>
-            <td class="px-1 tabular-nums"><span class="font-medium">{{t (print "weekday." .Weekday)}}</span>{{if .Day.Holiday}} <abbr title="{{.Day.Holiday}}">{{t "code.public"}}</abbr>{{end}}<br><span class="text-muted-foreground text-xs">{{short .Date}}</span></td>
+            <td class="px-1 tabular-nums"><a class="font-medium underline underline-offset-4" href="/day?e={{$.EmployerID}}&amp;d={{.Date}}" data-day-link>{{t (print "weekday." .Weekday)}}</a>{{if .Day.Holiday}} <abbr title="{{.Day.Holiday}}">{{t "code.public"}}</abbr>{{end}}<br><span class="text-muted-foreground text-xs">{{short .Date}}</span>{{if .Day.Unbooked}}<br><span class="text-xs" data-unbooked>{{t "list.unbooked.short" (dec .Day.Unbooked)}}</span>{{end}}</td>
             <td class="px-1">{{if .Fixed}}<span class="tabular-nums" data-fixed>{{.Value}}</span>{{else}}
               <input type="hidden" name="was-{{.Date}}" value="{{.Value}}">
               <input class="input w-14 tabular-nums" id="v-{{.Date}}" name="v-{{.Date}}" value="{{.Value}}" placeholder="{{.Placeholder}}" pattern="{{dayPattern}}" autocomplete="off" autocapitalize="characters" aria-label="{{t "list.hours.of" (t (print "weekday." .Weekday)) (short .Date)}}"{{if .Focus}} autofocus data-focus{{end}}>{{if .HasProposal}}<br><span class="badge" data-variant="outline" data-proposed>→ {{.Proposed}}</span>{{end}}{{end}}</td>
@@ -131,6 +137,7 @@
         </tbody>
         <tfoot>
           <tr data-week-total><td class="px-1">{{t "list.sum"}}</td><td class="px-1 tabular-nums" data-week-sum>{{dec $w.Total.Actual}}</td><td class="text-end tabular-nums">{{dec $w.Total.AdjustedTarget}}</td><td class="text-end tabular-nums" data-week-diff>{{sdec $w.Total.Balance}}</td><td></td></tr>
+          {{if $w.Total.Unbooked}}<tr><td colspan="5" class="px-1 text-xs" data-week-unbooked>{{t "list.unbooked" (dec $w.Total.Unbooked)}}</td></tr>{{end}}
           {{range $w.Corrections}}<tr data-correction><td colspan="3" class="text-xs">{{t "list.correction"}} {{short .Date}}: {{.Reason}}</td><td class="text-end tabular-nums">{{sdec .Minutes}}</td><td></td></tr>{{end}}
           {{if .HasAccount}}<tr><td colspan="2" class="tabular-nums" data-carry>{{t "list.carry"}} {{sdec $w.CarryOver}}</td><td colspan="3" class="text-end tabular-nums" data-week-balance>{{t "list.balance"}} {{sdec $w.Balance}}</td></tr>{{end}}
         </tfoot>

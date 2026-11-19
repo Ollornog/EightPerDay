@@ -334,8 +334,7 @@ func manualDays(data core.Data, employerID string) (map[core.Date]int, map[core.
 }
 
 func isManualDay(e core.Entry, employerID string) bool {
-	return e.EmployerID == employerID && e.DeletedAt == nil && e.Kind == core.EntryWork && e.Precision == core.PrecisionDay &&
-		e.Source == core.SourceManual && e.Start == nil && e.ProjectID == ""
+	return e.EmployerID == employerID && e.DeletedAt == nil && core.DayTotal(e)
 }
 
 // dayCode is the short code of a day: what it shows, and whether the row may replace it.

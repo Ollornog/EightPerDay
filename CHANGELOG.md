@@ -8,6 +8,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- Projects per day and the weekly report (M-5, T-7): a page per day (`/day`, from the list) books hours on projects
+  or clients with an order number (`Project.Number`). Hours typed in the list hold these bookings and the list shows
+  what is not booked on projects, per day and week; without typed hours the bookings make the day (`core.DayTotal`,
+  `Day.Unbooked`). The weekly report (`/report/week`) lists the clients per day with their numbers, the sums,
+  carry-over and balance, and prints or saves as a PDF.
 - The list of every week (M-5, T-9, `/weeks`): the newest week at the bottom, the weeks before it load while
   scrolling up, back to the first week with records; without JavaScript a link does the same.
 - Change requests: on a managed employer whose organization approves weeks, a change typed into an approved week in

@@ -142,6 +142,9 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	signedIn := http.NewServeMux()
 	signedIn.HandleFunc("GET /{$}", h.list)
 	signedIn.HandleFunc("GET /week", h.home)
+	signedIn.HandleFunc("GET /day", h.dayPage)
+	signedIn.HandleFunc("POST /book/project-day", h.bookProjectDay)
+	signedIn.HandleFunc("GET /report/week", h.weekReport)
 	signedIn.HandleFunc("GET /weeks", h.allWeeks)
 	signedIn.HandleFunc("GET /leave", h.leavePage)
 	signedIn.HandleFunc("POST /leave/plan", h.planLeave)
@@ -273,6 +276,7 @@ type view struct {
 	Data      any
 	Narrow    bool // a page with one small card, such as the sign-in
 	Wide      bool // a page with columns side by side, such as the list
+	Print     bool // a page to print: no header, tab bar or footer
 	Languages []string
 }
 

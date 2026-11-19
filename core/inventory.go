@@ -104,6 +104,7 @@ var inventory = []struct {
 	{Project{}, RecProject, "A project that bookings belong to.", holderOfEmployer, "", deletedWithEmployer,
 		map[string]string{
 			"client_id":      "The client of the project.",
+			"number":         "Order or job number the work is reported under.",
 			"billable":       "Whether its time is billed.",
 			"completed_on":   "Day of completion; triggers a pay rule per project.",
 			"target_minutes": "Optional goal of minutes per target_period.",

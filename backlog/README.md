@@ -11,7 +11,7 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[M-2](M-2-standalone-binary.md)** The standalone program with a small web interface — noch keine Aufgaben
 * ☐ **[M-3](M-3-embedding.md)** Embedding: another application runs the core in its own database — 4/4 erledigt
 * ☐ **[M-4](M-4-first-release.md)** The first release — 0/1 erledigt
-* ◐ **[M-5](M-5-list-view.md)** List view and leave planning: a start page that gives an overview — 3/4 erledigt
+* ◐ **[M-5](M-5-list-view.md)** List view and leave planning: a start page that gives an overview — 4/5 erledigt
 
 ## Aufgaben
 
@@ -21,9 +21,10 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[T-4](T-4-loose-ends.md)** Loose ends: first link, region names, reviews, reads once a day, reminders, legal templates, leave notices · M-3
 * ☐ **[T-5](T-5-container-image.md)** Publish the container image · M-4
 * ☑ **[T-6](T-6-list-and-codes.md)** The list as the start page: hours per row, short codes, running balance, corrections · M-5
-* ☐ **[T-7](T-7-projects-report-employers.md)** Projects per day, the weekly report and several employers in one list · M-5
+* ☑ **[T-7](T-7-projects-report-employers.md)** Projects per day and the printable weekly report · M-5
 * ☑ **[T-8](T-8-leave-planning.md)** Leave planning in the year's grid · M-5
 * ☑ **[T-9](T-9-endless-list-and-change-requests.md)** The whole period as an endless list; change requests on approved weeks · M-5
+* ☐ **[T-10](T-10-employers-in-one-list.md)** Several employers in one list, with their pay, extras, kilometres and standby · M-5
 
 ## Entscheidungen (ADR)
 

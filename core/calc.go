@@ -38,6 +38,14 @@ type Day struct {
 	Absences []string `json:"absences,omitempty"`
 	// Projects holds the booked minutes per project ID ("" for none), work minus nothing.
 	Projects map[string]int `json:"projects,omitempty"`
+	// Unbooked is the part of the hours typed for the day (DayTotal) that no booking on a project of the day takes.
+	Unbooked int `json:"unbooked,omitempty"`
+}
+
+// DayTotal reports whether an entry is the hours typed for a whole day: work by the day, by hand, without a span and
+// without a project. Bookings on projects of the same day by the day count inside it instead of on top of it.
+func DayTotal(e Entry) bool {
+	return e.Kind == EntryWork && e.Precision == PrecisionDay && e.Source == SourceManual && e.Start == nil && e.ProjectID == ""
 }
 
 // employerView bundles what the day calculation of one employer needs, sorted once.
@@ -195,22 +203,38 @@ func (v *employerView) day(d Date) Day {
 	mode := v.modeAt(d)
 	out := Day{Date: d, EmployerID: v.emp.ID, Mode: mode, HasTarget: mode.HasTarget()}
 
-	var work, breaks, adjust int
-	booked := false
+	var work, breaks, adjust, total, onProjects int
+	booked, typed := false, false
 	for _, e := range v.entries[d] {
 		switch e.Kind {
 		case EntryWork:
-			work += e.Minutes
 			booked = true
 			if out.Projects == nil {
 				out.Projects = map[string]int{}
 			}
 			out.Projects[e.ProjectID] += e.Minutes
+			switch {
+			case DayTotal(e):
+				total += e.Minutes
+				typed = true
+			case e.Precision == PrecisionDay && e.ProjectID != "" && e.Start == nil:
+				onProjects += e.Minutes
+			default:
+				work += e.Minutes
+			}
 		case EntryBreak:
 			breaks += e.Minutes
 		case EntryAdjust:
 			adjust += e.Minutes
 		}
+	}
+	// The hours typed for a day hold its hours on projects: the larger of both counts, and what the projects leave of
+	// the typed hours is not booked on any. Without typed hours the projects make the day.
+	if typed {
+		work += max(total, onProjects)
+		out.Unbooked = max(0, total-onProjects)
+	} else {
+		work += onProjects
 	}
 	out.Breaks = breaks
 
@@ -290,6 +314,7 @@ type Total struct {
 	Balance        int            `json:"balance"`
 	Days           int            `json:"days"`
 	Projects       map[string]int `json:"projects,omitempty"`
+	Unbooked       int            `json:"unbooked,omitempty"`
 }
 
 func (t *Total) add(d Day) {
@@ -306,6 +331,7 @@ func (t *Total) add(d Day) {
 	t.Breaks += d.Breaks
 	t.Credited += d.Credited
 	t.Actual += d.Actual
+	t.Unbooked += d.Unbooked
 	if d.HasTarget {
 		t.Balance += d.Balance
 	}

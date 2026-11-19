@@ -251,6 +251,11 @@
     setInterval(tick, 15000);
   }
 
+  // ---- A page to print, such as the weekly report: the browser's print, which also saves a PDF.
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("[data-print]")) window.print();
+  });
+
   // ---- The list of every week: it opens at the newest week, at the bottom, and the weeks before load while
   // scrolling up. The page's own link at the top does the same without JavaScript.
   if (document.querySelector("[data-endless]")) {

@@ -65,6 +65,11 @@ below the state's and every holiday of the state, plus or minus those days; the 
 
 `HolidayRule.Except` takes a day away from a part; `AddHolidayRule` adds parts of one's own.
 
+Hours typed for a day (`DayTotal`: work by the day, by hand, without span or project) hold the bookings on projects
+of the same day by the day: the day counts the larger of both, and `Day.Unbooked` (summed in `Total.Unbooked`) is
+what the projects leave of the typed hours. Without typed hours the bookings on projects make the day; a free-text
+line or a span still adds. `Project.Number` holds an order or job number.
+
 Night shifts: `Employer.DaySplit` says which day a span past midnight counts for, for target, balance, earnings
 and the overview: `start_day` (the default, the whole span on the day it starts) or `midnight` (each day its part,
 with the real length on daylight saving nights: 22:00 to 06:00 is 9 hours in late October, 7 in late March). Keeping

@@ -234,6 +234,10 @@
           "purpose": "Name shown to the person."
         },
         {
+          "name": "number",
+          "purpose": "Order or job number the work is reported under."
+        },
+        {
           "name": "billable",
           "purpose": "Whether its time is billed."
         },
