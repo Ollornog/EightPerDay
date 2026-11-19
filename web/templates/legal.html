@@ -11,7 +11,7 @@
     <section class="grid gap-2">
       <p class="text-muted-foreground text-sm">{{t (print .Key ".lead")}}</p>
       <pre class="code-block max-h-96" data-wrap><code>{{.Text}}</code></pre>
-      <div><a class="btn" data-variant="outline" data-size="sm" href="/legal/{{.Name}}" download>{{t "legal.download"}} ({{.Name}})</a></div>
+      <div><a class="btn" data-variant="outline" data-size="sm" href="{{base}}/legal/{{.Name}}" download>{{t "legal.download"}} ({{.Name}})</a></div>
     </section>
   </details>
   {{end}}
@@ -19,7 +19,7 @@
     <summary><h3>{{t "legal.inventory"}}</h3></summary>
     <section class="grid gap-3">
       <p class="text-muted-foreground text-sm">{{t "legal.inventory.lead"}}</p>
-      <div><a class="btn" data-variant="outline" data-size="sm" href="/legal/data-inventory.json" download>{{t "legal.download"}} (data-inventory.json)</a></div>
+      <div><a class="btn" data-variant="outline" data-size="sm" href="{{base}}/legal/data-inventory.json" download>{{t "legal.download"}} (data-inventory.json)</a></div>
       <ul class="grid gap-3 text-sm">
         {{range $d.Inventory}}
         <li class="grid gap-0.5 border-b pb-2" data-kind="{{.Name}}">

@@ -71,6 +71,10 @@ type Options struct {
 	// AccessLog records what an organization reads and changes of a person's data, for the person to see. Nil: the
 	// store's own, which both stores of the core library have.
 	AccessLog core.AccessLog
+	// Timers keep the running stopwatches. Nil: Auth for the standalone program, the store's own when embedded.
+	Timers core.Stopwatches
+	// Embedding runs the interface inside another application (see Embedding). Nil: the standalone program, with Auth.
+	Embedding *Embedding
 	// Now replaces the clock in tests.
 	Now func() time.Time
 }
@@ -85,8 +89,33 @@ type handler struct {
 
 // New returns the complete handler with logging and security headers.
 func New(log *slog.Logger, options Options) (http.Handler, error) {
-	if options.Auth == nil || options.Origin == nil || options.Store == nil {
-		return nil, errors.New("web: Auth, Origin and Store are required")
+	if options.Store == nil {
+		return nil, errors.New("web: Store is required")
+	}
+	if e := options.Embedding; e != nil {
+		if e.Account == nil || e.Directory == nil {
+			return nil, errors.New("web: an embedding needs Account and Directory")
+		}
+		if e.Base != "" && (!strings.HasPrefix(e.Base, "/") || strings.HasSuffix(e.Base, "/") || strings.ContainsAny(e.Base, "?#\\ \"'<>")) {
+			return nil, errors.New("web: the base of an embedding is a path such as /time, without a slash at its end")
+		}
+		if options.Gate != nil {
+			return nil, errors.New("web: an embedding signs in through the application, not through a gate")
+		}
+	} else if options.Auth == nil || options.Origin == nil {
+		return nil, errors.New("web: Auth and Origin are required")
+	}
+	if options.Timers == nil {
+		switch {
+		case options.Embedding == nil:
+			options.Timers = options.Auth
+		default:
+			timers, ok := options.Store.(core.Stopwatches)
+			if !ok {
+				return nil, errors.New("web: the store keeps no stopwatches; pass Options.Timers")
+			}
+			options.Timers = timers
+		}
 	}
 	if options.AccessLog == nil {
 		log, ok := options.Store.(core.AccessLog)
@@ -117,27 +146,32 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", staticAssets(h.assetVersion, http.FileServerFS(static))))
 	mux.HandleFunc("GET /assets/logo.png", serveBytes("image/png", assets.Logo))
 	mux.HandleFunc("GET /favicon.ico", serveBytes("image/png", assets.Logo))
-	mux.HandleFunc("GET /manifest.webmanifest", h.manifest)
-	mux.HandleFunc("GET /sw.js", h.serviceWorker)
+	if !h.embedded() {
+		mux.HandleFunc("GET /manifest.webmanifest", h.manifest)
+		mux.HandleFunc("GET /sw.js", h.serviceWorker)
+	}
 	mux.HandleFunc("GET /about", h.about)
 	mux.HandleFunc("GET /licenses", h.licenses)
 	mux.HandleFunc("GET /legal", h.legalPage)
 	mux.HandleFunc("GET /legal/{name}", h.legalDownload)
 	mux.HandleFunc("POST /language", h.setLanguage)
 
-	mux.HandleFunc("GET /login", h.loginPage)
-	mux.HandleFunc("POST /login", h.loginPassword)
-	mux.HandleFunc("GET /login/code", h.secondFactorPage)
-	mux.HandleFunc("POST /login/code", h.secondFactor)
-	mux.HandleFunc("POST /login/passkey/begin", h.loginPasskeyBegin)
-	mux.HandleFunc("POST /login/passkey/finish", h.loginPasskeyFinish)
-	mux.HandleFunc("POST /logout", h.logout)
+	// The program's own sign-in; an embedding application signs people in itself.
+	if !h.embedded() {
+		mux.HandleFunc("GET /login", h.loginPage)
+		mux.HandleFunc("POST /login", h.loginPassword)
+		mux.HandleFunc("GET /login/code", h.secondFactorPage)
+		mux.HandleFunc("POST /login/code", h.secondFactor)
+		mux.HandleFunc("POST /login/passkey/begin", h.loginPasskeyBegin)
+		mux.HandleFunc("POST /login/passkey/finish", h.loginPasskeyFinish)
+		mux.HandleFunc("POST /logout", h.logout)
 
-	mux.HandleFunc("GET /setup", h.setupPage)
-	mux.HandleFunc("POST /setup", h.setupPassword)
-	mux.HandleFunc("POST /setup/code", h.setupCode)
-	mux.HandleFunc("POST /setup/passkey/begin", h.setupPasskeyBegin)
-	mux.HandleFunc("POST /setup/passkey/finish", h.setupPasskeyFinish)
+		mux.HandleFunc("GET /setup", h.setupPage)
+		mux.HandleFunc("POST /setup", h.setupPassword)
+		mux.HandleFunc("POST /setup/code", h.setupCode)
+		mux.HandleFunc("POST /setup/passkey/begin", h.setupPasskeyBegin)
+		mux.HandleFunc("POST /setup/passkey/finish", h.setupPasskeyFinish)
+	}
 
 	signedIn := http.NewServeMux()
 	signedIn.HandleFunc("GET /{$}", h.list)
@@ -179,28 +213,32 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	signedIn.HandleFunc("GET /reports", h.reports)
 	signedIn.HandleFunc("GET /export/{format}", h.export)
 	signedIn.HandleFunc("GET /orgs", h.orgsPage)
-	signedIn.HandleFunc("POST /orgs", h.createOrg)
 	signedIn.HandleFunc("GET /orgs/{id}", h.orgPage)
 	signedIn.HandleFunc("POST /orgs/{id}/{action}", h.changeOrg)
-	signedIn.HandleFunc("GET /account", h.accountPage)
-	signedIn.HandleFunc("POST /account/name", h.accountName)
-	signedIn.HandleFunc("POST /account/password", h.accountPassword)
-	signedIn.HandleFunc("POST /account/password/remove", h.accountPasswordRemove)
-	signedIn.HandleFunc("POST /account/totp", h.accountTOTPBegin)
-	signedIn.HandleFunc("POST /account/totp/confirm", h.accountTOTPConfirm)
-	signedIn.HandleFunc("POST /account/totp/remove", h.accountTOTPRemove)
-	signedIn.HandleFunc("POST /account/passkeys/begin", h.accountPasskeyBegin)
-	signedIn.HandleFunc("POST /account/passkeys/finish", h.accountPasskeyFinish)
-	signedIn.HandleFunc("POST /account/passkeys/{id}/rename", h.accountPasskeyRename)
-	signedIn.HandleFunc("POST /account/passkeys/{id}/remove", h.accountPasskeyRemove)
-	signedIn.HandleFunc("POST /account/sessions/end", h.accountEndSessions)
-	signedIn.HandleFunc("GET /admin", h.adminPage)
-	signedIn.HandleFunc("POST /admin/invite", h.adminInvite)
-	signedIn.HandleFunc("POST /admin/accounts/{id}/reset", h.adminReset)
-	signedIn.HandleFunc("POST /admin/accounts/{id}/{change}", h.adminChange)
+	// Accounts and the founding of organizations belong to the standalone program; an embedding application keeps its
+	// own accounts and maps its tenant to an organization.
+	if !h.embedded() {
+		signedIn.HandleFunc("POST /orgs", h.createOrg)
+		signedIn.HandleFunc("GET /account", h.accountPage)
+		signedIn.HandleFunc("POST /account/name", h.accountName)
+		signedIn.HandleFunc("POST /account/password", h.accountPassword)
+		signedIn.HandleFunc("POST /account/password/remove", h.accountPasswordRemove)
+		signedIn.HandleFunc("POST /account/totp", h.accountTOTPBegin)
+		signedIn.HandleFunc("POST /account/totp/confirm", h.accountTOTPConfirm)
+		signedIn.HandleFunc("POST /account/totp/remove", h.accountTOTPRemove)
+		signedIn.HandleFunc("POST /account/passkeys/begin", h.accountPasskeyBegin)
+		signedIn.HandleFunc("POST /account/passkeys/finish", h.accountPasskeyFinish)
+		signedIn.HandleFunc("POST /account/passkeys/{id}/rename", h.accountPasskeyRename)
+		signedIn.HandleFunc("POST /account/passkeys/{id}/remove", h.accountPasskeyRemove)
+		signedIn.HandleFunc("POST /account/sessions/end", h.accountEndSessions)
+		signedIn.HandleFunc("GET /admin", h.adminPage)
+		signedIn.HandleFunc("POST /admin/invite", h.adminInvite)
+		signedIn.HandleFunc("POST /admin/accounts/{id}/reset", h.adminReset)
+		signedIn.HandleFunc("POST /admin/accounts/{id}/{change}", h.adminChange)
+	}
 	signedIn.HandleFunc("/", h.notFound)
 	mux.Handle("/", h.requireAccount(signedIn))
-	return accessLog(log, secure(h.sameOriginForChanges(h.identify(mux)))), nil
+	return accessLog(log, mounted(h.base(), h.secure(h.sameOriginForChanges(h.identify(mux))))), nil
 }
 
 func (h *handler) parseTemplates() error {
@@ -212,6 +250,7 @@ func (h *handler) parseTemplates() error {
 	for _, lang := range languages {
 		base, err := template.New("").Funcs(template.FuncMap{
 			"t":         h.catalog.translator(lang),
+			"base":      h.base,
 			"minutes":   formatMinutes,
 			"dataURL":   dataURL,
 			"money":     func(cents int64, currency string) string { return formatMoney(lang, cents, currency) },
@@ -283,6 +322,10 @@ type view struct {
 	Wide      bool // a page with columns side by side, such as the list
 	Print     bool // a page to print: no header, tab bar or footer
 	Languages []string
+	// Embedded: inside another application, without the program's own sign-in and accounts; ThemeKey is where the
+	// application keeps its theme.
+	Embedded bool
+	ThemeKey string
 }
 
 type contextKey int
@@ -307,6 +350,9 @@ func (h *handler) render(w http.ResponseWriter, r *http.Request, status int, pag
 	v.Path = r.URL.Path
 	v.Gate = h.options.Gate != nil
 	v.Languages = languages
+	if e := h.options.Embedding; e != nil {
+		v.Embedded, v.ThemeKey = true, e.ThemeKey
+	}
 	if v.Notice == "" {
 		v.Notice = h.notice(v.Lang, r.URL.Query().Get("done"))
 	}

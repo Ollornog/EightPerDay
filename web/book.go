@@ -405,7 +405,7 @@ func (h *handler) startTimer(w http.ResponseWriter, r *http.Request) {
 		h.back(w, r, core.ErrNotFound, "")
 		return
 	}
-	err := h.options.Auth.StartTimer(r.Context(), accountFrom(r.Context()).ID, auth.Timer{EmployerID: emp.ID, ProjectID: projectID,
+	err := h.options.Timers.StartTimer(r.Context(), accountFrom(r.Context()).ID, auth.Timer{EmployerID: emp.ID, ProjectID: projectID,
 		Note: strings.TrimSpace(r.PostFormValue("note")), Started: h.now().Truncate(time.Minute)})
 	h.back(w, r, err, "started")
 }
@@ -414,7 +414,7 @@ func (h *handler) startTimer(w http.ResponseWriter, r *http.Request) {
 func (h *handler) stopTimer(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	account := accountFrom(ctx)
-	timer, err := h.options.Auth.RunningTimer(ctx, account.ID)
+	timer, err := h.options.Timers.RunningTimer(ctx, account.ID)
 	if err != nil || timer == nil {
 		h.back(w, r, err, "stopped")
 		return
@@ -441,7 +441,7 @@ func (h *handler) stopTimer(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_, err = h.options.Auth.StopTimer(ctx, account.ID)
+	_, err = h.options.Timers.StopTimer(ctx, account.ID)
 	h.back(w, r, err, "stopped")
 }
 

@@ -231,7 +231,7 @@
           return;
         }
         try {
-          const answer = await fetch("/api/parse?line=" + encodeURIComponent(line), { credentials: "same-origin" });
+          const answer = await fetch(document.body.dataset.base + "/api/parse?line=" + encodeURIComponent(line), { credentials: "same-origin" });
           const data = await answer.json();
           if (mine === asked) preview.textContent = data.error || data.text || "";
         } catch { /* offline: the line is checked when it is sent */ }
@@ -286,7 +286,8 @@
   }
 
   // ---- Installable on a phone: the service worker keeps the assets of this build.
-  if ("serviceWorker" in navigator && window.isSecureContext) {
+  // Not inside another application: the worker's scope would be the application's, not ours.
+  if ("serviceWorker" in navigator && window.isSecureContext && !document.documentElement.hasAttribute("data-embedded")) {
     navigator.serviceWorker.register("/sw.js").catch(() => { /* a browser that refuses still works */ });
   }
 })();

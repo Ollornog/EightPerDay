@@ -207,8 +207,8 @@ func TestEmbeddedMigrationFlow(t *testing.T) {
 	if err := conn.QueryRow(ctx, "SELECT count(*) FROM pg_tables WHERE tablename LIKE 'ud_time_%' AND rowsecurity").Scan(&n); err != nil {
 		t.Fatal(err)
 	}
-	if n != 5 {
-		t.Fatalf("%d tables with row-level security, want 5", n)
+	if n != 6 {
+		t.Fatalf("%d tables with row-level security, want 6", n)
 	}
 	if _, err := conn.Exec(ctx, "SELECT set_config('underdoc.tenant', 'main', false)"); err != nil {
 		t.Fatal(err)

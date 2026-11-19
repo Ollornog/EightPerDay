@@ -3,9 +3,9 @@
 {{$d := .Data}}
 <div class="grid gap-4" data-all>
   <div class="flex items-center justify-between gap-2">
-    <a class="btn" data-variant="ghost" data-size="sm" href="/all?w={{$d.Prev}}">{{template "icon-left"}}{{t "list.earlier"}}</a>
+    <a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/all?w={{$d.Prev}}">{{template "icon-left"}}{{t "list.earlier"}}</a>
     <div class="text-center"><h1 class="font-semibold">{{t "all.heading" $d.Number}}</h1><p class="text-muted-foreground text-xs tabular-nums">{{day $d.Week}} – {{day (addDays $d.Week 6)}}</p></div>
-    <a class="btn" data-variant="ghost" data-size="sm" href="/all?w={{$d.Next}}">{{t "list.later"}}{{template "icon-right"}}</a>
+    <a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/all?w={{$d.Next}}">{{t "list.later"}}{{template "icon-right"}}</a>
   </div>
   <div class="card" data-size="sm">
     <section>

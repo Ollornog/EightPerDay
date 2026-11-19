@@ -76,16 +76,16 @@ func (h *handler) pickEmployer(w http.ResponseWriter, r *http.Request, cat core.
 	}
 	for i := range employers {
 		if employers[i].ID == want {
-			h.rememberEmployer(w, want)
+			h.rememberEmployer(w, r, want)
 			return &employers[i], true
 		}
 	}
 	return &employers[0], true
 }
 
-func (h *handler) rememberEmployer(w http.ResponseWriter, id string) {
-	http.SetCookie(w, &http.Cookie{Name: employerCookie, Value: id, Path: "/", MaxAge: 365 * 24 * 3600, HttpOnly: true,
-		Secure: h.options.Auth.SecureCookies(), SameSite: http.SameSiteLaxMode})
+func (h *handler) rememberEmployer(w http.ResponseWriter, r *http.Request, id string) {
+	http.SetCookie(w, &http.Cookie{Name: employerCookie, Value: id, Path: h.base() + "/", MaxAge: 365 * 24 * 3600, HttpOnly: true,
+		Secure: h.secureCookies(r), SameSite: http.SameSiteLaxMode})
 }
 
 // formEmployer returns the employer a form names, if it is the person's own and may be booked on.

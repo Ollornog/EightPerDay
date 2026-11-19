@@ -3,14 +3,14 @@
 {{$d := .Data}}
 <div class="grid gap-4">
   <div class="flex flex-wrap items-center gap-2">
-    <form method="get" action="/" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
+    <form method="get" action="{{base}}/" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
       <label class="sr-only" for="pick-employer">{{t "home.employer"}}</label>
       <select class="select min-w-0 flex-1" id="pick-employer" name="e">
         {{range $d.Employers}}<option value="{{.ID}}"{{if eq .ID $d.Employer.ID}} selected{{end}}>{{.Name}}</option>{{end}}
       </select>
       <noscript><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "action.show"}}</button></noscript>
     </form>
-    <a href="/employers/{{$d.Employer.ID}}" class="btn" data-variant="outline" data-size="icon-sm" aria-label="{{t "home.settings"}}">{{template "icon-settings"}}</a>
+    <a href="{{base}}/employers/{{$d.Employer.ID}}" class="btn" data-variant="outline" data-size="icon-sm" aria-label="{{t "home.settings"}}">{{template "icon-settings"}}</a>
     <button type="button" class="btn" data-variant="outline" data-size="icon-sm" data-open-dialog="new-employer" aria-label="{{t "home.addemployer"}}">{{template "icon-plus"}}</button>
   </div>
   {{if $d.Org}}<p class="text-muted-foreground text-xs">{{t "home.managed" $d.Org}}</p>{{end}}
@@ -20,7 +20,7 @@
     <section>
       <ul class="grid gap-1">
         {{range $d.Gaps}}
-        <li data-gap="{{.From}}"><a class="underline underline-offset-4" href="/?e={{$d.Employer.ID}}&amp;w={{.From}}#week-{{.From}}">{{t "gap.week" .Number}}</a>:
+        <li data-gap="{{.From}}"><a class="underline underline-offset-4" href="{{base}}/?e={{$d.Employer.ID}}&amp;w={{.From}}#week-{{.From}}">{{t "gap.week" .Number}}</a>:
           {{if .MissingCount}}<span data-gap-missing>{{t "gap.missing" .MissingCount}}</span>{{end}}
           {{if .Unconfirmed}}<span data-gap-unconfirmed>{{t "gap.unconfirmed"}}</span>{{end}}
           {{if .NotSubmitted}}<span data-gap-unsubmitted>{{t "gap.notsubmitted"}}</span>{{end}}</li>
@@ -41,11 +41,11 @@
   {{end}}
 
   <div class="flex items-center justify-between gap-2">
-    <a class="btn" data-variant="ghost" data-size="sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Prev}}" data-older>{{template "icon-left"}}{{t "list.earlier"}}</a>
-    {{if not $d.ThisWeek}}<a class="btn" data-variant="ghost" data-size="sm" href="/?e={{$d.Employer.ID}}" data-today>{{t "list.today"}}</a>{{end}}
-    <a class="btn" data-variant="ghost" data-size="sm" href="/weeks?e={{$d.Employer.ID}}" data-all-weeks>{{t "weeks.link"}}</a>
-    {{if gt (len $d.Employers) 1}}<a class="btn" data-variant="ghost" data-size="sm" href="/all" data-all-employers>{{t "all.link"}}</a>{{end}}
-    <a class="btn" data-variant="ghost" data-size="sm" href="/?e={{$d.Employer.ID}}&amp;w={{$d.Next}}" data-newer>{{t "list.later"}}{{template "icon-right"}}</a>
+    <a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/?e={{$d.Employer.ID}}&amp;w={{$d.Prev}}" data-older>{{template "icon-left"}}{{t "list.earlier"}}</a>
+    {{if not $d.ThisWeek}}<a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/?e={{$d.Employer.ID}}" data-today>{{t "list.today"}}</a>{{end}}
+    <a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/weeks?e={{$d.Employer.ID}}" data-all-weeks>{{t "weeks.link"}}</a>
+    {{if gt (len $d.Employers) 1}}<a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/all" data-all-employers>{{t "all.link"}}</a>{{end}}
+    <a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/?e={{$d.Employer.ID}}&amp;w={{$d.Next}}" data-newer>{{t "list.later"}}{{template "icon-right"}}</a>
   </div>
 
   <div class="grid gap-4 lg:grid-cols-2" data-weeks>
@@ -103,7 +103,7 @@
   <summary><h3>{{t "correction.title"}}</h3></summary>
   <section class="grid gap-3">
     <p class="text-muted-foreground text-xs">{{t "correction.lead"}}</p>
-    <form method="post" action="/book/correction" class="grid gap-2">
+    <form method="post" action="{{base}}/book/correction" class="grid gap-2">
       <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
       <div class="grid gap-2 sm:grid-cols-2">
         <div class="field" role="group"><label for="correction-date">{{t "correction.date"}}</label><input class="input" type="date" id="correction-date" name="date" value="{{.Today}}" required></div>
@@ -119,7 +119,7 @@
     {{range .Corrections}}
     <div class="flex items-center gap-2 text-sm" data-correction-item>
       <span class="min-w-0 flex-1 tabular-nums">{{day .Date}} · {{sdec .Minutes}} · {{.Reason}}</span>
-      <form method="post" action="/corrections/{{.ID}}/remove" data-confirm="{{t "correction.remove.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
+      <form method="post" action="{{base}}/corrections/{{.ID}}/remove" data-confirm="{{t "correction.remove.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
         <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>
     </div>
     {{end}}

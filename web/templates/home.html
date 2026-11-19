@@ -3,25 +3,25 @@
 {{$d := .Data}}
 <div class="grid gap-4">
   <div class="flex flex-wrap items-center gap-2">
-    <form method="get" action="/week" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
+    <form method="get" action="{{base}}/week" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
       <label class="sr-only" for="pick-employer">{{t "home.employer"}}</label>
       <select class="select min-w-0 flex-1" id="pick-employer" name="e">
         {{range $d.Employers}}<option value="{{.ID}}"{{if eq .ID $d.Employer.ID}} selected{{end}}>{{.Name}}</option>{{end}}
       </select>
       <noscript><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "action.show"}}</button></noscript>
     </form>
-    <a href="/employers/{{$d.Employer.ID}}" class="btn" data-variant="outline" data-size="icon-sm" aria-label="{{t "home.settings"}}">{{template "icon-settings"}}</a>
+    <a href="{{base}}/employers/{{$d.Employer.ID}}" class="btn" data-variant="outline" data-size="icon-sm" aria-label="{{t "home.settings"}}">{{template "icon-settings"}}</a>
     <button type="button" class="btn" data-variant="outline" data-size="icon-sm" data-open-dialog="new-employer" aria-label="{{t "home.addemployer"}}">{{template "icon-plus"}}</button>
   </div>
   {{if $d.Org}}<p class="text-muted-foreground text-xs">{{t "home.managed" $d.Org}}</p>{{end}}
 
   <div class="flex items-center justify-between gap-2">
-    <a class="btn" data-variant="ghost" data-size="icon-sm" href="/week?e={{$d.Employer.ID}}&amp;w={{$d.Prev}}" aria-label="{{t "home.prev"}}">{{template "icon-left"}}</a>
+    <a class="btn" data-variant="ghost" data-size="icon-sm" href="{{base}}/week?e={{$d.Employer.ID}}&amp;w={{$d.Prev}}" aria-label="{{t "home.prev"}}">{{template "icon-left"}}</a>
     <div class="text-center">
       <p class="font-semibold">{{if $d.ThisWeek}}{{t "home.thisweek"}}{{else}}{{t "home.week"}}{{end}}</p>
       <p class="text-muted-foreground text-xs tabular-nums">{{day $d.Week}} – {{day $d.WeekEnd}} · {{t (print "mode." $d.Mode)}}</p>
     </div>
-    <a class="btn" data-variant="ghost" data-size="icon-sm" href="/week?e={{$d.Employer.ID}}&amp;w={{$d.Next}}" aria-label="{{t "home.next"}}">{{template "icon-right"}}</a>
+    <a class="btn" data-variant="ghost" data-size="icon-sm" href="{{base}}/week?e={{$d.Employer.ID}}&amp;w={{$d.Next}}" aria-label="{{t "home.next"}}">{{template "icon-right"}}</a>
   </div>
 
   {{if and $d.HasTarget $d.HasSchedule}}
@@ -44,7 +44,7 @@
   {{end}}
   {{if and (not $d.HasSchedule) (or (eq $d.Mode "schedule") (eq $d.Mode "plan"))}}
   <div class="alert" data-variant="warning" role="note">{{template "icon-alert"}}<h2>{{t "home.noschedule"}}</h2>
-    <section><a class="underline underline-offset-4" href="/employers/{{$d.Employer.ID}}">{{t "home.noschedule.link"}}</a></section></div>
+    <section><a class="underline underline-offset-4" href="{{base}}/employers/{{$d.Employer.ID}}">{{t "home.noschedule.link"}}</a></section></div>
   {{end}}
 
   {{if eq $d.Mode "week_sum"}}{{template "mode-week-sum" $d}}{{end}}
@@ -54,7 +54,7 @@
   {{if eq $d.Mode "projects_only"}}{{template "mode-projects" $d}}{{end}}
 
   {{if ne $d.Mode "week_sum"}}
-  <form method="post" action="/book/line" class="card" data-size="sm">
+  <form method="post" action="{{base}}/book/line" class="card" data-size="sm">
     <header><h2 class="card-title">{{t "line.title"}}</h2><p class="card-description">{{t "line.lead"}}</p></header>
     <section class="grid gap-2">
       <input type="hidden" name="employer" value="{{$d.Employer.ID}}">
@@ -71,7 +71,7 @@
   <details class="card" data-size="sm" data-absence-form>
     <summary><h3>{{t "absence.title"}}</h3></summary>
     <section>
-    <form method="post" action="/book/absence" class="grid gap-3">
+    <form method="post" action="{{base}}/book/absence" class="grid gap-3">
       <input type="hidden" name="employer" value="{{$d.Employer.ID}}">
       <input type="hidden" name="back" value="{{$d.Back}}">
       <div class="field" role="group"><label for="absence-type">{{t "absence.type"}}</label>
@@ -96,7 +96,7 @@
       <div class="flex items-center gap-2" data-absence>
         <span class="badge" data-variant="secondary">{{.Name}}</span>
         <span class="min-w-0 flex-1 text-sm tabular-nums">{{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}{{if .HalfDay}} · {{t "track.half"}}{{end}}{{if eq .Status "requested"}} · {{t "absence.requested"}}{{else if eq .Status "rejected"}} · {{t "absence.rejected"}}{{end}}</span>
-        <form method="post" action="/absences/{{.ID}}/remove" data-confirm="{{t "absence.remove.confirm"}}">
+        <form method="post" action="{{base}}/absences/{{.ID}}/remove" data-confirm="{{t "absence.remove.confirm"}}">
           <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$d.Back}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
         </form>
@@ -123,7 +123,7 @@
     {{if .WeekLocked}}
     <p class="text-sm" data-week-locked>{{template "icon-check-small"}} {{t "approval.week.locked"}}</p>
     {{else}}
-    <form method="post" action="/approval/submit" class="grid gap-2"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
+    <form method="post" action="{{base}}/approval/submit" class="grid gap-2"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
       <input type="hidden" name="kind" value="period"><input type="hidden" name="from" value="{{.Week}}"><input type="hidden" name="to" value="{{.WeekEnd}}">
       <button type="submit" class="btn w-full" data-submit-week>{{t "approval.submit.week"}}</button>
       <p class="text-muted-foreground text-xs">{{t "approval.submit.hint"}}</p>
@@ -141,13 +141,13 @@
       {{if .Note}}<p class="text-xs">{{.Note}}</p>{{end}}
       {{if .Reason}}<p class="text-xs" data-reason>{{t "approval.reason"}}: {{.Reason}}</p>{{end}}
       {{if eq .Status "submitted"}}
-      <form method="post" action="/approval/{{.ID}}/withdraw" data-confirm="{{t "approval.withdraw.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
+      <form method="post" action="{{base}}/approval/{{.ID}}/withdraw" data-confirm="{{t "approval.withdraw.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
         <button type="submit" class="btn" data-variant="ghost" data-size="sm">{{t "approval.withdraw"}}</button></form>
       {{end}}
       {{if .Correctable}}
       <details data-correction>
         <summary class="btn" data-variant="outline" data-size="sm">{{t "approval.correction"}}</summary>
-        <form method="post" action="/approval/submit" class="mt-2 grid gap-2"><input type="hidden" name="employer" value="{{$emp}}"><input type="hidden" name="back" value="{{$back}}">
+        <form method="post" action="{{base}}/approval/submit" class="mt-2 grid gap-2"><input type="hidden" name="employer" value="{{$emp}}"><input type="hidden" name="back" value="{{$back}}">
           <input type="hidden" name="kind" value="correction"><input type="hidden" name="supersedes" value="{{.ID}}">
           <div class="field" role="group"><label for="why-{{.ID}}">{{t "approval.correction.note"}}</label><textarea class="textarea" id="why-{{.ID}}" name="note" maxlength="2000" required></textarea></div>
           <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "approval.correction.submit"}}</button>
@@ -164,7 +164,7 @@
 <div class="card">
   <header><h2 class="card-title">{{t "weeksum.title"}}</h2><p class="card-description">{{t "weeksum.lead"}}</p></header>
   <section>
-    <form method="post" action="/book/week" class="grid gap-3">
+    <form method="post" action="{{base}}/book/week" class="grid gap-3">
       <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
       <!-- C22 block data-entry/duration-field -->
       <div class="field" role="group">
@@ -177,7 +177,7 @@
   </section>
   {{if and .WeekMinutes .CanSettings}}
   <footer class="flex-col gap-2">
-    <form method="post" action="/book/spread" class="w-full" data-confirm="{{t "weeksum.spread.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+    <form method="post" action="{{base}}/book/spread" class="w-full" data-confirm="{{t "weeksum.spread.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
       <button type="submit" class="btn w-full" data-variant="ghost" data-spread>{{t "weeksum.spread"}}</button></form>
     <p class="text-muted-foreground text-xs">{{t "weeksum.spread.hint"}}</p>
   </footer>
@@ -211,7 +211,7 @@
   <li class="flex items-center gap-2 text-sm" data-entry>
     <span class="tabular-nums">{{if .Start}}{{.Start}}–{{.End}}{{else if eq .Kind "adjust"}}{{t "track.deviation"}} {{signed .Minutes}}{{else if eq .Kind "break"}}{{t "track.break"}} {{hours .Minutes}}{{else}}{{hours .Minutes}}{{end}}</span>
     <span class="min-w-0 flex-1 truncate text-muted-foreground">{{.Project}}{{if .Note}} {{.Note}}{{end}}{{if .Tags}} {{.Tags}}{{end}}</span>
-    <form method="post" action="/entries/{{.ID}}/remove" data-confirm="{{t "entry.remove.confirm"}}">
+    <form method="post" action="{{base}}/entries/{{.ID}}/remove" data-confirm="{{t "entry.remove.confirm"}}">
       <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$.Back}}">
       <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
     </form>
@@ -223,7 +223,7 @@
 
 {{define "mode-schedule"}}
 <!-- C22 block data-entry/day-row: one per day -->
-<form method="post" action="/book/days" class="card">
+<form method="post" action="{{base}}/book/days" class="card">
   <header><h2 class="card-title">{{t "schedule.title"}}</h2><p class="card-description">{{t "schedule.lead"}}</p></header>
   <section class="grid gap-3">
     <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
@@ -258,13 +258,13 @@
       {{template "entries" (entriesOf .Entries $d.Back)}}
       {{if and .HasTarget (not .Future)}}
       <div class="flex flex-wrap gap-2">
-        <form method="post" action="/book/absence"><input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="type" value="vacation"><input type="hidden" name="from" value="{{.Date}}">
+        <form method="post" action="{{base}}/book/absence"><input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="type" value="vacation"><input type="hidden" name="from" value="{{.Date}}">
           <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "absence.vacation"}}</button></form>
-        <form method="post" action="/book/absence"><input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="type" value="sick"><input type="hidden" name="from" value="{{.Date}}">
+        <form method="post" action="{{base}}/book/absence"><input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="type" value="sick"><input type="hidden" name="from" value="{{.Date}}">
           <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "absence.sick"}}</button></form>
         <details class="w-full" data-deviation>
           <summary class="btn" data-variant="outline" data-size="sm">{{t "plan.deviation"}}</summary>
-          <form method="post" action="/book/adjust" class="mt-2 grid gap-2">
+          <form method="post" action="{{base}}/book/adjust" class="mt-2 grid gap-2">
             <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{.Date}}">
             <div class="flex gap-2">
               <label class="sr-only" for="dev-{{.Date}}">{{t "plan.howlong"}}</label>
@@ -287,11 +287,11 @@
     {{if .Confirmed}}
     <p class="text-sm" data-week-confirmed>{{template "icon-check-small"}} {{t "plan.week.confirmed"}}</p>
     {{else if .PlanDays}}
-    <form method="post" action="/book/confirm" class="w-full"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+    <form method="post" action="{{base}}/book/confirm" class="w-full"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
       <button type="submit" class="btn w-full" data-confirm-week>{{template "icon-check-small"}}{{t "plan.weekright"}}</button></form>
     {{end}}
     {{if .CanSettings}}
-    <form method="post" action="/book/exact" class="w-full" data-confirm="{{t "plan.exact.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+    <form method="post" action="{{base}}/book/exact" class="w-full" data-confirm="{{t "plan.exact.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
       <button type="submit" class="btn w-full" data-variant="ghost">{{t "plan.exact"}}</button></form>
     {{end}}
   </footer>
@@ -306,9 +306,9 @@
     {{if .Timer}}
     <p class="text-3xl font-semibold tabular-nums" data-timer-elapsed data-started="{{.Timer.Started.Unix}}">{{hours .Timer.Elapsed}}</p>
     <p class="text-muted-foreground text-sm">{{t "timer.since" .Timer.Since}}{{if .Timer.Project}} · {{.Timer.Project}}{{end}}{{if .Timer.Note}} · {{.Timer.Note}}{{end}}</p>
-    <form method="post" action="/timer/stop"><input type="hidden" name="back" value="{{.Back}}"><button type="submit" class="btn w-full" data-variant="destructive">{{t "timer.stop"}}</button></form>
+    <form method="post" action="{{base}}/timer/stop"><input type="hidden" name="back" value="{{.Back}}"><button type="submit" class="btn w-full" data-variant="destructive">{{t "timer.stop"}}</button></form>
     {{else}}
-    <form method="post" action="/timer/start" class="grid gap-2">
+    <form method="post" action="{{base}}/timer/start" class="grid gap-2">
       <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
       {{template "project-select" (projectChoice "timer-project" .AllProjects)}}
       <label class="sr-only" for="timer-note">{{t "entry.note"}}</label>
@@ -321,7 +321,7 @@
 <details class="card" data-size="sm" data-span-form>
   <summary><h3>{{t "span.title"}}</h3></summary>
   <section>
-  <form method="post" action="/book/span" class="grid gap-3">
+  <form method="post" action="{{base}}/book/span" class="grid gap-3">
     <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="back" value="{{.Back}}">
     <div class="field" role="group"><label for="span-date">{{t "span.date"}}</label><input class="input" type="date" id="span-date" name="date" value="{{.Today}}" required></div>
     <div class="grid gap-2 sm:grid-cols-3">
@@ -353,7 +353,7 @@
 {{end}}
 
 {{define "mode-projects"}}
-<form method="post" action="/book/projects" class="card">
+<form method="post" action="{{base}}/book/projects" class="card">
   <header><h2 class="card-title">{{t "projects.title"}}</h2><p class="card-description">{{t "projects.lead"}}</p></header>
   <section class="grid gap-3">
     <input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
@@ -369,7 +369,7 @@
     {{if .Projects}}<button type="submit" class="btn">{{t "action.save"}}</button>{{end}}
   </section>
 </form>
-<form method="post" action="/employers/{{.Employer.ID}}/project" class="card" data-size="sm">
+<form method="post" action="{{base}}/employers/{{.Employer.ID}}/project" class="card" data-size="sm">
   <section class="flex items-center gap-2">
     <input type="hidden" name="back" value="{{.Back}}">
     <label class="sr-only" for="new-project">{{t "projects.new"}}</label>

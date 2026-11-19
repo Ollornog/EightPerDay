@@ -1,9 +1,9 @@
 {{define "content"}}
 {{$d := .Data}}
 <div class="flex items-center justify-between gap-2">
-  <a class="btn" data-variant="ghost" data-size="icon-sm" href="/reports?month={{printf "%04d-%02d" $d.Prev.Year $d.Prev.Month}}" aria-label="{{t "reports.prev"}}">{{template "icon-left"}}</a>
+  <a class="btn" data-variant="ghost" data-size="icon-sm" href="{{base}}/reports?month={{printf "%04d-%02d" $d.Prev.Year $d.Prev.Month}}" aria-label="{{t "reports.prev"}}">{{template "icon-left"}}</a>
   <h1 class="text-xl font-bold tabular-nums">{{t (print "month." (printf "%d" $d.From.Month))}} {{$d.From.Year}}</h1>
-  <a class="btn" data-variant="ghost" data-size="icon-sm" href="/reports?month={{printf "%04d-%02d" $d.Next.Year $d.Next.Month}}" aria-label="{{t "reports.next"}}">{{template "icon-right"}}</a>
+  <a class="btn" data-variant="ghost" data-size="icon-sm" href="{{base}}/reports?month={{printf "%04d-%02d" $d.Next.Year $d.Next.Month}}" aria-label="{{t "reports.next"}}">{{template "icon-right"}}</a>
 </div>
 <div class="mt-4 grid gap-4">
   {{if $d.Hints}}
@@ -42,9 +42,9 @@
   <div class="card" data-size="sm">
     <header><h2 class="card-title">{{t "reports.export"}}</h2><p class="card-description">{{t "reports.export.lead"}}</p></header>
     <section class="flex flex-wrap gap-2">
-      <a class="btn" data-variant="outline" href="/export/json" download>JSON</a>
-      <a class="btn" data-variant="outline" href="/export/csv" download>CSV</a>
-      <a class="btn" data-variant="ghost" href="/access">{{t "access.link"}}</a>
+      <a class="btn" data-variant="outline" href="{{base}}/export/json" download>JSON</a>
+      <a class="btn" data-variant="outline" href="{{base}}/export/csv" download>CSV</a>
+      <a class="btn" data-variant="ghost" href="{{base}}/access">{{t "access.link"}}</a>
     </section>
   </div>
 </div>

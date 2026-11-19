@@ -23,6 +23,13 @@ func (h *handler) identify(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		if e := h.options.Embedding; e != nil {
+			if account := e.Account(r); account != nil {
+				r = r.WithContext(context.WithValue(r.Context(), accountKey, account))
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
 		if account, handled := h.fromGate(w, r); handled {
 			if account != nil {
 				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), accountKey, account)))
@@ -130,6 +137,11 @@ func (h *handler) requireAccount(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		if h.embedded() {
+			// The application in front signs people in; without it there is nothing to show.
+			http.Error(w, "sign in first", http.StatusUnauthorized)
+			return
+		}
 		if r.Method == http.MethodGet && !strings.HasPrefix(r.URL.Path, "/api/") {
 			http.Redirect(w, r, "/login?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
 			return
@@ -141,8 +153,13 @@ func (h *handler) requireAccount(next http.Handler) http.Handler {
 // sameOriginForChanges refuses every change that does not come from a page of this program. Sign-in uses a cookie, so
 // a page on another site could otherwise send changes in someone's name (and sign them in to an account of the
 // attacker's).
+//
+// Embedded, the address of the request is the origin: an application with many tenants answers on many host names.
 func (h *handler) sameOriginForChanges(next http.Handler) http.Handler {
-	origin := h.options.Origin.Scheme + "://" + h.options.Origin.Host
+	origin := ""
+	if h.options.Origin != nil {
+		origin = h.options.Origin.Scheme + "://" + h.options.Origin.Host
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead:
@@ -151,7 +168,12 @@ func (h *handler) sameOriginForChanges(next http.Handler) http.Handler {
 		}
 		site := r.Header.Get("Sec-Fetch-Site")
 		sent := r.Header.Get("Origin")
-		if site == "same-origin" || (site == "" && strings.EqualFold(sent, origin)) {
+		ours := strings.EqualFold(sent, origin)
+		if h.embedded() {
+			sentHost := strings.TrimPrefix(strings.TrimPrefix(strings.ToLower(sent), "https://"), "http://")
+			ours = sent != "" && sentHost == strings.ToLower(r.Host)
+		}
+		if site == "same-origin" || (site == "" && ours) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -160,7 +182,7 @@ func (h *handler) sameOriginForChanges(next http.Handler) http.Handler {
 }
 
 func (h *handler) sessionCookieName() string {
-	if h.options.Auth.SecureCookies() {
+	if h.secureCookies(nil) {
 		return sessionCookieSecure
 	}
 	return sessionCookiePlain
@@ -178,17 +200,17 @@ func (h *handler) setCookie(w http.ResponseWriter, name, value string, maxAge ti
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    value,
-		Path:     "/",
+		Path:     h.base() + "/",
 		MaxAge:   int(maxAge.Seconds()),
 		HttpOnly: true,
-		Secure:   h.options.Auth.SecureCookies(),
+		Secure:   h.secureCookies(nil),
 		SameSite: http.SameSiteLaxMode,
 	})
 }
 
 func (h *handler) clearCookie(w http.ResponseWriter, name string) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
-		Secure: h.options.Auth.SecureCookies(), SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: h.base() + "/", MaxAge: -1, HttpOnly: true,
+		Secure: h.secureCookies(nil), SameSite: http.SameSiteLaxMode})
 }
 
 // signIn starts a session and sends the person on: to the page they came for when it is one of ours, home otherwise.

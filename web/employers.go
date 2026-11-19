@@ -113,7 +113,7 @@ func (h *handler) employerData(r *http.Request, cat core.Catalog, emp core.Emplo
 		Back:  "/employers/" + emp.ID}
 	if owner != accountFrom(r.Context()).ID {
 		d.Back += "?owner=" + owner
-		if a, err := h.options.Auth.Account(r.Context(), owner); err == nil {
+		if a, err := h.directory().Account(r.Context(), owner); err == nil {
 			d.OwnerName = a.DisplayName
 		}
 	}
@@ -198,7 +198,7 @@ func (h *handler) createEmployer(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	h.rememberEmployer(w, emp.ID)
+	h.rememberEmployer(w, r, emp.ID)
 	http.Redirect(w, r, "/?e="+emp.ID+"&done=created", http.StatusSeeOther)
 }
 

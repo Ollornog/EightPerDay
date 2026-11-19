@@ -14,7 +14,7 @@
       <noscript><p class="text-muted-foreground text-xs">{{t "login.passkey.noscript"}}</p></noscript>
     </div>
     <div class="field-separator"><hr role="separator"><span>{{t "login.or"}}</span></div>
-    <form method="post" action="/login" class="grid gap-4">
+    <form method="post" action="{{base}}/login" class="grid gap-4">
       <input type="hidden" name="next" value="{{.Data.Next}}">
       <div class="field" role="group">
         <label for="login-name">{{t "login.username"}}</label>

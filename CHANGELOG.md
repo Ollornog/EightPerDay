@@ -8,6 +8,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- Embedding (M-3, T-11): `web.Options.Embedding` runs the interface inside another application, below a mount path,
+  with the application's sign-in and accounts, framed by its own pages, in its theme; without the program's own
+  login, setup, account and admin pages. Stopwatches can live in the store (`core.Stopwatches`, table
+  `<prefix>timers`, migration 003), `core.CalendarAbsences` lists absences for a calendar, and
+  `TestNoTenantReachesAnother` proves for every method of the store that no tenant reaches another.
 - Several employers in one week (M-5, T-10, `/all`): a column per employer, a cell only on its active days, the
   earnings per day and week and the average working day, and what was taken in cash or by card. The day page takes
   incomes beyond the pay rules (a job with its client, commission, photos, tips; `core.Income`, in `ComputeEarnings`
@@ -122,6 +127,9 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- The access log keeps its rules as one permissive policy per tenant with restrictive ones on top (migration 003),
+  the shape an embedding application's tenant guard reads; the deletion of a whole tenant reaches it through
+  `pgstore.Options.EraseSetting`. The standalone program's stopwatch is a `core.Timer` (`auth.Timer` is an alias).
 - C22 vendored at `8b0d603`, and its new building blocks replace what the interface had pieced together: the months of
   the leave planning and of the list are C22's month sheet (weekends toned, today framed, a picked day framed and
   checked), the year is C22's year grid with a row of 31 cells per month (the days a month lacks are hatched), the access

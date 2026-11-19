@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1 class="text-2xl font-bold">{{t "account.title"}}</h1>
 <div class="mt-4 grid gap-4">
-  <form method="post" action="/account/name" class="card">
+  <form method="post" action="{{base}}/account/name" class="card">
     <header>
       <h2 class="card-title">{{t "account.profile"}}</h2>
       <p class="card-description">{{t "account.profile.lead" .Account.Username}}</p>
@@ -23,12 +23,12 @@
     <section class="grid gap-3">
       {{range .Account.Passkeys}}
       <div class="flex flex-wrap items-center gap-2 rounded-md border p-2" data-passkey="{{.ID}}">
-        <form method="post" action="/account/passkeys/{{.ID}}/rename" class="flex min-w-0 flex-1 items-center gap-2">
+        <form method="post" action="{{base}}/account/passkeys/{{.ID}}/rename" class="flex min-w-0 flex-1 items-center gap-2">
           <label class="sr-only" for="passkey-{{.ID}}">{{t "account.passkey.name"}}</label>
           <input class="input min-w-0 flex-1" id="passkey-{{.ID}}" name="name" value="{{.Name}}" maxlength="100">
           <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "action.rename"}}</button>
         </form>
-        <form method="post" action="/account/passkeys/{{.ID}}/remove" data-confirm="{{t "account.passkey.remove.confirm"}}">
+        <form method="post" action="{{base}}/account/passkeys/{{.ID}}/remove" data-confirm="{{t "account.passkey.remove.confirm"}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
         </form>
         <p class="w-full text-muted-foreground text-xs">{{t "account.passkey.added"}} {{date .Created}}{{if .LastUsed}} · {{t "account.passkey.used"}} {{date .LastUsed}}{{end}}</p>
@@ -53,7 +53,7 @@
       <p class="card-description">{{if .Account.HasPassword}}{{t "account.password.has"}}{{else}}{{t "account.password.none"}}{{end}}</p>
     </header>
     <section class="grid gap-4">
-      <form method="post" action="/account/password" class="grid gap-4">
+      <form method="post" action="{{base}}/account/password" class="grid gap-4">
         {{if .Account.HasPassword}}
         <div class="field" role="group">
           <label for="current-password">{{t "account.password.current"}}</label>
@@ -72,7 +72,7 @@
         <button type="submit" class="btn" data-variant="outline">{{if .Account.HasPassword}}{{t "account.password.change"}}{{else}}{{t "account.password.set"}}{{end}}</button>
       </form>
       {{if and .Account.HasPassword .Account.Passkeys}}
-      <form method="post" action="/account/password/remove" data-confirm="{{t "account.password.remove.confirm"}}">
+      <form method="post" action="{{base}}/account/password/remove" data-confirm="{{t "account.password.remove.confirm"}}">
         <button type="submit" class="btn" data-variant="ghost">{{t "account.password.remove"}}</button>
       </form>
       {{end}}
@@ -87,7 +87,7 @@
     </header>
     <section class="grid gap-4">
       {{if .Data.Enrollment}}
-      <form method="post" action="/account/totp/confirm" class="grid gap-4">
+      <form method="post" action="{{base}}/account/totp/confirm" class="grid gap-4">
         {{template "totp-enrollment" .Data.Enrollment}}
         <input type="hidden" name="ceremony" value="{{.Data.Enrollment.Ceremony}}">
         <div class="field" role="group">
@@ -97,7 +97,7 @@
         <button type="submit" class="btn">{{t "setup.totp.submit"}}</button>
       </form>
       {{else if .Account.HasTOTP}}
-      <form method="post" action="/account/totp/remove" class="grid gap-4">
+      <form method="post" action="{{base}}/account/totp/remove" class="grid gap-4">
         <div class="field" role="group">
           <label for="totp-off-code">{{t "account.totp.off.code"}}</label>
           <input class="input" id="totp-off-code" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" required>
@@ -105,7 +105,7 @@
         <button type="submit" class="btn" data-variant="outline">{{t "account.totp.remove"}}</button>
       </form>
       {{else}}
-      <form method="post" action="/account/totp">
+      <form method="post" action="{{base}}/account/totp">
         <button type="submit" class="btn" data-variant="outline">{{t "account.totp.add"}}</button>
       </form>
       {{end}}
@@ -119,15 +119,15 @@
       <p class="card-description">{{t "account.sessions.lead"}}</p>
     </header>
     <section class="flex flex-wrap gap-2">
-      <form method="post" action="/account/sessions/end">
+      <form method="post" action="{{base}}/account/sessions/end">
         <button type="submit" class="btn" data-variant="outline">{{t "account.sessions.end"}}</button>
       </form>
-      <form method="post" action="/logout">
+      <form method="post" action="{{base}}/logout">
         <button type="submit" class="btn" data-variant="outline">{{template "icon-logout"}}{{t "account.logout"}}</button>
       </form>
-      <a href="/orgs" class="btn" data-variant="outline">{{template "icon-building"}}{{t "orgs.title"}}</a>
+      <a href="{{base}}/orgs" class="btn" data-variant="outline">{{template "icon-building"}}{{t "orgs.title"}}</a>
       {{if .Account.Admin}}
-      <a href="/admin" class="btn" data-variant="outline">{{template "icon-users"}}{{t "admin.title"}}</a>
+      <a href="{{base}}/admin" class="btn" data-variant="outline">{{template "icon-users"}}{{t "admin.title"}}</a>
       {{end}}
     </section>
   </div>

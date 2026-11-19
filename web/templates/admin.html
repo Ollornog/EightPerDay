@@ -11,7 +11,7 @@
     </section>
   </div>
   {{end}}
-  <form method="post" action="/admin/invite" class="card">
+  <form method="post" action="{{base}}/admin/invite" class="card">
     <header>
       <h2 class="card-title">{{t "admin.invite"}}</h2>
       <p class="card-description">{{t "admin.invite.lead"}}</p>
@@ -45,16 +45,16 @@
         <p class="text-muted-foreground text-xs">{{t "admin.methods"}}: {{if .Passkeys}}{{t "admin.method.passkey"}} ({{len .Passkeys}}) {{end}}{{if .HasPassword}}{{t "admin.method.password"}}{{if .HasTOTP}} + {{t "admin.method.totp"}}{{end}}{{end}}{{if and (not .Passkeys) (not .HasPassword)}}{{t "admin.method.gate"}}{{end}}</p>
         {{if ne .ID $me}}
         <div class="flex flex-wrap gap-2">
-          <form method="post" action="/admin/accounts/{{.ID}}/reset"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.reset"}}</button></form>
+          <form method="post" action="{{base}}/admin/accounts/{{.ID}}/reset"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.reset"}}</button></form>
           {{if .Disabled}}
-          <form method="post" action="/admin/accounts/{{.ID}}/enable"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.enable"}}</button></form>
+          <form method="post" action="{{base}}/admin/accounts/{{.ID}}/enable"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.enable"}}</button></form>
           {{else}}
-          <form method="post" action="/admin/accounts/{{.ID}}/disable" data-confirm="{{t "admin.disable.confirm"}}"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.disable"}}</button></form>
+          <form method="post" action="{{base}}/admin/accounts/{{.ID}}/disable" data-confirm="{{t "admin.disable.confirm"}}"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.disable"}}</button></form>
           {{end}}
           {{if .Admin}}
-          <form method="post" action="/admin/accounts/{{.ID}}/member"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.member"}}</button></form>
+          <form method="post" action="{{base}}/admin/accounts/{{.ID}}/member"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.member"}}</button></form>
           {{else}}
-          <form method="post" action="/admin/accounts/{{.ID}}/admin"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.admin"}}</button></form>
+          <form method="post" action="{{base}}/admin/accounts/{{.ID}}/admin"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.admin"}}</button></form>
           {{end}}
         </div>
         {{end}}

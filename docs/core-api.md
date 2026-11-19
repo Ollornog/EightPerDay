@@ -180,6 +180,20 @@ Only for an organization with `Features.Approval` on; without it there are no su
   chain: keep the last hash elsewhere if that matters.
 - `Store.Erase` leaves the access log to its retention.
 
+## Stopwatches
+
+`Stopwatches` keeps the running stopwatch of each person (`Timer`: employer, project, note, start; at most one per
+person, `ErrTimerRunning` on a second start). Both stores of the library have it, separate from `Store`; the standalone
+program keeps its stopwatches next to its accounts, an embedding application in the store, inside its tenant.
+`Store.Erase` removes a person's stopwatch.
+
+## Calendar
+
+`CalendarAbsences(data, from, to)` lists the absences of a range for a calendar (UnderDoc's M-18): who, which employer,
+the type with its name, the days, half days, the status, whether it counts as leave and whether the type reveals health
+data, without notes, rejected or deleted ones. It works on a person's data (`Load`) and on `Store.Managed`; the caller
+decides who sees which, and shows a type with `Health` to others only as away.
+
 ## Personal rights and retention
 
 - `ExportOwner` collects everything of a person (JSON with `WriteJSON`, entries as CSV with `WriteEntriesCSV`).
@@ -205,7 +219,40 @@ steps, _ := pgstore.Migrations(o) // plain SQL, run each once in your own migrat
 store, _ := pgstore.New(pool, o)  // pool: its connections carry the tenant setting
 ```
 
+`TestNoTenantReachesAnother` (in `core/pgstore`) proves for every exported method of the store that no tenant reads or
+changes a row of another and that a connection without a tenant reads and writes nothing; a method added later fails
+it until it is covered.
+
+The access log has one permissive policy that keeps to the tenant, like every table, and restrictive ones on top: no
+row changes, and a row goes only after two years, or when the application deletes a whole tenant for good and sets
+`o.EraseSetting()` (the tenant setting with `_erase`, such as `underdoc.tenant_erase`) to that tenant within the
+transaction of the deletion.
+
 A standalone program uses `pgstore.Migrate(ctx, conn, o)` (own version table `<prefix>schema_migrations`) and
 `pgstore.Connect(ctx, url, o, tenant)`. Every table has a tenant column filled from the setting and row-level security
 on it, also for the owner of the tables; a connection without the setting sees and writes nothing. Run the store as a
 role without `BYPASSRLS` and not as a superuser, or the rules do not hold.
+
+## Embedding the interface
+
+`web.New` with `Options.Embedding` runs the web interface of the standalone program inside another application:
+
+```go
+h, _ := web.New(log, web.Options{Store: store, Embedding: &web.Embedding{
+	Base:      "/time",                         // where the application mounts the handler
+	Account:   func(r *http.Request) *auth.Account { /* from the application's sign-in, nil for nobody */ },
+	Directory: accounts,                        // Account(ctx, id) and Accounts(ctx) of the application
+	ThemeKey:  "app.theme",                     // localStorage key of the application's theme
+}})
+mux.Handle("/time/", h)
+```
+
+- The ID of the account is the person in the store; its `Language`, when set, is the language of the pages.
+- No login, setup, account or admin page, no service worker and no organization founded through the interface: the
+  application maps its tenant to an organization and its administrators to memberships itself
+  (`Store.PutOrganization`, `Store.PutMembership`); in the interface the tab "Organizations" replaces "Account".
+- Every link, form and redirect stays below `Base`. Changes are accepted only from pages of the request's own host
+  (`Sec-Fetch-Site: same-origin` or a matching `Origin`), and the pages may be framed only by the same origin
+  (`frame-ancestors 'self'`, `X-Frame-Options: SAMEORIGIN`).
+- The store passed in must carry the tenant of the request in its connections (an application's pool that sets the
+  tenant setting per request); stopwatches come from the store unless `Options.Timers` names others.

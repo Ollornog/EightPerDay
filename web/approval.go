@@ -360,7 +360,7 @@ func (h *handler) accessPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := accessData{Intact: core.VerifyAccesses(log) == nil}
-	accounts, err := h.options.Auth.Accounts(ctx)
+	accounts, err := h.directory().Accounts(ctx)
 	if err != nil {
 		h.failed(w, r, err)
 		return

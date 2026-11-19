@@ -31,17 +31,20 @@ type Store struct {
 	orgs      map[string]core.Organization
 	members   map[string]core.Membership
 	accesses  []core.Access
+	timers    map[string]core.Timer
 }
 
 var (
-	_ core.Store     = (*Store)(nil)
-	_ core.AccessLog = (*Store)(nil)
+	_ core.Store       = (*Store)(nil)
+	_ core.AccessLog   = (*Store)(nil)
+	_ core.Stopwatches = (*Store)(nil)
 )
 
 // New returns an empty store.
 func New() *Store {
 	return &Store{records: map[key][]byte{}, meta: map[key]core.Meta{}, entries: map[string]core.Entry{},
-		absences: map[string]core.Absence{}, orgs: map[string]core.Organization{}, members: map[string]core.Membership{}}
+		absences: map[string]core.Absence{}, orgs: map[string]core.Organization{}, members: map[string]core.Membership{},
+		timers: map[string]core.Timer{}}
 }
 
 // Put inserts or replaces a catalog record.
@@ -507,6 +510,7 @@ func (s *Store) Erase(_ context.Context, owner string) error {
 		}
 	}
 	s.revisions = slices.DeleteFunc(s.revisions, func(r core.Revision) bool { return r.Owner == owner && gone[r.RecordID] })
+	delete(s.timers, owner)
 	return nil
 }
 
@@ -654,4 +658,43 @@ func (s *Store) Accesses(_ context.Context, subject string) ([]core.Access, erro
 		}
 	}
 	return out, nil
+}
+
+// RunningTimer returns the stopwatch of the person, or nil.
+func (s *Store) RunningTimer(_ context.Context, person string) (*core.Timer, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t, ok := s.timers[person]
+	if !ok {
+		return nil, nil
+	}
+	return &t, nil
+}
+
+// StartTimer starts the stopwatch of the person; only one runs at a time.
+func (s *Store) StartTimer(_ context.Context, person string, t core.Timer) error {
+	t.Owner = person
+	if err := t.Validate(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.timers[person]; ok {
+		return core.ErrTimerRunning
+	}
+	t.Started = t.Started.UTC()
+	s.timers[person] = t
+	return nil
+}
+
+// StopTimer removes the stopwatch of the person and returns it, or nil when none ran.
+func (s *Store) StopTimer(_ context.Context, person string) (*core.Timer, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t, ok := s.timers[person]
+	if !ok {
+		return nil, nil
+	}
+	delete(s.timers, person)
+	return &t, nil
 }

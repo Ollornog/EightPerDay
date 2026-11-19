@@ -1,5 +1,5 @@
 {{define "content"}}
-<form method="post" action="/login/code" class="card w-full">
+<form method="post" action="{{base}}/login/code" class="card w-full">
   <header>
     <h1 class="card-title">{{t "code.title"}}</h1>
     <p class="card-description">{{t "code.lead"}}</p>
@@ -13,7 +13,7 @@
   </section>
   <footer class="flex-col gap-2">
     <button type="submit" class="btn w-full">{{t "code.submit"}}</button>
-    <a href="/login" class="btn w-full" data-variant="ghost">{{t "code.back"}}</a>
+    <a href="{{base}}/login" class="btn w-full" data-variant="ghost">{{t "code.back"}}</a>
   </footer>
 </form>
 {{end}}

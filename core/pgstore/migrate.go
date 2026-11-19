@@ -46,6 +46,17 @@ func (o Options) withDefaults() (Options, error) {
 	return o, nil
 }
 
+// EraseSetting is the setting that lets the deletion of a whole tenant reach its access log: an application that deletes
+// a tenant for good sets it to that tenant within its transaction (set_config(…, true)); otherwise the access log only
+// lets go of rows older than two years. It is the tenant setting with "_erase" after it, such as underdoc.tenant_erase.
+func (o Options) EraseSetting() (string, error) {
+	o, err := o.withDefaults()
+	if err != nil {
+		return "", err
+	}
+	return o.TenantSetting + "_erase", nil
+}
+
 // Migration is one step of the schema, as plain SQL for the options it was rendered with.
 type Migration struct {
 	Version int
