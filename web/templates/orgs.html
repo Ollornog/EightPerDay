@@ -16,13 +16,13 @@
         {{if .Org.Features.SupervisorView}}<li class="font-medium">{{t "orgs.info.supervisor"}}</li>{{end}}
       </ul>
     </section>
-    {{if .Admin}}<footer><a class="btn" data-variant="outline" href="/orgs/{{.Org.ID}}">{{t "orgs.manage"}}</a></footer>{{end}}
+    {{if .Admin}}<footer><a class="btn" data-variant="outline" href="{{base}}/orgs/{{.Org.ID}}">{{t "orgs.manage"}}</a></footer>{{end}}
   </div>
   {{else}}
   <p class="text-muted-foreground text-sm">{{t "orgs.none"}}</p>
   {{end}}
   {{if $d.CanCreate}}
-  <form method="post" action="/orgs" class="card">
+  <form method="post" action="{{base}}/orgs" class="card">
     <header><h2 class="card-title">{{t "orgs.create"}}</h2><p class="card-description">{{t "orgs.create.lead"}}</p></header>
     <section class="grid gap-4">
       <input type="hidden" name="back" value="/orgs">

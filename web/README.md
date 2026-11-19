@@ -13,6 +13,14 @@ lockfile and no build step for JavaScript.
   `core.Regions` without a name.
 - `auth/` holds the accounts; `browsertest/` runs the program in a real Chrome (`go test -tags browser`).
 
+## Inside another application
+
+With `Options.Embedding` the same pages run inside another application (UnderDoc), below a path of its own, with its
+sign-in and in its tenant ([docs/core-api.md](../docs/core-api.md#embedding-the-interface)). The templates write every
+link as `{{base}}/…`; `embed.go` takes the prefix off each request (`mounted`) and puts it in front of every redirect,
+so handlers only ever see paths from the root. `data-base` on `<body>` gives it to `app.js`; `data-theme-key` on
+`<html>` tells `theme.js` where the application keeps its theme, which the frame then follows.
+
 ## Everything from C22
 
 The app has no stylesheet of its own: every class is one of C22's, and a test (`TestEveryClassExistsInTheStylesheet`)

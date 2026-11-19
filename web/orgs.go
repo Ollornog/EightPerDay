@@ -162,7 +162,7 @@ func (h *handler) orgData(r *http.Request, org core.Organization, members []core
 	ctx := r.Context()
 	today := h.today(nil)
 	d := orgData{Org: org, Today: today, Modes: core.Modes, Weekdays: weekdays, Back: "/orgs/" + org.ID}
-	accounts, err := h.options.Auth.Accounts(ctx)
+	accounts, err := h.directory().Accounts(ctx)
 	if err != nil {
 		return d, err
 	}
@@ -344,7 +344,7 @@ func (h *handler) changeOrg(w http.ResponseWriter, r *http.Request) {
 func (h *handler) addMember(r *http.Request, org core.Organization, members []core.Membership) error {
 	ctx := r.Context()
 	person := r.PostFormValue("person")
-	if _, err := h.options.Auth.Account(ctx, person); err != nil {
+	if _, err := h.directory().Account(ctx, person); err != nil {
 		return core.ErrNotFound
 	}
 	today := h.today(nil)

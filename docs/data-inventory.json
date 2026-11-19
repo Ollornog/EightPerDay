@@ -1150,6 +1150,34 @@
       ]
     },
     {
+      "name": "Timer",
+      "purpose": "A running stopwatch: at most one per person, until it is stopped and booked as an entry.",
+      "holder": "The person alone.",
+      "deletion": "Removed when it is stopped, and with the private part of a person (Store.Erase).",
+      "fields": [
+        {
+          "name": "owner",
+          "purpose": "The person the record belongs to."
+        },
+        {
+          "name": "employer_id",
+          "purpose": "The employer, client or private work the record is for; empty means every private employer."
+        },
+        {
+          "name": "project_id",
+          "purpose": "The project the time will be booked on."
+        },
+        {
+          "name": "note",
+          "purpose": "The person's note for the entry."
+        },
+        {
+          "name": "started",
+          "purpose": "When the clock started."
+        }
+      ]
+    },
+    {
       "name": "Access",
       "purpose": "The access log: who read, changed, exported or decided whose data when.",
       "holder": "The person concerned (their own log) and whoever runs the instance.",

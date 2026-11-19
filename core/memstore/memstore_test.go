@@ -17,3 +17,7 @@ func TestConformance(t *testing.T) {
 func TestAccessLog(t *testing.T) {
 	storetest.RunAccessLog(t, func(*testing.T) storetest.AccessLogStore { return memstore.New() })
 }
+
+func TestStopwatches(t *testing.T) {
+	storetest.RunStopwatches(t, func(*testing.T) storetest.StopwatchStore { return memstore.New() })
+}

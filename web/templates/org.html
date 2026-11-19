@@ -1,7 +1,7 @@
 {{define "content"}}
 {{$d := .Data}}
 <div class="flex items-center gap-2">
-  <a class="btn" data-variant="ghost" data-size="icon-sm" href="/orgs" aria-label="{{t "action.back"}}">{{template "icon-left"}}</a>
+  <a class="btn" data-variant="ghost" data-size="icon-sm" href="{{base}}/orgs" aria-label="{{t "action.back"}}">{{template "icon-left"}}</a>
   <h1 class="min-w-0 flex-1 truncate text-2xl font-bold">{{$d.Org.Name}}</h1>
 </div>
 <div class="mt-4 grid gap-4">
@@ -25,11 +25,11 @@
         <p class="text-muted-foreground text-xs" data-review-own>{{t "org.reviews.own"}}</p>
         {{else}}
         <div class="flex flex-wrap gap-2">
-          <form method="post" action="/orgs/{{$d.Org.ID}}/decide"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="submission" value="{{.ID}}"><input type="hidden" name="decision" value="approve">
+          <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/decide"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="submission" value="{{.ID}}"><input type="hidden" name="decision" value="approve">
             <button type="submit" class="btn" data-size="sm" data-approve>{{template "icon-check-small"}}{{t "org.reviews.approve"}}</button></form>
           <details class="w-full" data-reject>
             <summary class="btn" data-variant="outline" data-size="sm">{{t "org.reviews.reject"}}</summary>
-            <form method="post" action="/orgs/{{$d.Org.ID}}/decide" class="mt-2 grid gap-2"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="submission" value="{{.ID}}"><input type="hidden" name="decision" value="reject">
+            <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/decide" class="mt-2 grid gap-2"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="submission" value="{{.ID}}"><input type="hidden" name="decision" value="reject">
               <div class="field" role="group"><label for="reason-{{.ID}}">{{t "approval.reason"}}</label><textarea class="textarea" id="reason-{{.ID}}" name="reason" maxlength="2000" required></textarea></div>
               <button type="submit" class="btn" data-variant="destructive" data-size="sm">{{t "org.reviews.reject.submit"}}</button>
             </form>
@@ -86,10 +86,10 @@
         <p class="text-muted-foreground text-xs">{{t "orgs.since" (day .From)}}{{if not .EmployerID}} · {{t "org.norecords"}}{{end}}</p>
         {{if .Active}}
         <div class="flex flex-wrap gap-2">
-          {{if .EmployerID}}<a class="btn" data-variant="outline" data-size="sm" href="/employers/{{.EmployerID}}?owner={{.Person}}">{{t "org.member.settings"}}</a>{{end}}
-          <form method="post" action="/orgs/{{$d.Org.ID}}/role"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="membership" value="{{.ID}}">
+          {{if .EmployerID}}<a class="btn" data-variant="outline" data-size="sm" href="{{base}}/employers/{{.EmployerID}}?owner={{.Person}}">{{t "org.member.settings"}}</a>{{end}}
+          <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/role"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="membership" value="{{.ID}}">
             {{if eq .Role "admin"}}<input type="hidden" name="role" value="member"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.member"}}</button>{{else}}<input type="hidden" name="role" value="admin"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.admin"}}</button>{{end}}</form>
-          <form method="post" action="/orgs/{{$d.Org.ID}}/end" data-confirm="{{t "org.end.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="membership" value="{{.ID}}"><input type="hidden" name="until" value="{{$d.Today}}">
+          <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/end" data-confirm="{{t "org.end.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="membership" value="{{.ID}}"><input type="hidden" name="until" value="{{$d.Today}}">
             <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "org.end"}}</button></form>
         </div>
         {{end}}
@@ -98,7 +98,7 @@
       {{if $d.Candidates}}
       <details>
         <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "org.add"}}</summary>
-        <form method="post" action="/orgs/{{$d.Org.ID}}/member" class="mt-3 grid gap-3">
+        <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/member" class="mt-3 grid gap-3">
           <input type="hidden" name="back" value="{{$d.Back}}">
           <div class="field" role="group"><label for="member-person">{{t "org.add.person"}}</label>
             <select class="select w-full" id="member-person" name="person">{{range $d.Candidates}}<option value="{{.ID}}">{{.DisplayName}} ({{.Username}})</option>{{end}}</select>
@@ -121,11 +121,11 @@
     <section class="grid gap-3">
       {{range $d.Org.Templates}}
       <div class="flex items-center gap-2 text-sm" data-template><span class="min-w-0 flex-1">{{.Name}} · {{t (print "mode." .Mode)}}</span>
-        <form method="post" action="/orgs/{{$d.Org.ID}}/remove-template" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="name" value="{{.Name}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form></div>
+        <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/remove-template" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="name" value="{{.Name}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form></div>
       {{end}}
       <details>
         <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "org.templates.add"}}</summary>
-        <form method="post" action="/orgs/{{$d.Org.ID}}/template" class="mt-3 grid gap-3">
+        <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/template" class="mt-3 grid gap-3">
           <input type="hidden" name="back" value="{{$d.Back}}">
           <div class="field" role="group"><label for="tpl-name">{{t "employer.name"}}</label><input class="input" id="tpl-name" name="name" maxlength="200" placeholder="{{t "org.templates.example"}}" required></div>
           <div class="field" role="group"><label for="tpl-mode">{{t "employer.mode"}}</label>
@@ -143,7 +143,7 @@
     </section>
   </div>
 
-  <form method="post" action="/orgs/{{$d.Org.ID}}/features" class="card" data-features>
+  <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/features" class="card" data-features>
     <header><h2 class="card-title">{{t "org.features"}}</h2><p class="card-description">{{if $d.Org.Features.Any}}{{t "org.features.on"}}{{else}}{{t "org.features.off"}}{{end}}</p></header>
     <section class="grid gap-3 text-sm">
       <input type="hidden" name="back" value="{{$d.Back}}">
@@ -165,7 +165,7 @@
     <footer><button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button></footer>
   </form>
 
-  <form method="post" action="/orgs/{{$d.Org.ID}}/details" class="card">
+  <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/details" class="card">
     <header><h2 class="card-title">{{t "employer.details"}}</h2></header>
     <section class="grid gap-4">
       <input type="hidden" name="back" value="{{$d.Back}}">
@@ -175,6 +175,6 @@
     </section>
     <footer><button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button></footer>
   </form>
-  <p class="text-center text-muted-foreground text-xs">{{t "legal.footer"}} <a class="underline underline-offset-4" href="/legal" data-legal-link>{{t "legal.link"}}</a></p>
+  <p class="text-center text-muted-foreground text-xs">{{t "legal.footer"}} <a class="underline underline-offset-4" href="{{base}}/legal" data-legal-link>{{t "legal.link"}}</a></p>
 </div>
 {{end}}

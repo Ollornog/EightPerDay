@@ -3,14 +3,14 @@
 {{$d := .Data}}
 <div class="grid gap-4" data-endless>
   <div class="flex flex-wrap items-center gap-2">
-    <form method="get" action="/weeks" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
+    <form method="get" action="{{base}}/weeks" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
       <label class="sr-only" for="pick-employer">{{t "home.employer"}}</label>
       <select class="select min-w-0 flex-1" id="pick-employer" name="e">
         {{range $d.Employers}}<option value="{{.ID}}"{{if eq .ID $d.Employer.ID}} selected{{end}}>{{.Name}}</option>{{end}}
       </select>
       <noscript><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "action.show"}}</button></noscript>
     </form>
-    <a href="/?e={{$d.Employer.ID}}" class="btn" data-variant="outline" data-size="sm">{{template "icon-list"}}{{t "weeks.back"}}</a>
+    <a href="{{base}}/?e={{$d.Employer.ID}}" class="btn" data-variant="outline" data-size="sm">{{template "icon-list"}}{{t "weeks.back"}}</a>
   </div>
   <div class="grid gap-4" data-weeks>{{template "weeks-rows" $d}}</div>
   <p class="text-muted-foreground text-xs">{{t "list.hint"}}</p>
@@ -18,7 +18,7 @@
 {{end}}
 
 {{define "weeks-rows"}}
-{{if .HasOlder}}<a class="btn" data-variant="ghost" data-size="sm" href="/weeks?e={{.Employer.ID}}&amp;from={{.Older}}" data-load-older data-part="/weeks?e={{.Employer.ID}}&amp;before={{.First}}&amp;part=1">{{template "icon-left"}}{{t "weeks.older"}}</a>{{else}}<p class="text-center text-muted-foreground text-xs" data-weeks-start>{{t "weeks.start"}}</p>{{end}}
+{{if .HasOlder}}<a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/weeks?e={{.Employer.ID}}&amp;from={{.Older}}" data-load-older data-part="{{base}}/weeks?e={{.Employer.ID}}&amp;before={{.First}}&amp;part=1">{{template "icon-left"}}{{t "weeks.older"}}</a>{{else}}<p class="text-center text-muted-foreground text-xs" data-weeks-start>{{t "weeks.start"}}</p>{{end}}
 {{$d := .}}{{range .Weeks}}{{template "list-week" (listWeekOf . $d.Employer.ID $d.HasAccount)}}{{end}}
 {{end}}
 

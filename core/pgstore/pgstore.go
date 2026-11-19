@@ -33,13 +33,14 @@ type DB interface {
 
 // Store is a core.Store on PostgreSQL.
 type Store struct {
-	db                                            DB
-	records, entries, absences, revisions, access string
+	db                                                    DB
+	records, entries, absences, revisions, access, timers string
 }
 
 var (
-	_ core.Store     = (*Store)(nil)
-	_ core.AccessLog = (*Store)(nil)
+	_ core.Store       = (*Store)(nil)
+	_ core.AccessLog   = (*Store)(nil)
+	_ core.Stopwatches = (*Store)(nil)
 )
 
 // New returns a store on db. The migrations must have run with the same options.
@@ -49,7 +50,8 @@ func New(db DB, o Options) (*Store, error) {
 		return nil, err
 	}
 	return &Store{db: db, records: o.Prefix + "records", entries: o.Prefix + "entries",
-		absences: o.Prefix + "absences", revisions: o.Prefix + "revisions", access: o.Prefix + "access_log"}, nil
+		absences: o.Prefix + "absences", revisions: o.Prefix + "revisions", access: o.Prefix + "access_log",
+		timers: o.Prefix + "timers"}, nil
 }
 
 // Connect opens a pool for a standalone program whose connections all belong to one tenant.
@@ -551,6 +553,7 @@ func (s *Store) Erase(ctx context.Context, owner string) error {
 			"DELETE FROM " + s.entries + " WHERE owner = $1 AND employer_id NOT IN " + managed,
 			"DELETE FROM " + s.absences + " WHERE owner = $1 AND employer_id NOT IN " + managed,
 			"DELETE FROM " + s.records + " WHERE owner = $1 AND employer_id NOT IN " + managed,
+			"DELETE FROM " + s.timers + " WHERE owner = $1",
 		} {
 			if _, err := tx.Exec(ctx, q, owner); err != nil {
 				return err
@@ -708,4 +711,49 @@ func (s *Store) LogAccess(ctx context.Context, a core.Access) (core.Access, erro
 // Accesses returns the access log of the subject, oldest first.
 func (s *Store) Accesses(ctx context.Context, subject string) ([]core.Access, error) {
 	return scanDocs[core.Access](s.db.Query(ctx, "SELECT doc FROM "+s.access+" WHERE subject = $1 ORDER BY seq", subject))
+}
+
+// RunningTimer returns the stopwatch of the person, or nil.
+func (s *Store) RunningTimer(ctx context.Context, person string) (*core.Timer, error) {
+	t := core.Timer{Owner: person}
+	err := s.db.QueryRow(ctx, "SELECT employer_id, project_id, note, started FROM "+s.timers+" WHERE owner = $1", person).
+		Scan(&t.EmployerID, &t.ProjectID, &t.Note, &t.Started)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// StartTimer starts the stopwatch of the person; only one runs at a time.
+func (s *Store) StartTimer(ctx context.Context, person string, t core.Timer) error {
+	t.Owner = person
+	if err := t.Validate(); err != nil {
+		return err
+	}
+	tag, err := s.db.Exec(ctx, "INSERT INTO "+s.timers+` (owner, employer_id, project_id, note, started)
+		VALUES ($1, $2, $3, $4, $5) ON CONFLICT (tenant, owner) DO NOTHING`, person, t.EmployerID, t.ProjectID, t.Note, t.Started)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return core.ErrTimerRunning
+	}
+	return nil
+}
+
+// StopTimer removes the stopwatch of the person and returns it, or nil when none ran.
+func (s *Store) StopTimer(ctx context.Context, person string) (*core.Timer, error) {
+	t := core.Timer{Owner: person}
+	err := s.db.QueryRow(ctx, "DELETE FROM "+s.timers+" WHERE owner = $1 RETURNING employer_id, project_id, note, started", person).
+		Scan(&t.EmployerID, &t.ProjectID, &t.Note, &t.Started)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
 }

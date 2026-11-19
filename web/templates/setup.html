@@ -1,5 +1,5 @@
 {{define "content"}}
-<form method="post" action="/setup" class="card w-full" data-setup data-token="{{.Data.Token}}">
+<form method="post" action="{{base}}/setup" class="card w-full" data-setup data-token="{{.Data.Token}}">
   <header>
     {{if .Data.Link.Reset}}
     <h1 class="card-title">{{t "setup.reset.title"}}</h1>

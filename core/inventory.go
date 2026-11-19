@@ -271,6 +271,13 @@ var inventory = []struct {
 			"from":         "First day of the membership.",
 			"until":        "Last day; empty while it lasts.",
 		}},
+	{Timer{}, "", "A running stopwatch: at most one per person, until it is stopped and booked as an entry.",
+		holderOfPerson, "", "Removed when it is stopped, and with the private part of a person (Store.Erase).",
+		map[string]string{
+			"project_id": "The project the time will be booked on.",
+			"note":       "The person's note for the entry.",
+			"started":    "When the clock started.",
+		}},
 	{Access{}, "", "The access log: who read, changed, exported or decided whose data when.",
 		"The person concerned (their own log) and whoever runs the instance.", ClassAccessLog,
 		"Only added; removed by the retention purge, never before two years.", map[string]string{

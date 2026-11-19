@@ -39,7 +39,9 @@ only wants to note "sick on Wednesday" or a freelancer with three clients ends u
   in-memory one.
 - A **standalone binary** with a small web interface on top of it.
 - The library is meant to be embedded: another application can run the migrations in its own database and build its
-  own interface. [UnderDoc](https://github.com/Ollornog/UnderDoc) does that.
+  own interface, or run the web interface of the binary inside its own, with its sign-in and its tenants
+  ([docs/core-api.md](docs/core-api.md#embedding-the-interface)). [UnderDoc](https://github.com/Ollornog/UnderDoc)
+  does that.
 
 Decisions are recorded in [`backlog/`](backlog/).
 

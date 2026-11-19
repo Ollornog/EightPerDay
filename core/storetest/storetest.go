@@ -797,3 +797,46 @@ func RunAccessLog(t *testing.T, newStore func(t *testing.T) AccessLogStore) {
 	}
 	must(t, core.VerifyAccesses(carol))
 }
+
+// StopwatchStore is a store that keeps stopwatches.
+type StopwatchStore interface {
+	core.Store
+	core.Stopwatches
+}
+
+// RunStopwatches runs the conformance test of core.Stopwatches against a fresh store from newStore: one stopwatch per
+// person, a second start refused, stopping returns it once, and the erasure of a person takes it along.
+func RunStopwatches(t *testing.T, newStore func(t *testing.T) StopwatchStore) {
+	s := newStore(t)
+	start := time.Date(2026, 11, 18, 7, 30, 0, 0, time.UTC)
+	if got, err := s.RunningTimer(ctx, "alice"); err != nil || got != nil {
+		t.Fatalf("no stopwatch yet: %+v %v", got, err)
+	}
+	wantErr(t, s.StartTimer(ctx, "alice", core.Timer{EmployerID: "e1"}), core.ErrInvalid)
+	wantErr(t, s.StartTimer(ctx, "alice", core.Timer{EmployerID: "bad id", Started: start}), core.ErrInvalid)
+	must(t, s.StartTimer(ctx, "alice", core.Timer{Owner: "someone else", EmployerID: "e1", ProjectID: "p1", Note: "site",
+		Started: start}))
+	wantErr(t, s.StartTimer(ctx, "alice", core.Timer{EmployerID: "e2", Started: start}), core.ErrTimerRunning)
+	must(t, s.StartTimer(ctx, "bob", core.Timer{EmployerID: "e9", Started: start}))
+	got, err := s.RunningTimer(ctx, "alice")
+	must(t, err)
+	if got == nil || got.Owner != "alice" || got.EmployerID != "e1" || got.ProjectID != "p1" || got.Note != "site" ||
+		!got.Started.Equal(start) {
+		t.Fatalf("running: %+v", got)
+	}
+	stopped, err := s.StopTimer(ctx, "alice")
+	must(t, err)
+	if stopped == nil || stopped.EmployerID != "e1" || !stopped.Started.Equal(start) {
+		t.Fatalf("stopped: %+v", stopped)
+	}
+	if again, err := s.StopTimer(ctx, "alice"); err != nil || again != nil {
+		t.Fatalf("stopped twice: %+v %v", again, err)
+	}
+	if other, err := s.RunningTimer(ctx, "bob"); err != nil || other == nil {
+		t.Fatalf("bob's stopwatch went with alice's: %+v %v", other, err)
+	}
+	must(t, s.Erase(ctx, "bob"))
+	if gone, err := s.RunningTimer(ctx, "bob"); err != nil || gone != nil {
+		t.Fatalf("the erasure left the stopwatch: %+v %v", gone, err)
+	}
+}

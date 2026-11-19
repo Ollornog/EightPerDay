@@ -30,7 +30,7 @@ func (h *handler) setLanguage(w http.ResponseWriter, r *http.Request) {
 	if !known(lang) {
 		lang = ""
 	}
-	if a := accountFrom(r.Context()); a != nil {
+	if a := accountFrom(r.Context()); a != nil && !h.embedded() {
 		if err := h.options.Auth.SetLanguage(r.Context(), a.ID, lang); err != nil {
 			h.failed(w, r, err)
 			return
@@ -39,8 +39,8 @@ func (h *handler) setLanguage(w http.ResponseWriter, r *http.Request) {
 	if lang == "" {
 		h.clearCookie(w, languageCookie)
 	} else {
-		http.SetCookie(w, &http.Cookie{Name: languageCookie, Value: lang, Path: "/", MaxAge: 365 * 24 * 3600,
-			Secure: h.options.Auth.SecureCookies(), SameSite: http.SameSiteLaxMode, HttpOnly: true})
+		http.SetCookie(w, &http.Cookie{Name: languageCookie, Value: lang, Path: h.base() + "/", MaxAge: 365 * 24 * 3600,
+			Secure: h.secureCookies(r), SameSite: http.SameSiteLaxMode, HttpOnly: true})
 	}
 	http.Redirect(w, r, safeNext(r.PostFormValue("back")), http.StatusSeeOther)
 }

@@ -3,7 +3,7 @@
 {{$d := .Data}}
 <div class="grid gap-4">
   <div class="flex items-center gap-2">
-    <a class="btn" data-variant="ghost" data-size="icon-sm" href="{{$d.List}}" aria-label="{{t "action.back"}}">{{template "icon-left"}}</a>
+    <a class="btn" data-variant="ghost" data-size="icon-sm" href="{{base}}{{$d.List}}" aria-label="{{t "action.back"}}">{{template "icon-left"}}</a>
     <h1 class="font-semibold">{{t (print "weekday." $d.Weekday)}} {{day $d.Date}} · {{$d.Employer.Name}}</h1>
   </div>
   <!-- C22 block data-entry/stat-row -->
@@ -23,7 +23,7 @@
       <div class="flex items-center gap-2 text-sm" data-booking>
         <span class="min-w-0 flex-1">{{.Project}}{{if .Number}} · <span class="tabular-nums">{{.Number}}</span>{{end}}{{if .Note}} · {{.Note}}{{end}}</span>
         <span class="font-semibold tabular-nums">{{dec .Minutes}}</span>
-        {{if not $d.Locked}}<form method="post" action="/entries/{{.ID}}/remove" data-confirm="{{t "entry.remove.confirm"}}">
+        {{if not $d.Locked}}<form method="post" action="{{base}}/entries/{{.ID}}/remove" data-confirm="{{t "entry.remove.confirm"}}">
           <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$d.Back}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
         </form>{{end}}
@@ -41,11 +41,11 @@
       <div class="flex items-center gap-2 text-sm" data-income>
         <span class="min-w-0 flex-1">{{t (print "income." .Kind)}}{{if .Client}} · {{.Client}}{{end}}{{if .PaidBy}} · {{t (print "paidby." .PaidBy)}}{{end}}{{if .Note}} · {{.Note}}{{end}}</span>
         <span class="font-semibold tabular-nums">{{money .Amount .Currency}}</span>
-        <form method="post" action="/incomes/{{.ID}}/remove" data-confirm="{{t "day.income.remove"}}"><input type="hidden" name="back" value="{{$d.Back}}">
+        <form method="post" action="{{base}}/incomes/{{.ID}}/remove" data-confirm="{{t "day.income.remove"}}"><input type="hidden" name="back" value="{{$d.Back}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>
       </div>
       {{end}}
-      <form method="post" action="/book/income" class="grid gap-2" data-income-form>
+      <form method="post" action="{{base}}/book/income" class="grid gap-2" data-income-form>
         <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{$d.Date}}">
         <div class="grid grid-cols-2 gap-2">
           <div class="field" role="group"><label for="in-kind">{{t "day.income.kind"}}</label>
@@ -65,7 +65,7 @@
   <details class="card" data-size="sm" data-day-info{{if or $d.Info.Place $d.Info.KmTotal $d.Info.StandbyPassive $d.Info.StandbyActive}} open{{end}}>
     <summary><h3>{{t "day.info"}}</h3></summary>
     <section>
-      <form method="post" action="/book/dayinfo" class="grid gap-2">
+      <form method="post" action="{{base}}/book/dayinfo" class="grid gap-2">
         <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{$d.Date}}">
         <div class="field" role="group"><label for="di-place">{{t "day.info.place"}}</label><input class="input" id="di-place" name="place" value="{{$d.Info.Place}}" maxlength="200" autocomplete="off"></div>
         <div class="grid grid-cols-2 gap-2">
@@ -80,7 +80,7 @@
   </details>
 
   {{if not $d.Locked}}
-  <form method="post" action="/book/project-day" class="card" data-size="sm" data-project-day>
+  <form method="post" action="{{base}}/book/project-day" class="card" data-size="sm" data-project-day>
     <header><h2 class="card-title">{{t "day.add"}}</h2></header>
     <section class="grid gap-2">
       <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{$d.Date}}">

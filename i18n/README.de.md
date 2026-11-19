@@ -41,7 +41,9 @@ bei einer Tabelle.
   im Speicher.
 - Ein **eigenständiges Programm** mit schlanker Weboberfläche darauf.
 - Die Bibliothek ist zum Einbinden gedacht: Eine andere Anwendung kann die Migrationen in ihrer eigenen Datenbank
-  fahren und eine eigene Oberfläche bauen. [UnderDoc](https://github.com/Ollornog/UnderDoc) tut das.
+  fahren und eine eigene Oberfläche bauen oder die Weboberfläche des Programms in ihre eigene einbetten, mit ihrer
+  Anmeldung und ihren Mandanten ([docs/core-api.md](../docs/core-api.md#embedding-the-interface)).
+  [UnderDoc](https://github.com/Ollornog/UnderDoc) tut das.
 
 Entscheidungen stehen in [`backlog/`](../backlog/).
 

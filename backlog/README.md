@@ -9,7 +9,7 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 
 * ☑ **[M-1](M-1-core-library.md)** The core library: model, calculations, parser, storage — noch keine Aufgaben
 * ☑ **[M-2](M-2-standalone-binary.md)** The standalone program with a small web interface — noch keine Aufgaben
-* ☐ **[M-3](M-3-embedding.md)** Embedding: another application runs the core in its own database — 4/4 erledigt
+* ☐ **[M-3](M-3-embedding.md)** Embedding: another application runs the core in its own database — 5/5 erledigt
 * ☐ **[M-4](M-4-first-release.md)** The first release — 0/1 erledigt
 * ☑ **[M-5](M-5-list-view.md)** List view and leave planning: a start page that gives an overview — 5/5 erledigt
 
@@ -25,6 +25,7 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[T-8](T-8-leave-planning.md)** Leave planning in the year's grid · M-5
 * ☑ **[T-9](T-9-endless-list-and-change-requests.md)** The whole period as an endless list; change requests on approved weeks · M-5
 * ☑ **[T-10](T-10-employers-in-one-list.md)** Several employers in one list, with their pay, extras, kilometres and standby · M-5
+* ☑ **[T-11](T-11-embedding-hooks.md)** Hooks for an embedding application: mount path, its sign-in, its tenant, a frame, a calendar · M-3
 
 ## Entscheidungen (ADR)
 

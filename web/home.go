@@ -282,7 +282,7 @@ func (h *handler) week(r *http.Request, cat core.Catalog, emp core.Employer) (ho
 			d.Projects = append(d.Projects, row)
 		}
 	}
-	if timer, err := h.options.Auth.RunningTimer(ctx, account.ID); err != nil {
+	if timer, err := h.options.Timers.RunningTimer(ctx, account.ID); err != nil {
 		return d, err
 	} else if timer != nil {
 		loc, _ := emp.Location()

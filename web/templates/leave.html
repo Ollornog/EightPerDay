@@ -3,7 +3,7 @@
 {{$d := .Data}}
 <div class="grid gap-4">
   <div class="flex flex-wrap items-center gap-2">
-    <form method="get" action="/leave" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
+    <form method="get" action="{{base}}/leave" class="flex min-w-0 flex-1 items-center gap-2" data-autosubmit>
       <label class="sr-only" for="pick-employer">{{t "home.employer"}}</label>
       <select class="select min-w-0 flex-1" id="pick-employer" name="e">
         {{range $d.Employers}}<option value="{{.ID}}"{{if eq .ID $d.Employer.ID}} selected{{end}}>{{.Name}}</option>{{end}}
@@ -13,9 +13,9 @@
     </form>
   </div>
   <div class="flex items-center justify-between gap-2">
-    <a class="btn" data-variant="ghost" data-size="sm" href="/leave?e={{$d.Employer.ID}}&amp;y={{$d.Prev}}">{{template "icon-left"}}{{$d.Prev}}</a>
+    <a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/leave?e={{$d.Employer.ID}}&amp;y={{$d.Prev}}">{{template "icon-left"}}{{$d.Prev}}</a>
     <h1 class="font-semibold">{{t "leave.year" $d.Year}}</h1>
-    <a class="btn" data-variant="ghost" data-size="sm" href="/leave?e={{$d.Employer.ID}}&amp;y={{$d.Next}}">{{$d.Next}}{{template "icon-right"}}</a>
+    <a class="btn" data-variant="ghost" data-size="sm" href="{{base}}/leave?e={{$d.Employer.ID}}&amp;y={{$d.Next}}">{{$d.Next}}{{template "icon-right"}}</a>
   </div>
 
   <!-- C22 block data-entry/stat-row -->
@@ -31,7 +31,7 @@
     {{if $d.Status.Adjustments}}<footer><p class="text-muted-foreground text-xs">{{t "leave.adjustments" (half $d.Status.Adjustments)}}</p></footer>{{end}}
   </div>
 
-  <form method="post" action="/leave/plan" class="grid gap-4" data-leave-plan>
+  <form method="post" action="{{base}}/leave/plan" class="grid gap-4" data-leave-plan>
     <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}">
     <p class="text-muted-foreground text-sm">{{if $d.Approval}}{{t "leave.lead.approval"}}{{else}}{{t "leave.lead"}}{{end}}</p>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -64,7 +64,7 @@
       {{range $d.Absences}}
       <div class="flex items-center gap-2" data-leave="{{.From}}">
         <span class="min-w-0 flex-1 text-sm tabular-nums">{{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}{{if .HalfDay}} · {{t "track.half"}}{{end}}{{if eq .Status "requested"}} · {{t "absence.requested"}}{{else if eq .Status "rejected"}} · {{t "absence.rejected"}}{{end}}</span>
-        <form method="post" action="/absences/{{.ID}}/remove" data-confirm="{{t "absence.remove.confirm"}}">
+        <form method="post" action="{{base}}/absences/{{.ID}}/remove" data-confirm="{{t "absence.remove.confirm"}}">
           <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$d.Back}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
         </form>

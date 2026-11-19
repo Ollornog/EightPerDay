@@ -16,6 +16,11 @@ import (
 const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; " +
 	"manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 
+// EmbeddedCSP is the policy inside another application: the same, except that pages of the application's own origin
+// may show the interface in a frame.
+const EmbeddedCSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; " +
+	"manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
+
 const healthPath = "/healthz"
 
 // NewServer returns an HTTP server with timeouts against slow clients.
@@ -32,13 +37,18 @@ func NewServer(addr string, handler http.Handler, log *slog.Logger) *http.Server
 	}
 }
 
-// secure sets the security headers on every answer. HSTS is left to the proxy that ends TLS.
-func secure(next http.Handler) http.Handler {
+// secure sets the security headers on every answer. HSTS is left to the proxy that ends TLS. Embedded, the pages of
+// the application's own origin may frame the interface, and nothing else may.
+func (h *handler) secure(next http.Handler) http.Handler {
+	csp, frames := CSP, "DENY"
+	if h.embedded() {
+		csp, frames = EmbeddedCSP, "SAMEORIGIN"
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", CSP)
+		h.Set("Content-Security-Policy", csp)
 		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("X-Frame-Options", "DENY")
+		h.Set("X-Frame-Options", frames)
 		h.Set("Referrer-Policy", "same-origin")
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
 		h.Set("Cross-Origin-Resource-Policy", "same-origin")
