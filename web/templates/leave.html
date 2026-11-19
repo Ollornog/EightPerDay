@@ -34,15 +34,15 @@
   <form method="post" action="/leave/plan" class="grid gap-4" data-leave-plan>
     <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}">
     <p class="text-muted-foreground text-sm">{{if $d.Approval}}{{t "leave.lead.approval"}}{{else}}{{t "leave.lead"}}{{end}}</p>
-    <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {{range $d.Months}}
       <div class="card" data-size="sm" data-month="{{monthNumber .Month}}">
         <header><h2 class="card-title">{{t (print "month." (monthNumber .Month))}}</h2></header>
         <section>
-          <table class="table">
-            <thead><tr>{{range (index .Weeks 0)}}<th class="p-0 text-center text-xs">{{t (print "weekday." (weekdayOf .Date))}}</th>{{end}}</tr></thead>
+          <table class="month-sheet">
+            <thead><tr>{{range (index .Weeks 0)}}<th scope="col">{{t (print "weekday." (weekdayOf .Date))}}</th>{{end}}</tr></thead>
             <tbody>
-              {{range .Weeks}}<tr>{{range .}}{{if not .In}}<td class="p-0"></td>{{else if .Pick}}<td class="p-0 text-center"><label class="flex flex-col items-center text-xs tabular-nums" data-pick="{{.Date}}"><span>{{.Day}}</span><input class="input" type="checkbox" name="d" value="{{.Date}}" aria-label="{{day .Date}}"></label></td>{{else if .Code}}<td class="p-0 text-center text-xs tabular-nums" data-cell="{{.Date}}"><span class="text-muted-foreground">{{.Day}}</span><br><span class="font-semibold" data-code>{{.Code}}</span></td>{{else}}<td class="p-0 text-center text-xs tabular-nums text-muted-foreground">{{.Day}}</td>{{end}}{{end}}</tr>{{end}}
+              {{range .Weeks}}<tr>{{range .}}{{if not .In}}<td data-outside></td>{{else}}<td{{if .Weekend}} data-weekend{{end}}{{if .Today}} aria-current="date"{{end}}{{if .Code}} data-cell="{{.Date}}"{{end}}>{{if .Pick}}<label data-pick="{{.Date}}"><span>{{.Day}}</span><input class="input" type="checkbox" name="d" value="{{.Date}}" aria-label="{{day .Date}}"></label>{{else}}<span>{{.Day}}</span>{{if .Code}}<b data-code>{{.Code}}</b>{{end}}{{end}}</td>{{end}}{{end}}</tr>{{end}}
             </tbody>
           </table>
         </section>

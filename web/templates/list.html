@@ -71,14 +71,12 @@
 <div class="card" data-size="sm" data-month-grid>
   <header><h2 class="card-title">{{t (print "month." (monthNumber .Month.Month))}} {{.Month.Year}}</h2></header>
   <section>
-    <div class="table-container">
-      <table class="table">
-        <thead><tr>{{range (index .Month.Weeks 0)}}<th class="text-center">{{t (print "weekday." (weekdayOf .Date))}}</th>{{end}}</tr></thead>
-        <tbody>
-          {{range .Month.Weeks}}<tr>{{range .}}{{if .In}}<td class="p-1 text-center align-top tabular-nums" data-cell="{{.Date}}"><span class="text-muted-foreground text-xs">{{.Day}}</span><br>{{if .Code}}<span class="font-semibold" data-code>{{.Code}}</span>{{else}}{{.Hours}}{{end}}</td>{{else}}<td class="p-1 text-center align-top text-muted-foreground text-xs">{{.Day}}</td>{{end}}{{end}}</tr>{{end}}
-        </tbody>
-      </table>
-    </div>
+    <table class="month-sheet">
+      <thead><tr>{{range (index .Month.Weeks 0)}}<th scope="col">{{t (print "weekday." (weekdayOf .Date))}}</th>{{end}}</tr></thead>
+      <tbody>
+        {{range .Month.Weeks}}<tr>{{range .}}<td{{if not .In}} data-outside{{end}}{{if .Weekend}} data-weekend{{end}}{{if .Today}} aria-current="date"{{end}}{{if .In}} data-cell="{{.Date}}"{{end}}><span>{{.Day}}</span>{{if .In}}{{if .Code}}<b data-code>{{.Code}}</b>{{else if .Hours}}<b>{{.Hours}}</b>{{end}}{{end}}</td>{{end}}</tr>{{end}}
+      </tbody>
+    </table>
   </section>
 </div>
 {{end}}
@@ -88,10 +86,10 @@
   <summary><h3>{{t "list.year" .Year.Year}}</h3></summary>
   <section>
     <div class="table-container">
-      <table class="table">
-        <thead><tr><th></th>{{range (days31)}}<th class="px-1 text-center text-xs">{{.}}</th>{{end}}</tr></thead>
+      <table class="year-grid">
+        <thead><tr><th></th>{{range (days31)}}<th scope="col">{{.}}</th>{{end}}</tr></thead>
         <tbody>
-          {{range .Year.Months}}<tr><th class="text-xs">{{t (print "month.short." (monthNumber .Month))}}</th>{{range .Days}}{{if .Code}}<td class="px-1 text-center text-xs font-semibold" data-cell="{{.Date}}">{{.Code}}</td>{{else if .Weekend}}<td class="px-1 text-center text-xs text-muted-foreground">·</td>{{else}}<td class="px-1 text-center text-xs"></td>{{end}}{{end}}</tr>{{end}}
+          {{range .Year.Months}}<tr><th scope="row">{{t (print "month.short." (monthNumber .Month))}}</th>{{range .Days}}{{if not .In}}<td data-outside></td>{{else}}<td{{if .Weekend}} data-weekend{{end}}{{if .Today}} aria-current="date"{{end}}{{if .Code}} data-cell="{{.Date}}"{{end}}>{{.Code}}</td>{{end}}{{end}}</tr>{{end}}
         </tbody>
       </table>
     </div>

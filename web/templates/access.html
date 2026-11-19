@@ -6,13 +6,15 @@
   {{if $d.Accesses}}
   <p class="text-sm" data-chain>{{if $d.Intact}}{{template "icon-check-small"}} {{t "access.intact"}}{{else}}<span class="font-semibold">{{t "access.broken"}}</span>{{end}}</p>
   <div class="card" data-size="sm">
-    <section class="grid gap-3">
-      {{range $d.Accesses}}
-      <div class="grid gap-0.5 border-b pb-2 text-sm" data-access="{{.Action}}">
-        <div class="flex flex-wrap items-center gap-2"><span class="badge" data-variant="secondary">{{t (print "access.action." .Action)}}</span><span class="font-medium">{{if .ActorName}}{{.ActorName}}{{else}}{{t "access.someone"}}{{end}}</span>{{if .OrgName}}<span class="text-muted-foreground">· {{.OrgName}}</span>{{end}}</div>
-        <p class="text-muted-foreground text-xs tabular-nums">{{.When}} · {{.What}}{{if not .From.IsZero}} · {{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}{{end}}</p>
-      </div>
-      {{end}}
+    <section>
+      <ol class="timeline">
+        {{range $d.Accesses}}
+        <li data-access="{{.Action}}">
+          <header><span class="badge" data-variant="secondary">{{t (print "access.action." .Action)}}</span><span class="font-medium">{{if .ActorName}}{{.ActorName}}{{else}}{{t "access.someone"}}{{end}}</span>{{if .OrgName}}<span class="text-muted-foreground">· {{.OrgName}}</span>{{end}}<time class="tabular-nums">{{.When}}</time></header>
+          <p>{{.What}}{{if not .From.IsZero}} · {{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}{{end}}</p>
+        </li>
+        {{end}}
+      </ol>
     </section>
   </div>
   {{else}}
