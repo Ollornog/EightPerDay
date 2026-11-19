@@ -283,3 +283,94 @@ func TestTwoEmployersAndIncomeOnAPhone(t *testing.T) {
 	b.reachable("all employers")
 	b.shot("all-employers")
 }
+
+// A ski instructor's week with the keyboard alone: whole days as hours, a morning or an afternoon with a letter behind
+// the hours, and half a day of leave with an afternoon of work. Each day is its value and Enter, a half day one key
+// more; the rows show what was typed, and the week of every employer pays the halves.
+func TestHalfDaysWithTheKeyboard(t *testing.T) {
+	b := setup(t)
+	b.signUp("ina", false)
+	b.addEmployer("Ski school", "schedule", "6")
+	b.tap(`a[aria-label="Settings of this employer"]`)
+	b.must(`location.pathname.startsWith('/employers/')`, "the settings open")
+	b.settle()
+	b.tap(`details:has(form[action$="/pay"]) summary`)
+	b.eval(`document.querySelector('#pay-basis').value = 'per_assignment'; document.querySelector('#pay-unit').value = 'day'`)
+	b.typeInto(`#pay-amount`, "120")
+	b.typeInto(`#pay-half`, "70")
+	b.eval(`document.querySelector("#pay-from").value = "2026-01-01"`)
+	b.tap(`form[action$="/pay"] button[type=submit]`)
+	b.must(`!!document.querySelector('[data-half-amount]')`, "the rule keeps its amount for half a day")
+	b.settle()
+	b.reachable("pay with half a day")
+	b.open("/")
+	keys := 0
+	for _, day := range []struct{ date, typed, shows string }{
+		{"2026-11-16", "6", "6"}, {"2026-11-17", "3v", "3 AM"}, {"2026-11-18", "3p", "3 PM"}, {"2026-11-19", "6", "6"},
+		{"2026-11-20", "3a", "3 AM"},
+	} {
+		b.must(`document.activeElement?.id === 'v-`+day.date+`'`, "the focus waits on "+day.date)
+		for _, key := range day.typed {
+			b.press(string(key))
+		}
+		b.press("Enter")
+		keys += len(day.typed) + 1
+		b.must(`document.querySelector('#v-`+day.date+`')?.value === '`+day.shows+`' && location.search.includes('done=saved')`, day.date+" is saved")
+		b.settle()
+	}
+	// Five days and Enter, and one letter for each of the three half days.
+	if keys > 13 {
+		t.Fatalf("%d key presses for a week with three half days", keys)
+	}
+	b.shot("list-half-days")
+	b.typeInto(`#v-2026-11-20`, "½v 3p")
+	b.must(`document.querySelector('#v-2026-11-20').checkValidity()`, "the field takes half a day of leave with hours")
+	b.typeInto(`#v-2026-11-20`, "v 3p")
+	b.must(`!document.querySelector('#v-2026-11-20').checkValidity()`, "a whole day of leave takes no hours")
+	b.typeInto(`#v-2026-11-20`, "½v 3p")
+	b.tap(`[data-week="2026-11-16"] footer button[type=submit]`)
+	b.must(`document.querySelector('#v-2026-11-20')?.value === '½V 3 PM'`, "half a day of leave and an afternoon of work")
+	b.settle()
+	b.reachable("list with half days")
+	b.open("/all?w=2026-11-16")
+	// 120 + 120 + 3 × 70 = 450 in seven halves of a day.
+	b.must(`document.querySelector('[data-week-earned]').textContent === '450.00 EUR' &&
+		document.querySelector('[data-average]').textContent === '128.57 EUR'`, "the week pays the halves and averages them")
+	b.reachable("all employers with half days")
+	b.shot("all-half-days")
+}
+
+// Standby on the phone: a rate for active standby per call-out, the standby of a day with its call-outs, and the pay
+// in the week.
+func TestStandbyOnAPhone(t *testing.T) {
+	b := setup(t)
+	b.signUp("ole", false)
+	b.addEmployer("Taxi", "schedule", "")
+	b.tap(`a[aria-label="Settings of this employer"]`)
+	b.must(`location.pathname.startsWith('/employers/')`, "the settings open")
+	b.settle()
+	b.must(`!!document.querySelector('#emp-standby') && document.querySelector('#emp-standby').value === 'active'`,
+		"active standby counts as working time by default")
+	b.tap(`details:has(form[action$="/pay"]) summary`)
+	b.eval(`document.querySelector('#pay-basis').value = 'standby_active'; document.querySelector('#pay-unit').value = 'assignment'`)
+	b.typeInto(`#pay-amount`, "40")
+	b.eval(`document.querySelector("#pay-from").value = "2026-01-01"`)
+	b.tap(`form[action$="/pay"] button[type=submit]`)
+	b.must(`[...document.querySelectorAll('[data-payrule]')].some(r => r.textContent.includes('Standby, active'))`, "the standby rule is kept")
+	b.settle()
+	b.open("/day?d=2026-11-17")
+	b.tap(`[data-day-info] summary`)
+	b.typeInto(`#di-sp`, "8")
+	b.typeInto(`#di-sa`, "2")
+	b.typeInto(`#di-co`, "2")
+	b.tap(`[data-day-info] form button[type=submit]`)
+	b.must(`location.search.includes('done=saved') && document.querySelector('[data-standby-work]')?.textContent.startsWith('2 hours')`,
+		"the active standby counts as working time")
+	b.settle()
+	b.reachable("day with standby")
+	b.shot("day-standby")
+	b.open("/all?w=2026-11-16")
+	b.must(`document.querySelector('[data-week-earned]').textContent === '80.00 EUR' && !!document.querySelector('[data-standby]')`,
+		"two call-outs are paid in the week")
+	b.reachable("all employers with standby")
+}

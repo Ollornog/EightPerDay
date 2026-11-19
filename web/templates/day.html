@@ -62,7 +62,7 @@
     </section>
   </div>
 
-  <details class="card" data-size="sm" data-day-info{{if or $d.Info.Place $d.Info.KmTotal $d.Info.StandbyPassive $d.Info.StandbyActive}} open{{end}}>
+  <details class="card" data-size="sm" data-day-info{{if or $d.Info.Place $d.Info.KmTotal $d.Info.StandbyPassive $d.Info.StandbyActive $d.Info.Callouts}} open{{end}}>
     <summary><h3>{{t "day.info"}}</h3></summary>
     <section>
       <form method="post" action="{{base}}/book/dayinfo" class="grid gap-2">
@@ -73,7 +73,9 @@
           <div class="field" role="group"><label for="di-km">{{t "day.info.kmtotal"}}</label><input class="input tabular-nums" id="di-km" name="km_total" value="{{$d.KmTotal}}" inputmode="decimal" autocomplete="off"></div>
           <div class="field" role="group"><label for="di-sp">{{t "day.info.standby.passive"}}</label><input class="input tabular-nums" id="di-sp" name="standby_passive" value="{{if $d.Info.StandbyPassive}}{{dec $d.Info.StandbyPassive}}{{end}}" pattern="{{durationPattern}}" inputmode="decimal" autocomplete="off"></div>
           <div class="field" role="group"><label for="di-sa">{{t "day.info.standby.active"}}</label><input class="input tabular-nums" id="di-sa" name="standby_active" value="{{if $d.Info.StandbyActive}}{{dec $d.Info.StandbyActive}}{{end}}" pattern="{{durationPattern}}" inputmode="decimal" autocomplete="off"></div>
+          <div class="field" role="group"><label for="di-co">{{t "day.info.callouts"}}</label><input class="input tabular-nums" id="di-co" name="callouts" value="{{if $d.Info.Callouts}}{{$d.Info.Callouts}}{{end}}" pattern="\s*\d{0,3}\s*" inputmode="numeric" autocomplete="off"></div>
         </div>
+        {{if $d.Day.Standby}}<p class="text-muted-foreground text-xs" data-standby-work>{{t "day.info.standby.counts" (dec $d.Day.Standby)}}</p>{{end}}
         <button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button>
       </form>
     </section>

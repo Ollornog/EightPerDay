@@ -96,9 +96,24 @@ Income and the details of a day, two catalog kinds per employer and day:
   `ComputeEarnings` lists incomes as lines of the basis `income` with the kind as reason, and `Earnings.Taken` sums
   them by how they were taken.
 - `DayInfo` (kind `day_info`, ID `DayInfoID(employer, day)`): place of work, kilometres one way and in all (tenths),
-  standby passive and active (minutes).
+  standby passive and active (minutes) and the call-outs of active standby (`Callouts`).
 - `PayRule.Salaries`: a monthly `flat_period` rule with 13 or 14 salaries a year pays the extra months spread over
   the year (0 means 12).
+
+Half days and standby (ADR-3):
+
+- `Entry.Part` marks work of half a day, `am` (`Morning`) or `pm` (`Afternoon`). `Day.Part` is the half when every
+  work entry of the day marks the same one; a morning and an afternoon, or any work without a half, make the day
+  whole. A `per_assignment` rule per day pays a half day at `PayRule.HalfAmount`, or half of `Amount` without one
+  (`HalfDayAmount`); the line has `HalfDay` set.
+- Standby is paid by `PayRule`s of the bases `standby_passive` and `standby_active`: no unit pays the minutes per
+  hour, `day` pays each day with standby of the kind, `assignment` (active only) each call-out (`DayInfo.Callouts`,
+  at least one when there are active minutes). Lines carry the basis as reason and the rule's `Unit`.
+- `Employer.StandbyWork` says which standby is working time for the time account: `active` (the default, empty),
+  `none` or `all`. `Day.Standby` is that part, and `Day.Worked` holds it, so balance, overtime and the overview of the
+  Working Hours Act count it. Pay for hours, pay per day and the average of paid leave leave it out: standby is paid
+  by its own rules only.
+- One currency per instance and employer, as before; several currencies are not planned (ADR-3).
 
 Pay: `ApplyRate` stores the rate as a snapshot on an entry, `Revalue` lists entries whose snapshot differs from the
 current rule (store them with `UpdateEntry` to re-value on purpose).
@@ -116,6 +131,11 @@ caller resolves `Parsed.Project` to a project ID.
 `F`/`O` a day off, `ZA`/`C` time off in lieu, in upper or lower case, half days with `½`, `/2` or `0,5` in front or
 behind (`½U`, `U/2`). Public holidays have no code: they come from the region. `CodedAbsence(key)` says whether an
 absence type has one.
+
+The list of the web interface also reads hours of half a day (`4v`, `4n`, `4a`, `4p`, `4 VM`, `4 NM`, `4 AM`,
+`4 PM`: `Entry.Part`) and half a day of a code next to hours (`½U 4n`: half a day of leave and an afternoon of work).
+A proposed day of a change request (`ProposedDay`) holds the same: minutes with `Part`, and next to half a day of an
+absence, minutes.
 
 ## Organizations and rights
 

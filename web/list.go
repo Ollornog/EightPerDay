@@ -5,6 +5,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -240,7 +241,7 @@ func (h *handler) listWeeks(r *http.Request, cat core.Catalog, emp core.Employer
 	today core.Date, approval, focus bool, back func(core.Date) string) ([]listWeek, bool) {
 	lang := h.lang(r)
 	codes := h.dayCodes(r, cat, emp, data)
-	manual, notes := manualDays(data, emp.ID)
+	manual, parts, notes := manualDays(data, emp.ID)
 	types := cat.AbsenceTypesFor(emp.ID)
 	focused, hasTarget := !focus, false
 	var out []listWeek
@@ -261,12 +262,15 @@ func (h *handler) listWeeks(r *http.Request, cat core.Catalog, emp core.Employer
 			switch {
 			case inPeriod && !changeable:
 				row.Fixed, lw.Locked = true, true
-				row.Value = h.dayText(r, manual[day.Date], c)
+				row.Value = h.dayText(r, manual[day.Date], parts[day.Date], c)
 			case c.fixed:
 				row.Fixed = true
 				row.Value = c.text
+			case manual[day.Date] > 0 && c.replaceable && c.half:
+				row.Value = c.text + " " + h.hoursOfPart(r, manual[day.Date], parts[day.Date])
+				row.Note = c.note
 			case manual[day.Date] > 0:
-				row.Value = hoursText(lang, manual[day.Date])
+				row.Value = h.hoursOfPart(r, manual[day.Date], parts[day.Date])
 			case c.replaceable:
 				row.Value = c.text
 				row.Note = c.note
@@ -300,37 +304,53 @@ func (h *handler) listWeeks(r *http.Request, cat core.Catalog, emp core.Employer
 
 // proposedText is what a change request asks a day to hold, as the list writes it.
 func (h *handler) proposedText(r *http.Request, types []core.AbsenceType, p core.ProposedDay) string {
+	var words []string
 	switch {
 	case p.Absence != "" && p.HalfDay:
-		return "½" + h.absenceCode(r, types, p.Absence)
+		words = append(words, "½"+h.absenceCode(r, types, p.Absence))
 	case p.Absence != "":
-		return h.absenceCode(r, types, p.Absence)
-	case p.Minutes > 0:
-		return hoursText(h.lang(r), p.Minutes)
+		words = append(words, h.absenceCode(r, types, p.Absence))
 	}
-	return "–"
+	if p.Minutes > 0 {
+		words = append(words, h.hoursOfPart(r, p.Minutes, p.Part))
+	}
+	if len(words) == 0 {
+		return "–"
+	}
+	return strings.Join(words, " ")
+}
+
+// hoursOfPart writes hours with their half of the day as the list reads them back: 4 NM, 3,5 AM.
+func (h *handler) hoursOfPart(r *http.Request, minutes int, part core.DayPart) string {
+	text := hoursText(h.lang(r), minutes)
+	if part != "" {
+		text += " " + h.t(r, "part."+string(part))
+	}
+	return text
 }
 
 // dayText is what a handed-in day shows instead of its field.
-func (h *handler) dayText(r *http.Request, minutes int, c dayCode) string {
+func (h *handler) dayText(r *http.Request, minutes int, part core.DayPart, c dayCode) string {
 	if minutes > 0 {
-		return hoursText(h.lang(r), minutes)
+		return h.hoursOfPart(r, minutes, part)
 	}
 	return c.text
 }
 
-// manualDays returns the hours typed for a day (a manual day entry without span or project) and their notes.
-func manualDays(data core.Data, employerID string) (map[core.Date]int, map[core.Date]string) {
-	minutes, notes := map[core.Date]int{}, map[core.Date]string{}
+// manualDays returns the hours typed for a day (a manual day entry without span or project) with their half of the
+// day, and their notes.
+func manualDays(data core.Data, employerID string) (map[core.Date]int, map[core.Date]core.DayPart, map[core.Date]string) {
+	minutes, parts, notes := map[core.Date]int{}, map[core.Date]core.DayPart{}, map[core.Date]string{}
 	for _, e := range data.Entries {
 		if isManualDay(e, employerID) {
 			minutes[e.Date] += e.Minutes
+			parts[e.Date] = e.Part
 			if e.Note != "" {
 				notes[e.Date] = e.Note
 			}
 		}
 	}
-	return minutes, notes
+	return minutes, parts, notes
 }
 
 func isManualDay(e core.Entry, employerID string) bool {
@@ -346,6 +366,8 @@ type dayCode struct {
 	replaceable bool
 	// fixed: an absence the row cannot replace (several days, every employer, a type without a code, or requested).
 	fixed bool
+	// half: the replaceable absence takes half the day, so the row may hold hours next to it.
+	half bool
 }
 
 // dayCodes gives the short code of every day that has an absence or a public holiday.
@@ -371,7 +393,7 @@ func (h *handler) dayCodes(r *http.Request, cat core.Catalog, emp core.Employer,
 			}
 			c.text += text
 			if single {
-				c.replaceable, c.note = true, a.Note
+				c.replaceable, c.note, c.half = true, a.Note, a.HalfDay
 			} else {
 				c.fixed = true
 			}
@@ -483,13 +505,25 @@ func signedDecimal(lang string, minutes int) string {
 	return hoursText(lang, minutes)
 }
 
-// dayValue is what a day's field holds: hours, a short code, or nothing.
+// dayValue is what a day's field holds: hours, a short code, half a day of a code with hours, or nothing. part marks
+// hours of half a day, the morning or the afternoon (core.Entry.Part).
 type dayValue struct {
 	minutes int
+	part    core.DayPart
 	code    *core.DayCode
 }
 
-// parseDayValue reads a day's field: hours without a sign (8, 8,5, 7:30, 7h30) or a short code (U, K, F, ½U).
+// dayPartWords are the ways the half of a day is written behind the hours: v/vm (Vormittag), n/nm (Nachmittag), a/am
+// and p/pm.
+var dayPartWords = map[string]core.DayPart{"v": core.Morning, "vm": core.Morning, "a": core.Morning, "am": core.Morning,
+	"n": core.Afternoon, "nm": core.Afternoon, "p": core.Afternoon, "pm": core.Afternoon}
+
+// dayValuePattern splits hours with an optional half of the day and an optional half-day code in front or behind.
+var dayValuePattern = regexp.MustCompile(`^(?:(` + halfCodePattern + `)\s+)?(` + durationBody + `)(?:\s*(` + partPattern +
+	`))?(?:\s+(` + halfCodePattern + `))?$`)
+
+// parseDayValue reads a day's field: hours without a sign (8, 8,5, 7:30, 7h30), optionally of half a day (4v, 4 NM,
+// 3,5pm), a short code (U, K, F, ½U), or half a day of a code with hours (½U 4n, 4 NM ½U).
 func parseDayValue(input string) (dayValue, error) {
 	s := strings.TrimSpace(input)
 	if code, ok := core.ParseDayCode(s); ok {
@@ -498,20 +532,47 @@ func parseDayValue(input string) (dayValue, error) {
 	if strings.HasPrefix(s, "-") || strings.HasPrefix(s, "+") {
 		return dayValue{}, core.ErrInvalid
 	}
-	minutes, err := parseHours(s)
+	if minutes, err := parseHours(s); err == nil {
+		if minutes > 24*60 {
+			return dayValue{}, core.ErrInvalid
+		}
+		return dayValue{minutes: minutes}, nil
+	}
+	m := dayValuePattern.FindStringSubmatch(s)
+	if m == nil || (m[1] != "" && m[4] != "") {
+		return dayValue{}, core.ErrInvalid
+	}
+	minutes, err := parseHours(m[2])
 	if err != nil || minutes > 24*60 {
 		return dayValue{}, core.ErrInvalid
 	}
-	return dayValue{minutes: minutes}, nil
+	v := dayValue{minutes: minutes, part: dayPartWords[strings.ToLower(m[3])]}
+	if minutes == 0 {
+		v.part = ""
+	}
+	if text := m[1] + m[4]; text != "" {
+		code, ok := core.ParseDayCode(text) // halfCodePattern only lets half days through
+		if !ok {
+			return dayValue{}, core.ErrInvalid
+		}
+		v.code = &code
+	}
+	return v, nil
 }
 
 // halfMark and dayCodePattern follow core.ParseDayCode; a test keeps dayPattern in step with parseDayValue.
 const (
-	halfMark       = `(?:½|/2|0[.,]5|[.,]5)`
-	codeLetters    = `(?:[uUvVkKsSfFoOcC]|[zZ][aA])`
-	dayCodePattern = `(?:` + halfMark + `\s*` + codeLetters + `|` + codeLetters + `(?:\s*` + halfMark + `)?)`
-	// dayPattern is the pattern of a day's field in the list: hours without a sign, or a short code.
-	dayPattern = `\s*(?:` + durationBody + `|` + dayCodePattern + `)\s*`
+	halfMark        = `(?:½|/2|0[.,]5|[.,]5)`
+	codeLetters     = `(?:[uUvVkKsSfFoOcC]|[zZ][aA])`
+	dayCodePattern  = `(?:` + halfMark + `\s*` + codeLetters + `|` + codeLetters + `(?:\s*` + halfMark + `)?)`
+	halfCodePattern = `(?:` + halfMark + `\s*` + codeLetters + `|` + codeLetters + `\s*` + halfMark + `)`
+	// partPattern is the half of a day behind the hours (dayPartWords).
+	partPattern   = `(?:[vVnNaApP][mM]?)`
+	hoursWithPart = `(?:` + durationBody + `)(?:\s*` + partPattern + `)?`
+	// dayPattern is the pattern of a day's field in the list: hours without a sign, optionally of half a day, a short
+	// code, or half a day of a code with hours.
+	dayPattern = `\s*(?:` + hoursWithPart + `|` + dayCodePattern + `|` + halfCodePattern + `\s+` + hoursWithPart + `|` +
+		hoursWithPart + `\s+` + halfCodePattern + `)\s*`
 )
 
 // listDays saves the rows of a week of the list: hours, a code, or nothing, and the notes. Only rows whose field
@@ -583,9 +644,9 @@ func (h *handler) listDays(w http.ResponseWriter, r *http.Request) {
 
 // proposed is the value of a row as a change request asks for it.
 func (v dayValue) proposed(date core.Date, note string) core.ProposedDay {
-	p := core.ProposedDay{Date: date, Minutes: v.minutes, Note: note}
+	p := core.ProposedDay{Date: date, Minutes: v.minutes, Part: v.part, Note: note}
 	if v.code != nil {
-		p = core.ProposedDay{Date: date, Absence: v.code.Absence, HalfDay: v.code.HalfDay, Note: note}
+		p.Absence, p.HalfDay = v.code.Absence, v.code.HalfDay
 	}
 	return p
 }
@@ -641,9 +702,9 @@ func (h *handler) applyChange(r *http.Request, org core.Organization, actor core
 		return err
 	}
 	for _, p := range c.Proposal {
-		v := dayValue{minutes: p.Minutes}
+		v := dayValue{minutes: p.Minutes, part: p.Part}
 		if p.Absence != "" {
-			v = dayValue{code: &core.DayCode{Absence: p.Absence, HalfDay: p.HalfDay}}
+			v.code = &core.DayCode{Absence: p.Absence, HalfDay: p.HalfDay}
 		}
 		if err := h.setDay(r, data.Catalog, emp, p.Date, v, p.Note, "change request "+c.ID, true); err != nil {
 			return err
@@ -666,8 +727,9 @@ func (h *handler) applyChange(r *http.Request, org core.Organization, actor core
 	return h.logAccess(ctx, actor.Person, org.ID, emp.Owner, emp.ID, core.AccessChange, "change request applied", c.From, c.To)
 }
 
-// setDay makes a day hold what its row says (the store refuses a day handed in for approval): the hours as the one
-// manual entry of the day, or the code as an absence of the day alone; whatever the row booked before and no longer
+// setDay makes a day hold what its row says (the store refuses a day handed in for approval): the hours (with their
+// half of the day) as the one manual entry of the day, the code as an absence of the day alone, or both for half a day
+// of a code with hours; whatever the row booked before and no longer
 // says goes, through the history. direct books an absence as approved without asking (an approved change request).
 func (h *handler) setDay(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, v dayValue, note, reason string,
 	direct bool) error {
@@ -701,11 +763,7 @@ func (h *handler) setDay(r *http.Request, cat core.Catalog, emp core.Employer, d
 			return err
 		}
 	}
-	minutes := v.minutes
-	if v.code != nil {
-		minutes = 0
-	}
-	if err := h.setManualDay(r, cat, emp, date, entries, minutes, note, reason); err != nil {
+	if err := h.setManualDay(r, cat, emp, date, entries, v.minutes, v.part, note, reason); err != nil {
 		return err
 	}
 	if v.code == nil || keep != "" {
@@ -732,9 +790,9 @@ func healthType(cat core.Catalog, emp core.Employer, key string) bool {
 	return false
 }
 
-// setManualDay keeps one manual entry for the day with the minutes and the note; zero removes it.
+// setManualDay keeps one manual entry for the day with the minutes, their half of the day and the note; zero removes it.
 func (h *handler) setManualDay(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, entries []core.Entry, minutes int,
-	note, reason string) error {
+	part core.DayPart, note, reason string) error {
 	ctx := r.Context()
 	for _, e := range entries {
 		if !isManualDay(e, emp.ID) {
@@ -746,8 +804,8 @@ func (h *handler) setManualDay(r *http.Request, cat core.Catalog, emp core.Emplo
 			}
 			continue
 		}
-		if e.Minutes != minutes || e.Note != note {
-			e.Minutes, e.Note = minutes, note
+		if e.Minutes != minutes || e.Note != note || e.Part != part {
+			e.Minutes, e.Note, e.Part = minutes, note, part
 			if _, err := h.options.Store.UpdateEntry(ctx, e, change(r, reason)); err != nil {
 				return err
 			}
@@ -759,7 +817,7 @@ func (h *handler) setManualDay(r *http.Request, cat core.Catalog, emp core.Emplo
 	}
 	loc, _ := emp.Location()
 	return h.book(r, cat, []core.Entry{{Owner: emp.Owner, EmployerID: emp.ID, Kind: core.EntryWork, Date: date, TimeZone: loc.String(),
-		Minutes: minutes, Precision: core.PrecisionDay, Source: core.SourceManual, Note: note}}, reason)
+		Minutes: minutes, Part: part, Precision: core.PrecisionDay, Source: core.SourceManual, Note: note}}, reason)
 }
 
 // addCorrection books a correction of the time account (a payout, a cap) with its reason, for whoever may change the

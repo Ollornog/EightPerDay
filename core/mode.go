@@ -35,8 +35,8 @@ func MaterializePlan(d Data, employerID string, from, to Date) ([]Entry, error) 
 				}
 			}
 		}
-		// The minutes of the plan alone: what the day counted before deviations and booked breaks.
-		planned := day.Worked - adjust + breaks
+		// The minutes of the plan alone: what the day counted before deviations, booked breaks and standby.
+		planned := day.Worked - day.Standby - adjust + breaks // standby stays in DayInfo
 		base := Entry{Owner: emp.Owner, EmployerID: employerID, Kind: EntryWork, Date: day.Date, TimeZone: loc.String(),
 			Precision: PrecisionDay, Minutes: planned, Source: SourcePlan}
 		s, _ := ScheduleAt(d.Catalog, employerID, day.Date)

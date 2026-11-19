@@ -68,5 +68,7 @@ The second option.
 - In the mode `plan` the days are not stored: the calculation derives them from the schedule until the person switches
   to `exact`, which turns them into entries with the same minutes per day.
 - Earlier balances and earnings stay stable because schedules and rates are versioned, not edited.
+- Half days of pay per day, paid standby and one currency per employer were added on 2026-11-19:
+  [ADR-3](ADR-3-half-days-and-standby.md).
 - The holder, the organizations and the separation were added on 2026-11-17 at the maintainer's request, before any
   release; the standalone program supports both holders.

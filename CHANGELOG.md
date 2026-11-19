@@ -8,6 +8,15 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- Half days and standby pay (M-5, T-12, ADR-3): a `per_assignment` rule per day pays a morning or an afternoon at
+  its own amount (`PayRule.HalfAmount`), or half the amount without one. The list takes half a day behind the hours
+  (`4v`, `4 NM`, `4a`, `4 PM`; `Entry.Part`, `Day.Part`) and half a day of leave next to hours on the same day
+  (`½U 4n`), also in change requests (`ProposedDay.Part`); the week of every employer counts half days as halves in
+  the average. Standby is paid by pay rules of the bases `standby_passive` and `standby_active`, per hour, per standby
+  day or per call-out (`DayInfo.Callouts`), and goes into the earnings of the day and the week.
+  `Employer.StandbyWork` decides which standby counts as working time for the time account (active only by default,
+  none, or all; `Day.Standby`). One currency per instance and employer stays: several currencies are not planned.
+
 - Embedding (M-3, T-11): `web.Options.Embedding` runs the interface inside another application, below a mount path,
   with the application's sign-in and accounts, framed by its own pages, in its theme; without the program's own
   login, setup, account and admin pages. Stopwatches can live in the store (`core.Stopwatches`, table

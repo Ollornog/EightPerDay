@@ -416,7 +416,7 @@ func TestChangeRequest(t *testing.T) {
 			Proposal: days, At: decidedAt}
 	}
 	c, err := Submit(approvalOn, data, request(ProposedDay{Date: d("2026-03-03"), Minutes: 360, Note: "dentist"},
-		ProposedDay{Date: d("2026-03-04"), Absence: AbsenceVacation, HalfDay: true}))
+		ProposedDay{Date: d("2026-03-04"), Absence: AbsenceVacation, HalfDay: true, Minutes: 240, Part: Afternoon}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -438,6 +438,8 @@ func TestChangeRequest(t *testing.T) {
 		"a type without a code": {{Date: d("2026-03-03"), Absence: AbsenceUnpaid}},
 		"absence with minutes":  {{Date: d("2026-03-03"), Absence: AbsenceVacation, Minutes: 60}},
 		"half a day of hours":   {{Date: d("2026-03-03"), Minutes: 240, HalfDay: true}},
+		"a part without hours":  {{Date: d("2026-03-03"), Part: Morning}},
+		"an unknown part":       {{Date: d("2026-03-03"), Minutes: 240, Part: "noon"}},
 		"a note over 200 chars": {{Date: d("2026-03-03"), Minutes: 60, Note: string(make([]byte, 201))}},
 	} {
 		if _, err := Submit(approvalOn, data, request(days...)); !errors.Is(err, ErrInvalid) {

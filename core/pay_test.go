@@ -307,13 +307,17 @@ func TestPaidAbsenceAverage(t *testing.T) {
 		name      string
 		schedules []Schedule
 		mode      Mode
+		infos     []DayInfo
 	}{
-		{"at the target", []Schedule{sched}, ModeSchedule},
-		{"without a target: the average worked day", nil, ModeExact},
+		{"at the target", []Schedule{sched}, ModeSchedule, nil},
+		{"without a target: the average worked day", nil, ModeExact, nil},
+		// Active standby counts as working time, but is paid by its own rules: the average leaves it out.
+		{"standby in the reference stays out", nil, ModeExact, []DayInfo{{ID: DayInfoID("e1", d("2026-04-27")), Owner: owner,
+			EmployerID: "e1", Date: d("2026-04-27"), StandbyActive: 240}}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			data := Data{Catalog: Catalog{Employers: []Employer{employerOf(c.mode, "")}, Schedules: c.schedules,
-				PayRules: []PayRule{rule("h", PayHourly, 2000, "2026-01-01", "")}, AbsencePays: []AbsencePay{pay}},
+				PayRules: []PayRule{rule("h", PayHourly, 2000, "2026-01-01", "")}, AbsencePays: []AbsencePay{pay}, DayInfos: c.infos},
 				Entries: entries, Absences: []Absence{leave}}
 			got := earnings(t, data, "2026-05-04", "2026-05-08")
 			if want := int64(2 * 480 * 96000 / 2400); amountOf(got, PayAbsence, AbsenceVacation) != want {

@@ -176,7 +176,8 @@ func TestListRefusesWhatItCannotRead(t *testing.T) {
 	s, _ := trackSite(t)
 	me := s.me("mara", false)
 	emp := s.employer(me, "Office", core.ModeSchedule, "8")
-	for value, note := range map[string]string{"x": "", "-2": "", "25": "", "U½U": "", "": "a note alone"} {
+	for value, note := range map[string]string{"x": "", "-2": "", "25": "", "U½U": "", "": "a note alone", "U 4": "", "4 K": "",
+		"4x": "", "½U ½K": "", "25v": ""} {
 		a := s.post("/book/list", url.Values{"employer": {emp.ID}, "back": {"/"}, "v-2026-11-16": {value}, "was-2026-11-16": {"1"},
 			"n-2026-11-16": {note}})
 		if a.status != http.StatusBadRequest {
@@ -193,7 +194,9 @@ func TestListRefusesWhatItCannotRead(t *testing.T) {
 func TestDayPatternAgreesWithParseDayValue(t *testing.T) {
 	pattern := regexp.MustCompile(`^(?:` + dayPattern + `)$`)
 	for _, input := range []string{"8", "8,5", "7:30", "7h30", "90m", "0", "U", "u", "K", "F", "ZA", "za", "V", "S", "O", "C",
-		"½U", "U½", "U/2", "0,5U", "0.5 u", ",5F", "-2", "+2", "x", "UU", "H", "½", "½U½", "Z A", "U /2", "8U", "25:00", "1:75"} {
+		"½U", "U½", "U/2", "0,5U", "0.5 u", ",5F", "-2", "+2", "x", "UU", "H", "½", "½U½", "Z A", "U /2", "8U", "25:00", "1:75",
+		"4v", "4 NM", "3,5pm", "4a", "4 P", "4vm", "4x", "4 vv", "4 v m", "½U 4n", "4 NM ½U", "U/2 4", "4 ½K", "U 4", "4 U", "½U ½U",
+		"½U 4n ½K", "½U4", "v", "nm"} {
 		_, err := parseDayValue(input)
 		if got, want := pattern.MatchString(input), err == nil; got != want && input != "25:00" {
 			t.Errorf("%q: pattern says %v, the server %v", input, got, want)

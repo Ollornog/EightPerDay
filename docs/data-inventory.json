@@ -53,6 +53,10 @@
           "purpose": "Which day time past midnight counts for."
         },
         {
+          "name": "standby_work",
+          "purpose": "Which standby counts as working time for the time account."
+        },
+        {
           "name": "archived",
           "purpose": "Hidden from new bookings, kept for the past."
         },
@@ -178,6 +182,10 @@
         {
           "name": "salaries",
           "purpose": "Monthly salaries a year of a monthly rule (13th and 14th month pay)."
+        },
+        {
+          "name": "half_amount",
+          "purpose": "Amount for half a day, a morning or an afternoon."
         }
       ]
     },
@@ -272,6 +280,10 @@
         {
           "name": "standby_active",
           "purpose": "Minutes on standby, called out."
+        },
+        {
+          "name": "callouts",
+          "purpose": "Number of call-outs of active standby."
         }
       ]
     },
@@ -904,6 +916,10 @@
         {
           "name": "assignment",
           "purpose": "Groups bookings of one job for pay per assignment."
+        },
+        {
+          "name": "part",
+          "purpose": "The half of the day the work took: morning or afternoon."
         },
         {
           "name": "project_id",

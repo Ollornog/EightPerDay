@@ -16,7 +16,7 @@
             {{range $d.Rows}}
             <tr data-all-day="{{.Date}}"{{if .IsToday}} aria-current="date"{{end}}>
               <td class="px-1 tabular-nums"><span class="font-medium">{{t (print "weekday." .Weekday)}}</span><br><span class="text-muted-foreground text-xs">{{short .Date}}</span></td>
-              {{range .Cells}}<td class="px-1 text-end tabular-nums">{{if .Active}}<span data-hours>{{if .Hours}}{{.Hours}}{{else}}{{.Code}}{{end}}</span>{{if .Earned}}<br><span class="text-muted-foreground text-xs">{{money .Earned $d.Currency}}</span>{{end}}{{end}}</td>{{end}}
+              {{range .Cells}}<td class="px-1 text-end tabular-nums">{{if .Active}}{{if and .Hours .Code}}<span data-code>{{.Code}}</span> {{end}}<span data-hours>{{if .Hours}}{{.Hours}}{{else}}{{.Code}}{{end}}</span>{{if .Standby}} <abbr title="{{t "all.standby"}}" data-standby>{{t "all.standby.short"}}</abbr>{{end}}{{if .Earned}}<br><span class="text-muted-foreground text-xs">{{money .Earned $d.Currency}}</span>{{end}}{{end}}</td>{{end}}
               <td class="px-1 text-end tabular-nums" data-day-earned>{{if .Earned}}{{money .Earned $d.Currency}}{{end}}</td>
               <td class="px-1 text-xs">{{.Place}}{{if .Km}} · {{.Km}} km{{end}}</td>
             </tr>
@@ -32,7 +32,7 @@
   <!-- C22 block data-entry/stat-row -->
   <div class="card" data-size="sm">
     <section class="grid grid-cols-3 gap-2 text-center">
-      <div><p class="text-muted-foreground text-xs">{{t "all.average"}}</p><p class="font-semibold tabular-nums" data-average>{{money $d.Average $d.Currency}}</p></div>
+      <div><p class="text-muted-foreground text-xs">{{t "all.average"}}</p><p class="font-semibold tabular-nums" data-work-halves="{{$d.WorkHalves}}" data-average>{{money $d.Average $d.Currency}}</p></div>
       <div><p class="text-muted-foreground text-xs">{{t "all.cash"}}</p><p class="font-semibold tabular-nums" data-cash>{{money $d.Cash $d.Currency}}</p></div>
       <div><p class="text-muted-foreground text-xs">{{t "all.card"}}</p><p class="font-semibold tabular-nums" data-card>{{money $d.Card $d.Currency}}</p></div>
     </section>

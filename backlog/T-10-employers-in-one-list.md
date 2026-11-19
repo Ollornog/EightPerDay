@@ -15,5 +15,6 @@ created: 2026-11-19
 - An optional estimate of pay from a yearly or monthly salary or an hourly rate, with 13th and 14th month pay.
 
 Done: `/all` with the columns, earnings, average and cash/card; `core.Income` and `core.DayInfo` on the day page;
-`PayRule.Salaries` for 13th and 14th month pay. Pay per half day is booked as two jobs of a day (per_assignment with
-unit assignment) or as an income per lesson; standby is recorded, not paid.
+`PayRule.Salaries` for 13th and 14th month pay. Pay per half day and paid standby followed in
+[T-12](T-12-half-days-and-standby-pay.md) (2026-11-19); until then a half day was booked as a job of its own and
+standby was recorded, not paid.
