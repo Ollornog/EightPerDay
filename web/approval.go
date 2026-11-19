@@ -177,6 +177,9 @@ type reviewView struct {
 	Own bool
 	// Changes are the days a change request asks for, as "Mon 11-16: 6".
 	Changes []string
+	// Overlaps name the other members away on days of a leave request (core.Overlaps): who, when, and whether asked
+	// for only.
+	Overlaps []string
 }
 
 // orgLocation is the time zone of an organization, which decides its days.
@@ -208,6 +211,7 @@ func (h *handler) reviews(r *http.Request, org core.Organization, actor core.Act
 	if err != nil {
 		return nil, err
 	}
+	all := data
 	data = core.ReviewData(org, data)
 	types := map[string]string{}
 	for _, t := range core.DefaultAbsenceTypes() {
@@ -231,6 +235,19 @@ func (h *handler) reviews(r *http.Request, org core.Organization, actor core.Act
 		for i, a := range data.Absences {
 			if a.ID == s.AbsenceID && a.Owner == s.Owner {
 				v.Absence, v.Type = &data.Absences[i], types[a.Type]
+			}
+		}
+		if v.Absence != nil {
+			lang := h.lang(r)
+			for _, o := range core.Overlaps(all, *v.Absence) {
+				text := names[o.Owner] + ": " + formatDate(lang, toTime(o.From))
+				if o.To != o.From {
+					text += " – " + formatDate(lang, toTime(o.To))
+				}
+				if o.Status == core.StatusRequested {
+					text += " (" + h.t(r, "absence.requested") + ")"
+				}
+				v.Overlaps = append(v.Overlaps, text)
 			}
 		}
 		out = append(out, v)

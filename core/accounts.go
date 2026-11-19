@@ -4,6 +4,7 @@ package core
 
 import (
 	"math"
+	"slices"
 	"time"
 )
 
@@ -190,4 +191,98 @@ func (v *employerView) workingDay(d Date) bool {
 	}
 	wd := d.Weekday()
 	return wd != time.Saturday && wd != time.Sunday
+}
+
+// LeaveStatus is the leave account of a year as of a day: what is earned up to it, taken up to it and planned after it.
+type LeaveStatus struct {
+	LeaveAccount
+	// Today is the day the status is taken on.
+	Today Date `json:"today"`
+	// Accrued is the part of the entitlement earned up to today (aliquot): each schedule's leave for the days of the year
+	// it is valid up to today, rounded to half days. The whole entitlement once the year is over.
+	Accrued float64 `json:"accrued"`
+	// TakenSoFar counts approved leave up to today, Planned approved leave after it; together they are Taken.
+	TakenSoFar float64 `json:"taken_so_far"`
+	Planned    float64 `json:"planned"`
+}
+
+// LeaveAt is Leave as of today: the account of the year with the accrued part and taken leave split into what lies up
+// to today and what is planned after it. Half days count half; public holidays and days without a target count not.
+func LeaveAt(d Data, employerID string, year int, today Date) (LeaveStatus, error) {
+	acc, err := Leave(d, employerID, year)
+	if err != nil {
+		return LeaveStatus{}, err
+	}
+	v, err := newEmployerView(d, employerID)
+	if err != nil {
+		return LeaveStatus{}, err
+	}
+	st := LeaveStatus{LeaveAccount: acc, Today: today}
+	first, last := NewDate(year, time.January, 1), NewDate(year, time.December, 31)
+	until := today
+	if until.After(last) {
+		until = last
+	}
+	daysInYear := float64(first.DaysUntil(last) + 1)
+	accrued := 0.0
+	for i, s := range v.schedules {
+		start, end := s.ValidFrom, last
+		if i+1 < len(v.schedules) {
+			end = v.schedules[i+1].ValidFrom.AddDays(-1)
+		}
+		start, end = maxDate(start, first), minDate(end, until)
+		if end.Before(start) {
+			continue
+		}
+		accrued += s.LeaveDays * float64(start.DaysUntil(end)+1) / daysInYear
+	}
+	st.Accrued = math.Round(accrued*2) / 2
+	if today.After(last) {
+		st.Accrued = acc.Entitlement
+	}
+	types := d.Catalog.AbsenceTypesFor(employerID)
+	for _, a := range d.Absences {
+		if a.DeletedAt != nil || !appliesTo(v.emp, a.EmployerID) || a.Status != StatusApproved {
+			continue
+		}
+		if t, ok := findAbsenceType(types, a.Type); !ok || !t.DeductsLeave {
+			continue
+		}
+		for day := a.From; !day.After(a.To); day = day.AddDays(1) {
+			if day.Year != year || !v.workingDay(day) {
+				continue
+			}
+			if _, frac := v.holidays.on(day); frac >= 1000 {
+				continue
+			}
+			n := 1.0
+			if a.HalfDay {
+				n = 0.5
+			}
+			if day.After(today) {
+				st.Planned += n
+			} else {
+				st.TakenSoFar += n
+			}
+		}
+	}
+	return st, nil
+}
+
+// Overlaps returns the leave of other people that falls on days of the absence, for a reviewer who decides a request:
+// only types that count against leave (never sickness), approved or requested, ordered by start.
+func Overlaps(d Data, a Absence) []Absence {
+	var out []Absence
+	for _, x := range d.Absences {
+		if x.DeletedAt != nil || x.Owner == a.Owner || x.Status == StatusRejected || x.To.Before(a.From) || x.From.After(a.To) {
+			continue
+		}
+		t, ok := findAbsenceType(d.Catalog.AbsenceTypesFor(x.EmployerID), x.Type)
+		if !ok || !t.DeductsLeave || t.Health {
+			continue
+		}
+		out = append(out, x)
+	}
+	slices.SortStableFunc(out, func(a, b Absence) int { return a.From.Compare(b.From) })
+	return out
 }

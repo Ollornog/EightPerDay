@@ -143,6 +143,8 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	signedIn.HandleFunc("GET /{$}", h.list)
 	signedIn.HandleFunc("GET /week", h.home)
 	signedIn.HandleFunc("GET /weeks", h.allWeeks)
+	signedIn.HandleFunc("GET /leave", h.leavePage)
+	signedIn.HandleFunc("POST /leave/plan", h.planLeave)
 	signedIn.HandleFunc("POST /book/list", h.listDays)
 	signedIn.HandleFunc("POST /book/correction", h.addCorrection)
 	signedIn.HandleFunc("POST /corrections/{id}/remove", h.removeCorrection)
