@@ -29,6 +29,9 @@ only wants to note "sick on Wednesday" or a freelancer with three clients ends u
 - **Schedules and pay rules with a valid-from date**, so changing them never rewrites the past.
 - **Pay per hour, per project, per assignment or per period**, and earnings per employer and period.
 - **Absences** (leave, sickness, public holidays and more), public holidays of the German states and Austria as data.
+- **One sheet for every employer**, as a table, a journal (one line per day) or a grid per week, opening at today and
+  endless in both directions, with as much detail as the records need. A week of five days takes ten keys; a line such
+  as `5 f3 studio n1,5` books three employers and a project at once.
 - **Free-text entry** such as `2h #meeting @Website ACME` or `8-16:30 30m break`.
 - **Correction history instead of overwriting**, configurable retention and an export for the person concerned.
 

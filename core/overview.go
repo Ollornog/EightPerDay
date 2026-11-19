@@ -283,6 +283,9 @@ func catalogRecords(c Catalog) []Record {
 	for _, v := range c.DayInfos {
 		add(v)
 	}
+	for _, v := range c.Preferences {
+		add(v)
+	}
 	return out
 }
 
@@ -391,6 +394,9 @@ func withOwner(r Record, owner string) Record {
 		return v
 	case DayInfo:
 		v.Owner = owner
+		return v
+	case Preferences:
+		v.ID, v.Owner = owner, owner
 		return v
 	}
 	return r

@@ -31,6 +31,9 @@ bei einer Tabelle.
 - **Vergütung je Stunde, je Projekt, je Einsatz oder je Zeitraum**, Verdienst je Arbeitgeber und Zeitraum.
 - **Abwesenheiten** (Urlaub, Krankheit, Feiertage und mehr), Feiertage der deutschen Bundesländer und Österreichs als
   Daten.
+- **Ein Blatt für alle Arbeitgeber**, als Tabelle, als Journal (eine Zeile je Tag) oder als Wochenraster, öffnet bei
+  heute und läuft endlos in beide Richtungen, mit so viel Detail, wie die Einträge brauchen. Eine Woche mit fünf Tagen
+  braucht zehn Tasten; eine Zeile wie `5 f3 studio n1,5` bucht drei Arbeitgeber und ein Projekt auf einmal.
 - **Freitext-Eingabe** wie `2h #meeting @Website ACME` oder `8-16:30 30m Pause`.
 - **Korrekturhistorie statt Überschreiben**, einstellbare Aufbewahrung und ein Export für die betroffene Person.
 

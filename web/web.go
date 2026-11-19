@@ -174,7 +174,10 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	}
 
 	signedIn := http.NewServeMux()
-	signedIn.HandleFunc("GET /{$}", h.list)
+	signedIn.HandleFunc("GET /{$}", h.sheetPage)
+	signedIn.HandleFunc("POST /sheet/cell", h.saveCell)
+	signedIn.HandleFunc("POST /sheet/week", h.saveWeek)
+	signedIn.HandleFunc("POST /sheet/prefs", h.savePrefs)
 	signedIn.HandleFunc("GET /week", h.home)
 	signedIn.HandleFunc("GET /day", h.dayPage)
 	signedIn.HandleFunc("POST /book/project-day", h.bookProjectDay)
@@ -183,17 +186,14 @@ func New(log *slog.Logger, options Options) (http.Handler, error) {
 	signedIn.HandleFunc("POST /book/dayinfo", h.bookDayInfo)
 	signedIn.HandleFunc("GET /all", h.allEmployers)
 	signedIn.HandleFunc("GET /report/week", h.weekReport)
-	signedIn.HandleFunc("GET /weeks", h.allWeeks)
 	signedIn.HandleFunc("GET /leave", h.leavePage)
 	signedIn.HandleFunc("POST /leave/plan", h.planLeave)
-	signedIn.HandleFunc("POST /book/list", h.listDays)
 	signedIn.HandleFunc("POST /book/correction", h.addCorrection)
 	signedIn.HandleFunc("POST /corrections/{id}/remove", h.removeCorrection)
 	signedIn.HandleFunc("POST /employers", h.createEmployer)
 	signedIn.HandleFunc("GET /employers/{id}", h.employerPage)
 	signedIn.HandleFunc("POST /employers/{id}/{action}", h.changeEmployer)
 	signedIn.HandleFunc("POST /book/week", h.weekTotal)
-	signedIn.HandleFunc("POST /book/days", h.dayTotals)
 	signedIn.HandleFunc("POST /book/projects", h.projectTotals)
 	signedIn.HandleFunc("POST /book/confirm", h.confirmWeek)
 	signedIn.HandleFunc("POST /book/adjust", h.adjust)
@@ -272,15 +272,31 @@ func (h *handler) parseTemplates() error {
 			"percent":         func(basisPoints int) string { return formatPercent(lang, basisPoints) },
 			"dec":             func(minutes int) string { return hoursText(lang, minutes) },
 			"sdec":            func(minutes int) string { return signedDecimal(lang, minutes) },
-			"dayPattern":      func() string { return dayPattern },
-			"listWeekOf": func(w listWeek, employerID string, hasAccount bool) listWeekView {
-				return listWeekView{Week: w, EmployerID: employerID, HasAccount: hasAccount}
+			"monthNumber":     func(m time.Month) int { return int(m) },
+			"weekdayOf":       func(d core.Date) int { return int(d.Weekday()) },
+			"short":           func(d core.Date) string { return shortDate(lang, d) },
+			"upper":           strings.ToUpper,
+			"projectWord":     core.ProjectWord,
+			"sheetViews":      func() []string { return sheetViews },
+			"sheetDetails":    func() []string { return sheetDetails },
+			"withSheet":       func(s *sheet, w sheetWeek) sheetWeekView { return sheetWeekView{S: s, W: w} },
+			"focusOn":         func(s *sheet, w sheetWeek, d sheetDay) bool { return d.Date == s.FocusDate },
+			"noteOf": func(w sheetWeek, d sheetDay, x string) noteView {
+				return noteView{D: d, Week: w.From, X: x}
 			},
-			"monthNumber": func(m time.Month) int { return int(m) },
-			"weekdayOf":   func(d core.Date) int { return int(d.Weekday()) },
-			"days31":      func() []int { return days31 },
-			"short":       func(d core.Date) string { return shortDate(lang, d) },
-			"clock":       clockText,
+			"cellOf": func(s *sheet, w sheetWeek, d sheetDay, c sheetCell, mode string) cellView {
+				v := cellView{C: c, Date: d.Date, Week: w.From, X: c.Column.Key, Focus: d.Date == s.FocusDate && c.Column.Key == s.FocusCol}
+				if mode == viewGrid {
+					v.X = d.Date.String()
+				}
+				name := c.Column.Employer.Name
+				if c.Column.Project != nil {
+					name = c.Column.Project.Name
+				}
+				v.Label = name + " " + h.catalog[lang]["weekday."+strconv.Itoa(d.Weekday)] + " " + shortDate(lang, d.Date)
+				return v
+			},
+			"clock": clockText,
 			"noticeForm": func(employer, owner, back string, today core.Date) noticeForm {
 				return noticeForm{EmployerID: employer, Owner: owner, Back: back, Today: today}
 			},
@@ -321,6 +337,7 @@ type view struct {
 	Narrow    bool // a page with one small card, such as the sign-in
 	Wide      bool // a page with columns side by side, such as the list
 	Print     bool // a page to print: no header, tab bar or footer
+	Sheet     bool // the sheet: the page does not scroll, its sheet does (so its header and first column stick)
 	Languages []string
 	// Embedded: inside another application, without the program's own sign-in and accounts; ThemeKey is where the
 	// application keeps its theme.

@@ -12,6 +12,8 @@
     <section class="grid gap-4">
       <input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}">
       <div class="field" role="group"><label for="emp-name">{{t "employer.name"}}</label><input class="input" id="emp-name" name="name" value="{{$d.Employer.Name}}" maxlength="200" required></div>
+      <div class="field" role="group"><label for="emp-key">{{t "employer.key"}}</label><input class="input w-24" id="emp-key" name="key" value="{{$d.Employer.Key}}" placeholder="{{$d.Key}}" maxlength="3" pattern="[A-Za-z]{1,3}" autocomplete="off" aria-describedby="emp-key-hint">
+        <p class="text-muted-foreground text-xs" id="emp-key-hint">{{t "employer.key.hint"}}</p></div>
       <div class="field" role="group"><label for="emp-kind">{{t "employer.kind"}}</label>
         <select class="select w-full" id="emp-kind" name="kind">{{range $d.Kinds}}<option value="{{.}}"{{if eq . $d.Employer.Kind}} selected{{end}}>{{t (print "kind." .)}}</option>{{end}}</select></div>
       <div class="field" role="group"><label for="emp-region">{{t "employer.region"}}</label>

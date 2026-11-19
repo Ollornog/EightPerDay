@@ -22,8 +22,8 @@ func TestAllEmployersInOneWeek(t *testing.T) {
 	flights := s.employer(me, "Tandem flights", core.ModeSchedule, "")
 	s.mustPost("/employers/"+taxi.ID+"/pay", url.Values{"basis": {"hourly"}, "amount": {"20"}, "from": {"2026-01-01"}, "back": {"/"}})
 	s.mustPost("/employers/"+ski.ID+"/pay", url.Values{"basis": {"per_assignment"}, "unit": {"day"}, "amount": {"120"}, "from": {"2026-01-01"}, "back": {"/"}})
-	s.mustPost("/book/list", url.Values{"employer": {taxi.ID}, "back": {"/"}, "v-2026-11-16": {"4"}, "was-2026-11-16": {""}})
-	s.mustPost("/book/list", url.Values{"employer": {ski.ID}, "back": {"/"}, "v-2026-11-17": {"6"}, "was-2026-11-17": {""}})
+	s.mustCell(monday, "e-"+taxi.ID, "4")
+	s.mustCell(tuesday, "e-"+ski.ID, "6")
 	income := func(kind, amount, by, client string) {
 		s.mustPost("/book/income", url.Values{"employer": {flights.ID}, "back": {"/"}, "date": {"2026-11-17"}, "kind": {kind},
 			"amount": {amount}, "paid_by": {by}, "client": {client}})

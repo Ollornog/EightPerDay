@@ -70,7 +70,7 @@ func (h *handler) dayPage(w http.ResponseWriter, r *http.Request) {
 	}
 	week := date.StartOfWeek(emp.WeekStart)
 	d := dayData{Employer: *emp, Date: date, Weekday: int(date.Weekday()), Day: days[0], Projects: projectsOf(cat, emp.ID),
-		Back: "/day?e=" + emp.ID + "&d=" + date.String(), List: "/?e=" + emp.ID + "&w=" + week.String() + "#week-" + week.String(),
+		Back: "/day?e=" + emp.ID + "&d=" + date.String(), List: "/?from=" + week.String() + "#week-" + week.String(),
 		Locked: cat.SubmittedLocked(emp.ID, date)}
 	for _, e := range data.Entries {
 		if e.EmployerID != emp.ID || e.DeletedAt != nil || e.Date != date {
@@ -154,11 +154,17 @@ type weekReportData struct {
 	Employer   core.Employer
 	Org        string
 	Person     string
-	Week       listWeek
+	Week       reportWeek
 	HasAccount bool
 	Days       []reportDay
 	Back       string
 	Printed    string
+}
+
+// reportWeek is the week of a report: its ledger week and number.
+type reportWeek struct {
+	core.LedgerWeek
+	Number int
 }
 
 type reportDay struct {
@@ -198,17 +204,19 @@ func (h *handler) weekReport(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
-	weeks, _ := h.listWeeks(r, cat, *emp, data, ledger, today, false, false, func(core.Date) string { return "" })
-	d := weekReportData{Employer: *emp, Week: weeks[0], HasAccount: hasSchedule, Person: accountFrom(ctx).DisplayName,
-		Back: "/?e=" + emp.ID + "&w=" + week.String(), Printed: formatDate(h.lang(r), toTime(today))}
+	_, number := toTime(week).ISOWeek()
+	d := weekReportData{Employer: *emp, Week: reportWeek{LedgerWeek: ledger[0], Number: number}, HasAccount: hasSchedule,
+		Person: accountFrom(ctx).DisplayName, Back: "/?from=" + week.String() + "#week-" + week.String(),
+		Printed: formatDate(h.lang(r), toTime(today))}
 	if emp.Managed() {
 		if org, err := h.options.Store.Organization(ctx, emp.Organization); err == nil {
 			d.Org = org.Name
 		}
 	}
-	for _, row := range weeks[0].Rows {
-		rd := reportDay{Day: row.Day, Weekday: row.Weekday, Code: row.Code}
-		for id, minutes := range row.Day.Projects {
+	codes := h.dayCodes(r, cat, *emp, data)
+	for _, day := range ledger[0].Days {
+		rd := reportDay{Day: day, Weekday: int(day.Date.Weekday()), Code: codes[day.Date].text}
+		for id, minutes := range day.Projects {
 			if id == "" {
 				continue
 			}

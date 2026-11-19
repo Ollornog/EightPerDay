@@ -70,5 +70,9 @@ The second option.
 - Earlier balances and earnings stay stable because schedules and rates are versioned, not edited.
 - Half days of pay per day, paid standby and one currency per employer were added on 2026-11-19:
   [ADR-3](ADR-3-half-days-and-standby.md).
+- On 2026-11-19 (M-6): an employer has a short key (`Employer.Key`, one to three letters, for the line of a day), the
+  hours of a day keep what was typed for them when it was a span with a break (`Entry.Typed`), the details of a day
+  hold its note (`DayInfo.Note`), and the person's preferences of the interface are a catalog record of their own
+  (`Preferences`, [ADR-4](ADR-4-views-of-one-view-model.md)). Records without them keep their meaning; no migration.
 - The holder, the organizations and the separation were added on 2026-11-17 at the maintainer's request, before any
   release; the standalone program supports both holders.

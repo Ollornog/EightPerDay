@@ -17,8 +17,7 @@ func TestProjectsOfADayAndTheWeeklyReport(t *testing.T) {
 	s, _ := trackSite(t)
 	me := s.me("mara", false)
 	emp := s.employer(me, "Workshop", core.ModeSchedule, "8")
-	list := "/?e=" + emp.ID
-	s.mustPost("/book/list", url.Values{"employer": {emp.ID}, "back": {list}, "v-2026-11-16": {"8"}, "was-2026-11-16": {""}})
+	s.mustCell(monday, "e-"+emp.ID, "8")
 	day := "/day?e=" + emp.ID + "&d=2026-11-16"
 	book := func(date, project, number, hours string) {
 		s.mustPost("/book/project-day", url.Values{"employer": {emp.ID}, "back": {day}, "date": {date}, "project": {project},
@@ -40,13 +39,12 @@ func TestProjectsOfADayAndTheWeeklyReport(t *testing.T) {
 	if body := s.get("/day?e=" + emp.ID + "&d=2026-11-17").body; attr(body, "data-worked") != "6" || attr(body, "data-typed") != "–" {
 		t.Errorf("Tuesday is made by its booking: %s", attr(body, "data-worked"))
 	}
-	body = s.get(list).body
+	body = s.get("/").body
 	week := body[strings.Index(body, `data-week="2026-11-16"`):]
-	if attr(week, "data-unbooked") != "1.5 open" || attr(week, "data-week-unbooked") != "Not booked on projects: 1.5" ||
-		attr(week, "data-week-sum") != "14" {
-		t.Errorf("list: %s / %s / %s", attr(week, "data-unbooked"), attr(week, "data-week-unbooked"), attr(week, "data-week-sum"))
+	if attr(week, "data-open") != "1.5 open" || attr(week, "data-week-sum") != "14" {
+		t.Errorf("sheet: %s / %s", attr(week, "data-open"), attr(week, "data-week-sum"))
 	}
-	if rowValue(t, body, tuesday) != "" || !strings.Contains(body, `placeholder="6"`) {
+	if fieldValue(t, body, tuesday, "e-"+emp.ID) != "" || !strings.Contains(body, `placeholder="6"`) {
 		t.Error("Tuesday's field stays empty and shows the booked hours")
 	}
 	report := s.get("/report/week?e=" + emp.ID + "&w=2026-11-16").body

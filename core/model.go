@@ -73,6 +73,10 @@ type Employer struct {
 	Owner string       `json:"owner"`
 	Name  string       `json:"name"`
 	Kind  EmployerKind `json:"kind"`
+	// Key is the short key the person types in front of hours to book them on this employer in one line of a day
+	// (f3 for three hours, ParseDay): one to three letters a to z, unique among the person's employers. Empty: the
+	// interface gives one from the name (EmployerKeys).
+	Key string `json:"key,omitempty"`
 	// Holder is private (the default when empty) or managed; Organization names the managing organization.
 	Holder       Holder `json:"holder,omitempty"`
 	Organization string `json:"organization,omitempty"`
@@ -348,7 +352,10 @@ type Entry struct {
 	// Assignment groups entries of one job for per_assignment pay with unit "assignment".
 	Assignment string `json:"assignment,omitempty"`
 	// Part marks work of half a day, the morning or the afternoon, for per_assignment pay per day (Day.Part).
-	Part       DayPart       `json:"part,omitempty"`
+	Part DayPart `json:"part,omitempty"`
+	// Typed is what was typed for the hours of a day when it said more than the hours, such as a span with its break
+	// (8-13:30 30m); the day's field gives it back to be changed. Minutes always hold the hours.
+	Typed      string        `json:"typed,omitempty"`
 	ProjectID  string        `json:"project_id,omitempty"`
 	ActivityID string        `json:"activity_id,omitempty"`
 	Tags       []string      `json:"tags,omitempty"`
@@ -543,6 +550,8 @@ var (
 	idPattern       = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 	currencyPattern = regexp.MustCompile(`^[A-Z]{3}$`)
 	tagPattern      = regexp.MustCompile(`^[\p{L}\p{N}_.-]+(/[\p{L}\p{N}_.-]+)*$`)
+	// employerKeyPattern is the short key of an employer (Employer.Key).
+	employerKeyPattern = regexp.MustCompile(`^[a-z]{1,3}$`)
 )
 
 func checkKeys(id, owner string) error {
@@ -579,6 +588,9 @@ func (e Employer) Validate() error {
 	}
 	if err := checkName(e.Name); err != nil {
 		return err
+	}
+	if e.Key != "" && !employerKeyPattern.MatchString(e.Key) {
+		return invalid("key %q: one to three letters a to z", e.Key)
 	}
 	switch e.Kind {
 	case KindEmployer, KindClient, KindPrivate:
@@ -848,6 +860,9 @@ func (e Entry) Validate() error {
 		if !tagPattern.MatchString(t) {
 			return invalid("tag %q", t)
 		}
+	}
+	if len(e.Typed) > 200 {
+		return invalid("typed text longer than 200 characters")
 	}
 	if len(e.Note) > 2000 {
 		return invalid("note longer than 2000 characters")

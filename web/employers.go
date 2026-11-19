@@ -41,6 +41,8 @@ type employerData struct {
 	CanNotice     bool
 	Notices       []core.LeaveNotice
 	Back          string
+	// Key is the key the employer has in the sheet when it has none of its own (core.EmployerKeys).
+	Key string
 }
 
 type scheduleView struct {
@@ -109,6 +111,7 @@ func (h *handler) employerData(r *http.Request, cat core.Catalog, emp core.Emplo
 		NoticeApplies: core.LeaveNoticeApplies(emp), CanNotice: core.MayRecordLeaveNotice(emp, actor), Today: today, Mode: core.ModeAt(cat, emp.ID, today),
 		Modes: core.Modes, Weekdays: weekdays, Projects: projectsOf(cat, emp.ID),
 		Kinds: []core.EmployerKind{core.KindEmployer, core.KindClient, core.KindPrivate},
+		Key:   keyOf(activeEmployers(cat), emp.ID),
 		Bases: []core.PayBasis{core.PayHourly, core.PayPerProject, core.PayPerAssignment, core.PayFlatPeriod,
 			core.PayStandbyPassive, core.PayStandbyActive},
 		Back: "/employers/" + emp.ID}
@@ -223,6 +226,12 @@ func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
 	switch r.PathValue("action") {
 	case "details":
 		emp.Name = strings.TrimSpace(r.PostFormValue("name"))
+		emp.Key = strings.ToLower(strings.TrimSpace(r.PostFormValue("key")))
+		for _, other := range cat.Employers {
+			if emp.Key != "" && other.ID != emp.ID && other.Owner == emp.Owner && other.Key == emp.Key && !other.Archived {
+				err = fmt.Errorf("%w: the key %q is taken by %s", core.ErrInvalid, emp.Key, other.Name)
+			}
+		}
 		emp.Kind = core.EmployerKind(r.PostFormValue("kind"))
 		emp.Region = r.PostFormValue("region")
 		emp.DaySplit = core.DaySplit(r.PostFormValue("day_split"))
@@ -233,8 +242,10 @@ func (h *handler) changeEmployer(w http.ResponseWriter, r *http.Request) {
 		if tz := strings.TrimSpace(r.PostFormValue("time_zone")); tz != "" {
 			emp.TimeZone = tz
 		}
-		if err = emp.Validate(); err == nil {
-			err = h.options.Store.Put(ctx, emp)
+		if err == nil {
+			if err = emp.Validate(); err == nil {
+				err = h.options.Store.Put(ctx, emp)
+			}
 		}
 	case "mode":
 		var from core.Date
@@ -498,4 +509,14 @@ func formatMoney(lang string, cents int64, currency string) string {
 		separator = ","
 	}
 	return sign + strconv.FormatInt(cents/100, 10) + separator + leftPad(int(cents%100)) + " " + currency
+}
+
+// keyOf is the key an employer has in the sheet.
+func keyOf(employers []core.Employer, id string) string {
+	for k, e := range core.EmployerKeys(employers) {
+		if e == id {
+			return k
+		}
+	}
+	return ""
 }

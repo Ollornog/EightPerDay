@@ -169,9 +169,9 @@ func TestWeeklyTotalSplitIntoDays(t *testing.T) {
 	if core.ModeAt(cat, emp.ID, monday) != core.ModeSchedule || core.ModeAt(cat, emp.ID, monday.AddDays(-1)) != core.ModeWeekSum {
 		t.Fatal("the mode did not switch from that week on")
 	}
-	// The day view shows the parts as hours per day, which can be changed one by one.
-	if body := s.get("/week?e=" + emp.ID).body; !strings.Contains(body, `name="day-2026-11-16" inputmode="decimal" value="7:42"`) {
-		t.Fatalf("the days do not show their part: %s", regexp.MustCompile(`name="day-2026-11-16"[^>]*`).FindString(body))
+	// The sheet shows the parts as hours per day, which can be changed one by one.
+	if v := fieldValue(t, s.get("/").body, monday, "e-"+emp.ID); v != "7.7" {
+		t.Fatalf("the days do not show their part: %q", v)
 	}
 }
 
@@ -179,11 +179,11 @@ func TestScheduleWithBalance(t *testing.T) {
 	s, _ := trackSite(t)
 	me := s.me("mara", false)
 	emp := s.employer(me, "Office", core.ModeSchedule, "8")
-	s.mustPost("/book/days", url.Values{"employer": {emp.ID}, "back": {"/"}, "day-2026-11-16": {"8:30"}, "day-2026-11-17": {"7"}})
+	s.mustCell(monday, "e-"+emp.ID, "8:30")
+	s.mustCell(tuesday, "e-"+emp.ID, "7")
 	body := s.get("/week?e=" + emp.ID).body
-	balances := regexp.MustCompile(`data-balance>([^<]*)<`).FindAllStringSubmatch(body, -1)
-	if len(balances) < 2 || balances[0][1] != "+0:30" || balances[1][1] != "-1:00" {
-		t.Fatalf("balances %v", balances)
+	if !strings.Contains(body, "data-week-entries") || strings.Contains(body, `name="day-2026-11-16"`) {
+		t.Error("the week page still takes the hours of a day")
 	}
 	// Up to today: +0:30 and -1:00, and today, Wednesday, has nothing booked yet.
 	if !strings.Contains(body, `data-week-balance>-8:30<`) {

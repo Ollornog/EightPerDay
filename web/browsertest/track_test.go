@@ -142,8 +142,10 @@ func TestOtherModesAndReportsOnAPhone(t *testing.T) {
 	b.tap(`[data-spread]`)
 	b.must(`document.querySelector('#confirm-dialog').open`, "splitting asks first")
 	b.tap(`#confirm-dialog [data-confirm-ok]`)
-	b.must(`location.search.includes('done=spread') && document.querySelector('[data-day="2026-11-16"] input').value === '2:30'`, "the week is split into days")
+	b.must(`location.search.includes('done=spread')`, "the week is split")
 	b.settle()
+	b.open("/")
+	b.must(`document.querySelector('#c-2026-11-16-line')?.value === '2.5'`, "the sheet shows the week split into days")
 	b.reachable("week split into days")
 	b.shot("week-split")
 
