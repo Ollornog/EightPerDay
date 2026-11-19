@@ -114,7 +114,7 @@ func TestAboutDialog(t *testing.T) {
 	b.open("/login")
 	b.tap(`header [data-open-dialog="about-dialog"]`)
 	b.must(`document.querySelector('#about-dialog').open`, "the about dialog opens")
-	b.must(`document.querySelector('#about-dialog [data-attribution]').textContent.includes('juicy_fish') && document.querySelector('#about-dialog [data-attribution]').textContent.includes('Flaticon')`,
+	b.must(`document.querySelector('#about-dialog [data-attribution]').textContent.includes('Alfredo Creates') && document.querySelector('#about-dialog [data-attribution]').textContent.includes('Flaticon')`,
 		"the dialog names the logo's author")
 	b.reachable("about dialog")
 	b.shot("about")

@@ -6,7 +6,7 @@ package assets
 
 import _ "embed"
 
-// Logo is the stopwatch by juicy_fish from Flaticon, 512 by 512 pixels.
+// Logo is the number eight in a yellow circle by Alfredo Creates from Flaticon, 512 by 512 pixels.
 //
 //go:embed logo.png
 var Logo []byte
