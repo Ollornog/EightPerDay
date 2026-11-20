@@ -33,6 +33,7 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[T-15](T-15-preferences.md)** Preferences per person: the view, the detail, the employers whose jobs stand open · M-6
 * ☑ **[T-16](T-16-clean-up-list-and-week.md)** Clean-up: the former list and /weeks go, the week page keeps its tools · M-6
 * ☑ **[T-17](T-17-m6-follow-ups.md)** M-6 follow-ups: notes and projects of an approved week as change requests, typed spans for the rest · M-6
+* ☑ **[T-18](T-18-day-details-of-an-approved-week.md)** The details and incomes of a day of an approved week as change requests, locked in the core · M-6
 
 ## Entscheidungen (ADR)
 

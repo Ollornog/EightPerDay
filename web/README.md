@@ -73,7 +73,8 @@ after it), `?from=…` opens it further up, and `?part=weeks&before=…` answers
   day's details). A day handed in refuses changes; a change to a day of an approved week where the organization
   approves weeks, of its hours, its projects or its note alike (`changeWay`), becomes a change request (`proposeDay`
   starts from what the open request already asks for the day, `requestChange` merges it), which the organization's
-  page lists and `applyChange` books once approved. The details of a day (`POST /book/dayinfo`) keep its note. The
+  page lists and `applyChange` books once approved (`changeFits` checks first that it asks only for the employer's
+projects and the incomes of its own days). The details of a day (`POST /book/dayinfo`) keep its note. The
   note's field of a day whose employer is managed names the organization that sees it (`sheetEmployer.Org`,
   `data-note-org`, the field's `aria-describedby`); in the journal the line says it next to the note.
 - **Preferences** (`POST /sheet/prefs`: `view`, `detail`, `expand`) are the person's `core.Preferences`. Without a view
@@ -111,7 +112,10 @@ the currency of the first employer's pay), the week's sum, the average working d
 afternoons counts half, `data-work-halves`) and what was taken in cash or by card; a cell with standby is marked.
 The day page books incomes (`POST /book/income`, `/incomes/{id}/remove`) and the details of the day
 (`POST /book/dayinfo`, with standby and its call-outs; all fields empty removes them) and says how much standby
-counts as working time. The employer's settings take the amount for half a day of a rule per day, the standby bases
+counts as working time. In a week handed in or closed they stay as they are (the forms are gone or disabled); in an
+approved week of an organization that approves weeks each of the three becomes a change request with the form's
+`reason` (`changeDay`, through `changeWay` and `proposeDay` like the sheet), and the page shows what the open request
+asks for the day (`data-day-request`, `data-day-pending`). The employer's settings take the amount for half a day of a rule per day, the standby bases
 and whether standby is working time (`standby_work`).
 
 ## Company features, access log, pay

@@ -261,6 +261,20 @@ func (c Catalog) Locked(employerID string, d Date) bool {
 	return c.SubmittedLocked(employerID, d)
 }
 
+// DayRecordLocked reports whether a catalog record that belongs to one day of an employer, the details of the day
+// (DayInfo) or an income, lies on a locked day (Locked): it changes only as the hours of that day do, through a change
+// request in an approved period. Stores refuse to write or delete such a record (ErrLocked), before and after the
+// change. Other records are not locked by a day.
+func (c Catalog) DayRecordLocked(r Record) bool {
+	switch v := r.(type) {
+	case DayInfo:
+		return c.Locked(v.EmployerID, v.Date)
+	case Income:
+		return c.Locked(v.EmployerID, v.Date)
+	}
+	return false
+}
+
 // Fixed reports whether a catalog record of the kind can never be deleted, and replaced only as the kind allows:
 // period closes and purge logs never, submissions only while they are submitted.
 func Fixed(kind Kind) bool {
@@ -360,9 +374,11 @@ var (
 // a deletion only marks the record. Changes in a closed period fail with ErrLocked, stale versions with ErrConflict.
 type Store interface {
 	// Put inserts or replaces a catalog record. Period closes and purge logs are never replaced, submissions only while
-	// they are submitted (ErrLocked).
+	// they are submitted, and the details and incomes of a locked day neither before nor after (DayRecordLocked;
+	// ErrLocked).
 	Put(ctx context.Context, r Record) error
-	// Delete removes a catalog record. Period closes, purge logs and submissions cannot be deleted (ErrLocked).
+	// Delete removes a catalog record. Period closes, purge logs, submissions and the details and incomes of a locked
+	// day cannot be deleted (ErrLocked).
 	Delete(ctx context.Context, kind Kind, owner, id string) error
 	// Catalog returns every catalog record of the owner.
 	Catalog(ctx context.Context, owner string) (Catalog, error)

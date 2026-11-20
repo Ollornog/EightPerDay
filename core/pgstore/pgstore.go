@@ -124,6 +124,20 @@ func (s *Store) Put(ctx context.Context, r core.Record) error {
 			return err
 		})
 	}
+	if dayRecord(m.Kind) {
+		return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			if err := s.dayLocked(ctx, tx, m.Owner, m.Kind, m.ID, r); err != nil {
+				return err
+			}
+			tag, err := tx.Exec(ctx, "INSERT INTO "+s.records+` AS r (kind, id, owner, employer_id, doc) VALUES ($1, $2, $3, $4, $5)
+				ON CONFLICT (tenant, kind, id) DO UPDATE SET employer_id = EXCLUDED.employer_id, doc = EXCLUDED.doc
+				WHERE r.owner = EXCLUDED.owner`, m.Kind, m.ID, m.Owner, m.EmployerID, doc)
+			if err == nil && tag.RowsAffected() == 0 {
+				return core.ErrNotFound
+			}
+			return err
+		})
+	}
 	if m.Kind == core.RecPeriodClose || m.Kind == core.RecPurgeLog {
 		tag, err = s.db.Exec(ctx, "INSERT INTO "+s.records+` (kind, id, owner, employer_id, doc) VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (tenant, kind, id) DO NOTHING`, m.Kind, m.ID, m.Owner, m.EmployerID, doc)
@@ -154,11 +168,54 @@ func (s *Store) Delete(ctx context.Context, kind core.Kind, owner, id string) er
 		}
 		return core.ErrLocked
 	}
+	if dayRecord(kind) {
+		return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			if err := s.dayLocked(ctx, tx, owner, kind, id, nil); err != nil {
+				return err
+			}
+			tag, err := tx.Exec(ctx, "DELETE FROM "+s.records+" WHERE kind = $1 AND owner = $2 AND id = $3", kind, owner, id)
+			if err == nil && tag.RowsAffected() == 0 {
+				return core.ErrNotFound
+			}
+			return err
+		})
+	}
 	tag, err := s.db.Exec(ctx, "DELETE FROM "+s.records+" WHERE kind = $1 AND owner = $2 AND id = $3", kind, owner, id)
 	if err == nil && tag.RowsAffected() == 0 {
 		return core.ErrNotFound
 	}
 	return err
+}
+
+// dayRecord reports whether records of the kind belong to one day of an employer (core.Catalog.DayRecordLocked).
+func dayRecord(kind core.Kind) bool { return kind == core.RecDayInfo || kind == core.RecIncome }
+
+// dayLocked refuses to change the record of a locked day: the stored one of the kind and ID (locked for update), and
+// next, the record that replaces it (nil for a deletion).
+func (s *Store) dayLocked(ctx context.Context, tx pgx.Tx, owner string, kind core.Kind, id string, next core.Record) error {
+	var stored []byte
+	err := tx.QueryRow(ctx, "SELECT doc FROM "+s.records+" WHERE kind = $1 AND owner = $2 AND id = $3 FOR UPDATE",
+		kind, owner, id).Scan(&stored)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+	c, err := s.catalog(ctx, tx, owner)
+	if err != nil {
+		return err
+	}
+	if stored != nil {
+		old, err := core.DecodeRecord(kind, stored)
+		if err != nil {
+			return err
+		}
+		if c.DayRecordLocked(old) {
+			return core.ErrLocked
+		}
+	}
+	if next != nil && c.DayRecordLocked(next) {
+		return core.ErrLocked
+	}
+	return nil
 }
 
 // Catalog returns every catalog record of the owner.

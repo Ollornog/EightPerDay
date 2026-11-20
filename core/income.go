@@ -65,6 +65,11 @@ func (i Income) Validate() error {
 	if i.Date.IsZero() {
 		return invalid("income without a day")
 	}
+	return i.checkAmount()
+}
+
+// checkAmount checks what an income says apart from its keys and day: kind, how it was taken, amount and currency.
+func (i Income) checkAmount() error {
 	switch i.Kind {
 	case IncomeJob, IncomeCommission, IncomePhotos, IncomeTip, IncomeOther:
 	default:
@@ -112,6 +117,17 @@ func DayInfoID(employerID string, d Date) string {
 	return employerID + "-" + strings.ReplaceAll(d.String(), "-", "")
 }
 
+// DayInfoOf returns the details of the employer's day, or empty ones with their keys left out.
+func (c Catalog) DayInfoOf(employerID string, d Date) (DayInfo, bool) {
+	id := DayInfoID(employerID, d)
+	for _, i := range c.DayInfos {
+		if i.ID == id {
+			return i, true
+		}
+	}
+	return DayInfo{}, false
+}
+
 // Meta files the details of the day.
 func (i DayInfo) Meta() Meta { return Meta{RecDayInfo, i.ID, i.Owner, i.EmployerID} }
 
@@ -126,6 +142,11 @@ func (i DayInfo) Validate() error {
 	if i.Date.IsZero() || i.ID != DayInfoID(i.EmployerID, i.Date) {
 		return invalid("day details need their day and the ID of it")
 	}
+	return i.checkDetails()
+}
+
+// checkDetails checks what the details of a day say apart from their keys and day.
+func (i DayInfo) checkDetails() error {
 	if len(i.Place) > 200 {
 		return invalid("place longer than 200 characters")
 	}

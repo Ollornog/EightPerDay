@@ -64,9 +64,10 @@ type Submission struct {
 }
 
 // ProposedDay is what a change request asks one day to hold: hours (with their half of the day and the span typed for
-// them), an absence of a type with a short code, or half a day of such an absence with hours, the note of the day, and
-// the hours on projects. The hours and the note are the whole day as asked for; Projects names only the projects whose
-// hours change (zero takes them off), the others stay.
+// them), an absence of a type with a short code, or half a day of such an absence with hours, the note of the day, the
+// hours on projects, the other details of the day and its incomes. The hours and the note are the whole day as asked
+// for; Projects names only the projects whose hours change (zero takes them off), the others stay; Details, when
+// given, are all the other details of the day (DayInfo without its note); Incomes add incomes or take them off.
 type ProposedDay struct {
 	Date     Date              `json:"date"`
 	Minutes  int               `json:"minutes,omitempty"`
@@ -76,12 +77,84 @@ type ProposedDay struct {
 	HalfDay  bool              `json:"half_day,omitempty"`
 	Note     string            `json:"note,omitempty"`
 	Projects []ProposedProject `json:"projects,omitempty"`
+	Details  *ProposedDetails  `json:"details,omitempty"`
+	Incomes  []ProposedIncome  `json:"incomes,omitempty"`
 }
 
 // ProposedProject is the hours a change request asks a project of the employer to hold on the day.
 type ProposedProject struct {
 	ProjectID string `json:"project_id"`
 	Minutes   int    `json:"minutes"`
+}
+
+// ProposedDetails are the details of a day a change request asks for: place, kilometres, standby and call-outs, as in
+// DayInfo. All zero asks for none.
+type ProposedDetails struct {
+	Place          string `json:"place,omitempty"`
+	KmOneWay       int    `json:"km_one_way,omitempty"`
+	KmTotal        int    `json:"km_total,omitempty"`
+	StandbyPassive int    `json:"standby_passive,omitempty"`
+	StandbyActive  int    `json:"standby_active,omitempty"`
+	Callouts       int    `json:"callouts,omitempty"`
+}
+
+// DetailsOf returns the details of the day without its note, as a change request asks for them.
+func DetailsOf(i DayInfo) ProposedDetails {
+	return ProposedDetails{Place: i.Place, KmOneWay: i.KmOneWay, KmTotal: i.KmTotal, StandbyPassive: i.StandbyPassive,
+		StandbyActive: i.StandbyActive, Callouts: i.Callouts}
+}
+
+// On returns the details of the day i with the details asked for; the note of i stays.
+func (p ProposedDetails) On(i DayInfo) DayInfo {
+	i.Place, i.KmOneWay, i.KmTotal = p.Place, p.KmOneWay, p.KmTotal
+	i.StandbyPassive, i.StandbyActive, i.Callouts = p.StandbyPassive, p.StandbyActive, p.Callouts
+	return i
+}
+
+// ProposedIncome is an income a change request adds to the day, or, with Remove, the income of the day it takes off
+// (the other fields then stay empty).
+type ProposedIncome struct {
+	Remove   string     `json:"remove,omitempty"`
+	Kind     IncomeKind `json:"kind,omitempty"`
+	Client   string     `json:"client,omitempty"`
+	Amount   int64      `json:"amount,omitempty"`
+	Currency string     `json:"currency,omitempty"`
+	PaidBy   PaidBy     `json:"paid_by,omitempty"`
+	Note     string     `json:"note,omitempty"`
+}
+
+// Income returns the income asked for, without its keys and day.
+func (p ProposedIncome) Income() Income {
+	return Income{Kind: p.Kind, Client: p.Client, Amount: p.Amount, Currency: p.Currency, PaidBy: p.PaidBy, Note: p.Note}
+}
+
+// validateDetails checks the details and incomes a proposed day asks for.
+func (p ProposedDay) validateDetails() error {
+	if p.Details != nil {
+		if err := p.Details.On(DayInfo{}).checkDetails(); err != nil {
+			return err
+		}
+	}
+	if len(p.Incomes) > 50 {
+		return invalid("a proposed day asks for more than 50 incomes")
+	}
+	removed := map[string]bool{}
+	for _, x := range p.Incomes {
+		if x.Remove == "" {
+			if err := x.Income().checkAmount(); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := checkRef("income", x.Remove, true); err != nil {
+			return err
+		}
+		if x != (ProposedIncome{Remove: x.Remove}) || removed[x.Remove] {
+			return invalid("an income taken off says nothing else and is taken off once")
+		}
+		removed[x.Remove] = true
+	}
+	return nil
 }
 
 // Meta files the submission.
@@ -161,6 +234,9 @@ func (s Submission) Validate() error {
 			return invalid("a proposed note is longer than 2000 characters")
 		case len(p.Typed) > 200 || (p.Typed != "" && p.Minutes == 0):
 			return invalid("a proposed span needs minutes and is at most 200 characters")
+		}
+		if err := p.validateDetails(); err != nil {
+			return err
 		}
 		projects := map[string]bool{}
 		for _, x := range p.Projects {

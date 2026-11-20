@@ -71,8 +71,29 @@ func (s *Store) Put(_ context.Context, r core.Record) error {
 		if !core.Replaceable(stored) {
 			return core.ErrLocked
 		}
+		if err := s.dayLocked(m.Owner, stored); err != nil {
+			return err
+		}
+	}
+	if err := s.dayLocked(m.Owner, r); err != nil {
+		return err
 	}
 	s.records[k], s.meta[k] = data, m
+	return nil
+}
+
+// dayLocked refuses a record of a locked day (core.Catalog.DayRecordLocked).
+func (s *Store) dayLocked(owner string, r core.Record) error {
+	if m := r.Meta(); m.Kind != core.RecDayInfo && m.Kind != core.RecIncome {
+		return nil
+	}
+	c, err := s.catalog(owner)
+	if err != nil {
+		return err
+	}
+	if c.DayRecordLocked(r) {
+		return core.ErrLocked
+	}
 	return nil
 }
 
@@ -87,6 +108,13 @@ func (s *Store) Delete(_ context.Context, kind core.Kind, owner, id string) erro
 	}
 	if core.Fixed(kind) {
 		return core.ErrLocked
+	}
+	stored, err := core.DecodeRecord(kind, s.records[k])
+	if err != nil {
+		return err
+	}
+	if err := s.dayLocked(owner, stored); err != nil {
+		return err
 	}
 	delete(s.records, k)
 	delete(s.meta, k)

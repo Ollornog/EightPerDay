@@ -16,6 +16,9 @@
     <footer><p class="text-muted-foreground text-xs">{{if $d.Typed}}{{t "day.lead.typed"}}{{else}}{{t "day.lead.projects"}}{{end}}</p></footer>
   </div>
 
+  {{if $d.Request}}<div class="alert" role="note" data-day-request>{{template "icon-info"}}<h2>{{t "day.request.title"}}</h2><section>{{t "day.request.lead"}}{{if $d.Pending}} <span data-day-pending>{{t "day.request.pending"}} {{$d.Pending}}</span>{{end}}</section></div>{{end}}
+  {{if $d.Fixed}}<div class="alert" role="note" data-day-fixed>{{template "icon-info"}}<h2>{{t "approval.locked"}}</h2><section>{{t "approval.week.locked"}}</section></div>{{end}}
+
   <div class="card" data-size="sm">
     <header><h2 class="card-title">{{t "day.bookings"}}</h2></header>
     <section class="grid gap-2">
@@ -41,11 +44,12 @@
       <div class="flex items-center gap-2 text-sm" data-income>
         <span class="min-w-0 flex-1">{{t (print "income." .Kind)}}{{if .Client}} · {{.Client}}{{end}}{{if .PaidBy}} · {{t (print "paidby." .PaidBy)}}{{end}}{{if .Note}} · {{.Note}}{{end}}</span>
         <span class="font-semibold tabular-nums">{{money .Amount .Currency}}</span>
-        <form method="post" action="{{base}}/incomes/{{.ID}}/remove" data-confirm="{{t "day.income.remove"}}"><input type="hidden" name="back" value="{{$d.Back}}">
-          <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>
+        {{if not $d.Fixed}}<form method="post" action="{{base}}/incomes/{{.ID}}/remove" class="flex items-center gap-1" data-confirm="{{t "day.income.remove"}}" data-income-remove><input type="hidden" name="back" value="{{$d.Back}}">
+          {{if $d.Request}}<label class="sr-only" for="ir-{{.ID}}">{{t "list.reason"}}</label><input class="input w-32" data-size="sm" id="ir-{{.ID}}" name="reason" maxlength="2000" required placeholder="{{t "list.reason"}}" autocomplete="off">{{end}}
+          <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
       </div>
       {{end}}
-      <form method="post" action="{{base}}/book/income" class="grid gap-2" data-income-form>
+      {{if not $d.Fixed}}<form method="post" action="{{base}}/book/income" class="grid gap-2" data-income-form>
         <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{$d.Date}}">
         <div class="grid grid-cols-2 gap-2">
           <div class="field" role="group"><label for="in-kind">{{t "day.income.kind"}}</label>
@@ -57,15 +61,16 @@
           <div class="field" role="group"><label for="in-paid">{{t "day.income.paidby"}}</label>
             <select class="select w-full" id="in-paid" name="paid_by"><option value="">–</option><option value="cash">{{t "paidby.cash"}}</option><option value="card">{{t "paidby.card"}}</option><option value="transfer">{{t "paidby.transfer"}}</option></select></div>
         </div>
+        {{if $d.Request}}<div class="field" role="group"><label for="in-reason">{{t "list.reason"}}</label><input class="input" id="in-reason" name="reason" maxlength="2000" required autocomplete="off"></div>{{end}}
         <button type="submit" class="btn" data-variant="outline">{{template "icon-plus"}}{{t "day.income.add"}}</button>
-      </form>
+      </form>{{end}}
     </section>
   </div>
 
   <details class="card" data-size="sm" data-day-info{{if or $d.Info.Place $d.Info.KmTotal $d.Info.StandbyPassive $d.Info.StandbyActive $d.Info.Callouts}} open{{end}}>
     <summary><h3>{{t "day.info"}}</h3></summary>
     <section>
-      <form method="post" action="{{base}}/book/dayinfo" class="grid gap-2">
+      <form method="post" action="{{base}}/book/dayinfo" class="grid gap-2" data-day-info-form><fieldset class="grid gap-2"{{if $d.Fixed}} disabled{{end}}>
         <input type="hidden" name="employer" value="{{$d.Employer.ID}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="date" value="{{$d.Date}}">
         <div class="field" role="group"><label for="di-place">{{t "day.info.place"}}</label><input class="input" id="di-place" name="place" value="{{$d.Info.Place}}" maxlength="200" autocomplete="off"></div>
         <div class="grid grid-cols-2 gap-2">
@@ -76,8 +81,9 @@
           <div class="field" role="group"><label for="di-co">{{t "day.info.callouts"}}</label><input class="input tabular-nums" id="di-co" name="callouts" value="{{if $d.Info.Callouts}}{{$d.Info.Callouts}}{{end}}" pattern="\s*\d{0,3}\s*" inputmode="numeric" autocomplete="off"></div>
         </div>
         {{if $d.Day.Standby}}<p class="text-muted-foreground text-xs" data-standby-work>{{t "day.info.standby.counts" (dec $d.Day.Standby)}}</p>{{end}}
-        <button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button>
-      </form>
+        {{if $d.Request}}<div class="field" role="group"><label for="di-reason">{{t "list.reason"}}</label><input class="input" id="di-reason" name="reason" maxlength="2000" required autocomplete="off"></div>{{end}}
+        {{if not $d.Fixed}}<button type="submit" class="btn" data-variant="outline">{{t "action.save"}}</button>{{end}}
+      </fieldset></form>
     </section>
   </details>
 

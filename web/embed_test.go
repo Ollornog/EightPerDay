@@ -230,6 +230,28 @@ func TestEmbeddedBooking(t *testing.T) {
 	if len(entries) != 1 || entries[0].Minutes != 38*60+30 {
 		t.Fatalf("booked: %+v", entries)
 	}
+	// The details and incomes of a closed day stay as they are in the embedded interface too (the core refuses them);
+	// the day after is open.
+	if err := h.store.Put(ctx, core.PeriodClose{ID: "close-1", Owner: "u-anna", EmployerID: emp.ID, From: core.MustDate("2026-11-16"),
+		To: core.MustDate("2026-11-22"), ClosedAt: testNow}); err != nil {
+		t.Fatal(err)
+	}
+	for _, day := range []string{"2026-11-18", "2026-11-23"} {
+		for path, form := range map[string]url.Values{"/time/book/dayinfo": {"place": {"Berlin"}},
+			"/time/book/income": {"kind": {"tip"}, "amount": {"5"}}} {
+			form.Set("employer", emp.ID)
+			form.Set("date", day)
+			form.Set("back", "/day")
+			a := h.do(http.MethodPost, path, "u-anna", form, nil)
+			if closed := day == "2026-11-18"; (closed && a.status != http.StatusBadRequest) || (!closed && a.status != http.StatusSeeOther) {
+				t.Errorf("%s on %s: %d", path, day, a.status)
+			}
+		}
+	}
+	if cat, _ = h.store.Catalog(ctx, "u-anna"); len(cat.DayInfos) != 1 || cat.DayInfos[0].Date.String() != "2026-11-23" ||
+		len(cat.Incomes) != 1 || cat.Incomes[0].Date.String() != "2026-11-23" {
+		t.Errorf("details %+v, incomes %+v", cat.DayInfos, cat.Incomes)
+	}
 	// Another account of the application sees nothing of it.
 	if other := h.do(http.MethodGet, "/time/", "u-ben", nil, nil); strings.Contains(other.body, "Own work") {
 		t.Error("another account sees the employer")

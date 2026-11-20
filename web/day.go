@@ -3,7 +3,6 @@
 package web
 
 import (
-	"errors"
 	"net/http"
 	"slices"
 	"strconv"
@@ -27,6 +26,12 @@ type dayData struct {
 	Back     string
 	List     string
 	Locked   bool
+	// Request: the day lies in an approved week whose organization takes change requests; its details and incomes
+	// change through one, with a reason. Fixed: they cannot change at all (handed in, closed).
+	Request bool
+	Fixed   bool
+	// Pending is what the open change request asks this day to hold.
+	Pending string
 	// Incomes of the day (a job with its client, commission, photos, tips) and the details of the day.
 	Incomes     []core.Income
 	IncomeKinds []core.IncomeKind
@@ -90,9 +95,22 @@ func (h *handler) dayPage(w http.ResponseWriter, r *http.Request) {
 			d.Incomes = append(d.Incomes, i)
 		}
 	}
-	for _, i := range cat.DayInfos {
-		if i.ID == core.DayInfoID(emp.ID, date) {
-			d.Info = i
+	d.Info, _ = cat.DayInfoOf(emp.ID, date)
+	if cat.Locked(emp.ID, date) {
+		period, inPeriod := cat.PeriodAt(emp.ID, date)
+		_, approval, err := h.approvalOrg(ctx, *emp)
+		if err != nil {
+			h.failed(w, r, err)
+			return
+		}
+		d.Request = inPeriod && approval && period.Status == core.SubmissionApproved
+		d.Fixed = !d.Request
+		if open, ok := cat.OpenCorrection(period.ID); ok && inPeriod {
+			for _, p := range open.Proposal {
+				if p.Date == date {
+					d.Pending = h.changeTextIn(h.lang(r), cat, p)
+				}
+			}
 		}
 	}
 	d.KmOneWay, d.KmTotal = kmText(h.lang(r), d.Info.KmOneWay), kmText(h.lang(r), d.Info.KmTotal)
@@ -284,10 +302,35 @@ func (h *handler) bookIncome(w http.ResponseWriter, r *http.Request) {
 		h.back(w, r, core.ErrInvalid, "")
 		return
 	}
-	i := core.Income{ID: core.NewID(), Owner: emp.Owner, EmployerID: emp.ID, Date: date, Kind: core.IncomeKind(r.PostFormValue("kind")),
-		Client: strings.TrimSpace(r.PostFormValue("client")), Amount: amount, Currency: employerCurrency(cat, emp.ID),
-		PaidBy: core.PaidBy(r.PostFormValue("paid_by")), Note: strings.TrimSpace(r.PostFormValue("note"))}
-	h.back(w, r, h.options.Store.Put(r.Context(), i), "saved")
+	x := core.ProposedIncome{Kind: core.IncomeKind(r.PostFormValue("kind")), Client: strings.TrimSpace(r.PostFormValue("client")),
+		Amount: amount, Currency: employerCurrency(cat, emp.ID), PaidBy: core.PaidBy(r.PostFormValue("paid_by")),
+		Note: strings.TrimSpace(r.PostFormValue("note"))}
+	done, err := h.changeDay(r, cat, emp, date, "saved", func(p *core.ProposedDay) { p.Incomes = append(p.Incomes, x) },
+		func() error {
+			i := x.Income()
+			i.ID, i.Owner, i.EmployerID, i.Date = core.NewID(), emp.Owner, emp.ID, date
+			return h.options.Store.Put(r.Context(), i)
+		})
+	h.back(w, r, err, done)
+}
+
+// changeDay writes a change of the details or incomes of an employer's day: at once (direct), or in an approved week
+// as a change request with the form's reason (changeWay, propose). It returns the notice: done, or "requested".
+func (h *handler) changeDay(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, done string,
+	propose func(*core.ProposedDay), direct func() error) (string, error) {
+	reason := strings.TrimSpace(r.PostFormValue("reason"))
+	period, request, err := h.changeWay(r, cat, emp, date, reason)
+	if err != nil {
+		return "", err
+	}
+	if !request {
+		return done, direct()
+	}
+	c, err := h.dayContext(r, cat, date)
+	if err != nil {
+		return "", err
+	}
+	return "requested", h.proposeDay(r, c, emp, period, date, reason, propose)
 }
 
 // removeIncome takes an income back.
@@ -306,14 +349,20 @@ func (h *handler) removeIncome(w http.ResponseWriter, r *http.Request) {
 			h.back(w, r, errForbidden, "")
 			return
 		}
-		h.back(w, r, h.options.Store.Delete(r.Context(), core.RecIncome, i.Owner, i.ID), "removed")
+		done, err := h.changeDay(r, cat, emp, i.Date, "removed", func(p *core.ProposedDay) {
+			if !slices.ContainsFunc(p.Incomes, func(x core.ProposedIncome) bool { return x.Remove == i.ID }) {
+				p.Incomes = append(p.Incomes, core.ProposedIncome{Remove: i.ID})
+			}
+		}, func() error { return h.options.Store.Delete(r.Context(), core.RecIncome, i.Owner, i.ID) })
+		h.back(w, r, err, done)
 		return
 	}
 	h.back(w, r, core.ErrNotFound, "")
 }
 
 // bookDayInfo keeps the details of a day: place of work, kilometres, standby and its call-outs. All empty removes them.
-// The note of the day stays as it is: it changes on the sheet, through a change request in an approved week.
+// The note of the day stays as it is (it changes on the sheet). In an approved week the details change through a
+// change request, like the hours.
 func (h *handler) bookDayInfo(w http.ResponseWriter, r *http.Request) {
 	cat, emp, ok := h.bookingContext(w, r)
 	if !ok {
@@ -324,20 +373,14 @@ func (h *handler) bookDayInfo(w http.ResponseWriter, r *http.Request) {
 		h.back(w, r, err, "")
 		return
 	}
-	i := core.DayInfo{ID: core.DayInfoID(emp.ID, date), Owner: emp.Owner, EmployerID: emp.ID, Date: date,
-		Place: strings.TrimSpace(r.PostFormValue("place"))}
-	for _, kept := range cat.DayInfos {
-		if kept.ID == i.ID {
-			i.Note = kept.Note
-		}
-	}
+	details := core.ProposedDetails{Place: strings.TrimSpace(r.PostFormValue("place"))}
 	var errs [5]error
-	i.KmOneWay, errs[0] = parseKm(r.PostFormValue("km_one_way"))
-	i.KmTotal, errs[1] = parseKm(r.PostFormValue("km_total"))
-	i.StandbyPassive, errs[2] = parseHours(r.PostFormValue("standby_passive"))
-	i.StandbyActive, errs[3] = parseHours(r.PostFormValue("standby_active"))
+	details.KmOneWay, errs[0] = parseKm(r.PostFormValue("km_one_way"))
+	details.KmTotal, errs[1] = parseKm(r.PostFormValue("km_total"))
+	details.StandbyPassive, errs[2] = parseHours(r.PostFormValue("standby_passive"))
+	details.StandbyActive, errs[3] = parseHours(r.PostFormValue("standby_active"))
 	if raw := strings.TrimSpace(r.PostFormValue("callouts")); raw != "" {
-		i.Callouts, errs[4] = strconv.Atoi(raw)
+		details.Callouts, errs[4] = strconv.Atoi(raw)
 	}
 	for _, err := range errs {
 		if err != nil {
@@ -345,13 +388,11 @@ func (h *handler) bookDayInfo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if i == (core.DayInfo{ID: i.ID, Owner: i.Owner, EmployerID: i.EmployerID, Date: date}) {
-		err := h.options.Store.Delete(r.Context(), core.RecDayInfo, i.Owner, i.ID)
-		if errors.Is(err, core.ErrNotFound) {
-			err = nil
-		}
-		h.back(w, r, err, "saved")
+	if current, _ := cat.DayInfoOf(emp.ID, date); details == core.DetailsOf(current) {
+		h.back(w, r, nil, "saved")
 		return
 	}
-	h.back(w, r, h.options.Store.Put(r.Context(), i), "saved")
+	done, err := h.changeDay(r, cat, emp, date, "saved", func(p *core.ProposedDay) { p.Details = &details },
+		func() error { return h.setDayDetails(r, cat, emp, date, &details, nil, "") })
+	h.back(w, r, err, done)
 }

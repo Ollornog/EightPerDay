@@ -667,8 +667,9 @@ func TestSheetChangeRequestForNotesAndProjects(t *testing.T) {
 	if a := worker.mustPost("/sheet/week", form); !strings.Contains(a.header.Get("Location"), "done=requested") {
 		t.Errorf("redirect %s", a.header.Get("Location"))
 	}
-	// Saving the details of the day keeps its note.
-	worker.mustPost("/book/dayinfo", url.Values{"employer": {managed.ID}, "date": {monday.String()}, "place": {"Berlin"}, "back": {"/"}})
+	// The details of the day go the same way, and keep the note asked for.
+	worker.mustPost("/book/dayinfo", url.Values{"employer": {managed.ID}, "date": {monday.String()}, "place": {"Berlin"}, "back": {"/"},
+		"reason": {"the place"}})
 	if e := worker.entries(member.ID); len(e) != 2 || e[0].Minutes+e[1].Minutes != 540+120 {
 		t.Fatalf("the approved values changed before the decision: %+v", e)
 	}
@@ -686,7 +687,7 @@ func TestSheetChangeRequestForNotesAndProjects(t *testing.T) {
 		}
 	}
 	if p := request.Proposal; len(p) != 3 ||
-		p[0].Minutes != 540 || p[0].Note != "dentist, then home" || len(p[0].Projects) != 1 || p[0].Projects[0].Minutes != 180 ||
+		p[0].Minutes != 540 || p[0].Note != "dentist, then home" || p[0].Details == nil || p[0].Details.Place != "Berlin" || len(p[0].Projects) != 1 || p[0].Projects[0].Minutes != 180 ||
 		p[1].Minutes != 480 || p[1].Typed != "8-16:30 30m" || p[1].Note != "late shift" || len(p[1].Projects) != 1 ||
 		p[1].Projects[0].Minutes != 60 || p[2].Minutes != 0 || p[2].Note != "training" || len(p[2].Projects) != 0 {
 		t.Fatalf("change request %+v", p)
@@ -717,6 +718,11 @@ func TestSheetChangeRequestForNotesAndProjects(t *testing.T) {
 	days := weekOfSheet(t, sheetOf(t, worker, member.ID, nil), monday).Days
 	if days[0].Note != "dentist, then home" || days[1].Note != "late shift" || days[2].Note != "training" {
 		t.Errorf("notes %q %q %q", days[0].Note, days[1].Note, days[2].Note)
+	}
+	if cat, _ := s.store.Catalog(context.Background(), member.ID); len(cat.DayInfos) != 3 {
+		t.Errorf("details %+v", cat.DayInfos)
+	} else if i, _ := cat.DayInfoOf(managed.ID, monday); i.Place != "Berlin" || i.Note != "dentist, then home" {
+		t.Errorf("Monday's details %+v", i)
 	}
 	if log := worker.get("/access").body; !strings.Contains(log, "Changed") {
 		t.Error("the access log lacks the change")

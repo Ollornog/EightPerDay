@@ -196,6 +196,17 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- The details of a day (place, kilometres, standby and call-outs) and its incomes (cash, card, transfer) of an approved
+  week go the way of the hours too (T-18): standby and incomes change the pay, so an approved week stays fixed as a
+  whole. Saving the details on the day's page (`POST /book/dayinfo`), adding an income (`POST /book/income`) and
+  taking one off (`/incomes/{id}/remove`) become a change request with a reason; the day's page says so, asks for the
+  reason and shows what is asked for; the reviewer reads it; approving books it and the access log shows it. A
+  proposed day carries the details (`ProposedDay.Details`, `core.ProposedDetails`) and the incomes to add or take off
+  (`ProposedDay.Incomes`, `core.ProposedIncome`). The lock lives in the core: both stores refuse to write, move or
+  delete the details and incomes of a day that is closed, handed in or approved (`core.Catalog.DayRecordLocked`,
+  `ErrLocked`), so an embedding application gets it too. Before, they changed in place in an approved week. A change
+  request that takes off an income of another day or employer is refused before the decision is stored.
+
 - Notes and projects of an approved week go the way of the hours (M-6 follow-up): a change in the table's field, in
   the journal's line or in the week's form without JavaScript becomes a change request with a reason, the approved
   values count until the organization decides, and its decision books them and is in the access log. A proposed day
