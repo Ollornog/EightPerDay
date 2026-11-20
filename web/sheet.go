@@ -82,8 +82,10 @@ type sheetEmployer struct {
 	Key      string
 	Mark     string
 	Projects []core.Project
-	// HasTarget: the employer has a schedule. Approval: its organization approves weeks.
+	// HasTarget: the employer has a schedule. Approval: its organization approves weeks. Org: the name of the
+	// organization that manages it, which sees the notes of its days; empty for a private employer.
 	HasTarget, Approval bool
+	Org                 string
 	Expanded            bool
 	start               core.Date
 	days                map[core.Date]core.Day
@@ -218,11 +220,12 @@ func (h *handler) buildSheet(ctx context.Context, lang string, cat core.Catalog,
 		se := &sheetEmployer{Employer: e, Index: i, Key: keyOf[e.ID], Mark: employerMarks[i%len(employerMarks)],
 			Projects: activeProjects(cat, e.ID), Expanded: slices.Contains(prefs.Expanded, e.ID)}
 		se.start, se.HasTarget = accountStart(cat, e.ID, rng.from)
-		_, on, err := h.approvalOrg(ctx, e)
+		org, on, err := h.approvalOrg(ctx, e)
 		if err != nil {
 			return nil, err
 		}
 		se.Approval = on
+		se.Org = cmp.Or(org.Name, org.ID) // empty for a private employer
 		from = minDate(minDate(from, se.start), core.EarningsDataFrom(cat, e.ID, rng.from))
 		s.Employers = append(s.Employers, se)
 		if se.HasTarget {

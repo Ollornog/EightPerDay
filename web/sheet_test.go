@@ -757,3 +757,39 @@ func TestRestHintFromTypedSpans(t *testing.T) {
 		t.Errorf("no hint on the rest: %.2000s", report[strings.Index(report, "<main"):])
 	}
 }
+
+// The note of a day of a managed employer says at its field that the organization sees it, in every view and in the
+// form without JavaScript; a private employer's note says nothing of the kind.
+func TestSheetNoteVisibleToTheOrganization(t *testing.T) {
+	_, worker, _, _, _ := approvalSite(t)
+	worker.mustCell(monday, "note", "dentist")
+	marker := `data-note-org>visible to ACME<`
+	for _, view := range []string{"table", "grid", "journal"} {
+		body := worker.get("/?view=" + view).body
+		if !strings.Contains(body, marker) {
+			t.Errorf("%s: the note does not say the organization sees it", view)
+		}
+		if view != "journal" && !strings.Contains(body, `name="c:2026-11-16:note" form="wf-2026-11-16" value="dentist" data-raw="dentist" maxlength="2000" autocomplete="off"`) {
+			t.Errorf("%s: the note is not a field of the week's form", view)
+		}
+	}
+	if body := worker.get("/?view=table").body; !strings.Contains(body, `aria-describedby="m-2026-11-16-note"`) ||
+		!regexp.MustCompile(`id="m-2026-11-16-note" data-slot="m-2026-11-16-note"><span data-note-org>visible to ACME</span>`).MatchString(body) {
+		t.Error("the field is not described by the line that names the organization")
+	}
+	worker.post("/language", url.Values{"lang": {"de"}, "back": {"/"}})
+	if body := worker.get("/").body; !strings.Contains(body, `data-note-org>sichtbar für ACME<`) {
+		t.Error("the German page does not say it")
+	}
+
+	// A person with a private employer alone sees no such line.
+	other, _ := trackSite(t)
+	me := other.me("ann", false)
+	other.employer(me, "Own shop", core.ModeExact, "")
+	other.mustCell(monday, "note", "inventory")
+	for _, view := range []string{"table", "grid", "journal"} {
+		if strings.Contains(other.get("/?view="+view).body, "data-note-org") {
+			t.Errorf("%s: a private note says an organization sees it", view)
+		}
+	}
+}

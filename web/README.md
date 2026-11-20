@@ -73,7 +73,9 @@ after it), `?from=…` opens it further up, and `?part=weeks&before=…` answers
   day's details). A day handed in refuses changes; a change to a day of an approved week where the organization
   approves weeks, of its hours, its projects or its note alike (`changeWay`), becomes a change request (`proposeDay`
   starts from what the open request already asks for the day, `requestChange` merges it), which the organization's
-  page lists and `applyChange` books once approved. The details of a day (`POST /book/dayinfo`) keep its note.
+  page lists and `applyChange` books once approved. The details of a day (`POST /book/dayinfo`) keep its note. The
+  note's field of a day whose employer is managed names the organization that sees it (`sheetEmployer.Org`,
+  `data-note-org`, the field's `aria-describedby`); in the journal the line says it next to the note.
 - **Preferences** (`POST /sheet/prefs`: `view`, `detail`, `expand`) are the person's `core.Preferences`. Without a view
   chosen the table opens; `Sec-CH-UA-Mobile: ?1` or, in the script, a screen narrower than 640 pixels opens the journal.
 - **Layout.** `view.Sheet` makes the page not scroll itself: the sheet's own scroller does, so the head of the table,

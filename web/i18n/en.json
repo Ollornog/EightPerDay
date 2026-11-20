@@ -737,6 +737,7 @@
   "sheet.state.requested": "change asked for",
   "sheet.projects.toggle": "Show or hide the projects",
   "sheet.others": "+%s other",
+  "sheet.note.visible": "visible to %s",
   "sheet.journal.example": "e.g.  5   f3 studio   n1,5",
   "sheet.open.of": "%s h %s not on projects",
   "sheet.error.value": "Not understood: %s. Hours such as 8, 8,5, 7:30 or 8-16:30 30m, a half day as 4v or 4n, a code U, K, F, ZA, ½U.",

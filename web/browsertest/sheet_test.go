@@ -361,6 +361,10 @@ func TestChangeRequestInEveryView(t *testing.T) {
 		b.must(`!!document.querySelector('[data-week="2026-11-16"] [data-state="requested"]') && document.body.textContent.includes('`+step.shows+`')`,
 			step.view+": the request is marked and the approved value still counts")
 	}
+	// The note of the managed employer's day says that the organization sees it.
+	b.open("/?view=table")
+	b.must(`document.querySelector('#m-2026-11-19-note [data-note-org]')?.textContent === 'visible to ACME' &&
+		document.querySelector('#c-2026-11-19-note')?.getAttribute('aria-describedby') === 'm-2026-11-19-note'`, "the note field names the organization")
 	b.reachable("change requested")
 	b.shot("change-requested")
 	b.signOut()
@@ -380,6 +384,9 @@ func TestChangeRequestInEveryView(t *testing.T) {
 	b.must(`document.querySelector('#c-2026-11-16-line')?.value === '7' && !document.querySelector('[data-state="requested"]') &&
 		document.querySelector('#c-2026-11-19-line')?.value === 'Doctor at nine' &&
 		!!document.querySelector('[data-week="2026-11-16"] [data-state="approved"]')`, "the week holds the new values, approved again")
+	b.open("/?view=journal")
+	b.must(`document.querySelector('[data-day="2026-11-19"] [data-note-org]')?.textContent === 'visible to ACME'`,
+		"the journal names the organization next to the note")
 	b.open("/access")
 	b.must(`!!document.querySelector('[data-access="change"]')`, "the access log shows the change")
 	b.settle()

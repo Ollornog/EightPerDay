@@ -8,6 +8,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- The note of a day of a managed employer says at its field that the organization sees it ("visible to ACME", German
+  "sichtbar für ACME"), in the table, the grid, the journal and the week's form without JavaScript (T-17, ADR-4).
 - The start page is one sheet in three views (M-6, T-13 to T-16, ADR-4): every employer of the person in one endless
   list of weeks that opens at this week (older weeks load while scrolling up, two weeks to plan follow), as a table
   (days as rows, employers and their projects as columns, the head, the dates and the week's row with its sums,

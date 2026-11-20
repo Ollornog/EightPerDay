@@ -737,6 +737,7 @@
   "sheet.state.requested": "Änderung beantragt",
   "sheet.projects.toggle": "Projekte auf- oder zuklappen",
   "sheet.others": "+%s andere",
+  "sheet.note.visible": "sichtbar für %s",
   "sheet.journal.example": "z. B.  5   f3 studio   n1,5",
   "sheet.open.of": "%s h %s nicht auf Projekten",
   "sheet.error.value": "Nicht erkannt: %s. Stunden wie 8, 8,5, 7:30 oder 8-16:30 30m, ein halber Tag als 4v oder 4n, ein Kürzel U, K, F, ZA, ½U.",
