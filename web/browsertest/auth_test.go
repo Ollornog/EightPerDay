@@ -146,19 +146,22 @@ func TestRemovingAsksFirst(t *testing.T) {
 	}
 	b.settle()
 	b.tap(`[data-passkey] form[data-confirm] button`)
-	b.must(`document.querySelector('#confirm-dialog').open`, "removing asks first")
+	b.must(`document.querySelector('[data-confirm-dialog]').open`, "removing asks first")
+	b.must(`(() => { const d = document.querySelector('[data-confirm-dialog]'); const yes = d.querySelector('[data-confirm-yes]');
+		return d.querySelector('h2').textContent === 'Are you sure?' && yes.textContent === 'Yes, go ahead' && yes.dataset.variant === 'destructive' &&
+			d.querySelector('[data-confirm-no]').textContent === 'Cancel'; })()`, "the question speaks the page's language and warns")
 	b.reachable("question")
 	b.shot("confirm")
-	b.tap(`#confirm-dialog [data-close-dialog]`)
-	b.must(`!document.querySelector('#confirm-dialog').open && document.querySelectorAll('[data-passkey]').length === 2`, "cancel keeps the passkey")
+	b.tap(`[data-confirm-dialog] [data-confirm-no]`)
+	b.must(`!document.querySelector('[data-confirm-dialog]').open && document.querySelectorAll('[data-passkey]').length === 2`, "cancel keeps the passkey")
 	b.tap(`[data-passkey] form[data-confirm] button`)
-	b.must(`document.querySelector('#confirm-dialog').open`, "asks again")
-	b.tap(`#confirm-dialog [data-confirm-ok]`)
+	b.must(`document.querySelector('[data-confirm-dialog]').open`, "asks again")
+	b.tap(`[data-confirm-dialog] [data-confirm-yes]`)
 	b.must(`location.search === '?done=saved' && document.querySelectorAll('[data-passkey]').length === 1`, "the confirmed removal removes")
 	b.settle()
 	// The last passkey cannot go: there would be no way left to sign in.
 	b.tap(`[data-passkey] form[data-confirm] button`)
-	b.tap(`#confirm-dialog [data-confirm-ok]`)
+	b.tap(`[data-confirm-dialog] [data-confirm-yes]`)
 	b.must(`document.body.textContent.includes('last way to sign in') && document.querySelectorAll('[data-passkey]').length === 1`, "the last way to sign in stays")
 }
 

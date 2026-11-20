@@ -799,3 +799,68 @@ func TestSheetNoteVisibleToTheOrganization(t *testing.T) {
 		}
 	}
 }
+
+// The sheet is built from C22's pieces, not from utilities of its own: the table sticks as C22's sticky table with the
+// week as its group row, a field is the cell with a line below it, today and this week are named by aria-current, the
+// employers carry C22's marks, the journal line is C22's chip line, and the menu is C22's popover without JavaScript.
+func TestSheetUsesC22Pieces(t *testing.T) {
+	s, _ := trackSite(t)
+	me := s.me("cora", false)
+	s.employer(me, "Office", core.ModeSchedule, "8")
+	s.employer(me, "Studio", core.ModeExact, "")
+	table := s.get("/?view=table").body
+	for _, want := range []string{
+		`<table class="table" data-variant="grid" data-sticky data-sheet-table>`,
+		`<tr data-group-row data-week-row aria-current="true">`,
+		`<tr data-group-row data-week-row>`,
+		`<small id="m-2026-11-16-note" data-slot="m-2026-11-16-note">`,
+		`<span class="badge" data-variant="outline" data-mark="1">O</span>`,
+		`<span class="badge" data-variant="outline" data-mark="2">S</span>`,
+		`<details class="popover" data-view-menu>`,
+		`class="grid w-72 gap-3" data-popover data-align="end" data-sheet-prefs>`,
+	} {
+		if !strings.Contains(table, want) {
+			t.Errorf("table: %s missing", want)
+		}
+	}
+	for _, want := range []string{`<td data-field data-type="number">\s*<input class="input" data-size="sm" id="c-2026-11-16-e-`,
+		`<td data-field>\s*<input class="input min-w-32" data-size="sm" id="c-2026-11-16-note"`} {
+		if !regexp.MustCompile(want).MatchString(table) {
+			t.Errorf("table: %s missing", want)
+		}
+	}
+	if !strings.Contains(table, `<tr data-line data-day="2026-11-18" id="today" aria-current="date">`) {
+		t.Error("today is not named by aria-current alone")
+	}
+	sheetTable := table[strings.Index(table, "<table"):strings.Index(table, "</table>")]
+	if regexp.MustCompile(`class="[^"]*\bsticky\b`).MatchString(sheetTable) {
+		t.Error("table: the sheet still makes cells sticky itself")
+	}
+	for _, own := range []string{"data-sticky-row", "rounded-none", "data-state=\"selected\"", "bg-popover", `class="relative"`} {
+		if strings.Contains(table, own) {
+			t.Errorf("table: the sheet still builds %s itself", own)
+		}
+	}
+	grid := s.get("/?view=grid").body
+	if !regexp.MustCompile(`<td data-field data-type="number">\s*<input class="input" data-size="sm"`).MatchString(grid) ||
+		!regexp.MustCompile(`<td data-field>\s*<input class="input" data-size="sm" id="c-2026-11-16-note"`).MatchString(grid) {
+		t.Error("grid: the fields are not C22's fields in a cell")
+	}
+	s.mustCell(monday, "line", "8 s2 long day")
+	journal := s.get("/?view=journal").body
+	for _, want := range []string{
+		`<div data-slot="ch-2026-11-16" data-chips>`,
+		`data-variant="outline" data-mark="2" data-chip>S · 2 h</span>`,
+		`<small class="italic" data-chip-note>long day</small>`,
+	} {
+		if !strings.Contains(journal, want) {
+			t.Errorf("journal: %s missing", want)
+		}
+	}
+	if !regexp.MustCompile(`<div class="chip-input flex-1">\s*<input class="input" data-size="sm" id="c-2026-11-16-line"`).MatchString(journal) {
+		t.Error("journal: the line is not C22's chip line")
+	}
+	if strings.Contains(journal, "group-focus-within") || strings.Contains(journal, "opacity-0") {
+		t.Error("journal: the chip line is still built from utilities")
+	}
+}

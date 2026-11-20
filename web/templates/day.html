@@ -26,7 +26,7 @@
       <div class="flex items-center gap-2 text-sm" data-booking>
         <span class="min-w-0 flex-1">{{.Project}}{{if .Number}} · <span class="tabular-nums">{{.Number}}</span>{{end}}{{if .Note}} · {{.Note}}{{end}}</span>
         <span class="font-semibold tabular-nums">{{dec .Minutes}}</span>
-        {{if not $d.Locked}}<form method="post" action="{{base}}/entries/{{.ID}}/remove" data-confirm="{{t "entry.remove.confirm"}}">
+        {{if not $d.Locked}}<form method="post" action="{{base}}/entries/{{.ID}}/remove" data-confirm-variant="destructive" data-confirm="{{t "entry.remove.confirm"}}">
           <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$d.Back}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
         </form>{{end}}
@@ -44,7 +44,7 @@
       <div class="flex items-center gap-2 text-sm" data-income>
         <span class="min-w-0 flex-1">{{t (print "income." .Kind)}}{{if .Client}} · {{.Client}}{{end}}{{if .PaidBy}} · {{t (print "paidby." .PaidBy)}}{{end}}{{if .Note}} · {{.Note}}{{end}}</span>
         <span class="font-semibold tabular-nums">{{money .Amount .Currency}}</span>
-        {{if not $d.Fixed}}<form method="post" action="{{base}}/incomes/{{.ID}}/remove" class="flex items-center gap-1" data-confirm="{{t "day.income.remove"}}" data-income-remove><input type="hidden" name="back" value="{{$d.Back}}">
+        {{if not $d.Fixed}}<form method="post" action="{{base}}/incomes/{{.ID}}/remove" class="flex items-center gap-1" data-confirm-variant="destructive" data-confirm="{{t "day.income.remove"}}" data-income-remove><input type="hidden" name="back" value="{{$d.Back}}">
           {{if $d.Request}}<label class="sr-only" for="ir-{{.ID}}">{{t "list.reason"}}</label><input class="input w-32" data-size="sm" id="ir-{{.ID}}" name="reason" maxlength="2000" required placeholder="{{t "list.reason"}}" autocomplete="off">{{end}}
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
       </div>

@@ -64,7 +64,7 @@
       {{range $d.Absences}}
       <div class="flex items-center gap-2" data-leave="{{.From}}">
         <span class="min-w-0 flex-1 text-sm tabular-nums">{{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}{{if .HalfDay}} · {{t "track.half"}}{{end}}{{if eq .Status "requested"}} · {{t "absence.requested"}}{{else if eq .Status "rejected"}} · {{t "absence.rejected"}}{{end}}</span>
-        <form method="post" action="{{base}}/absences/{{.ID}}/remove" data-confirm="{{t "absence.remove.confirm"}}">
+        <form method="post" action="{{base}}/absences/{{.ID}}/remove" data-confirm-variant="destructive" data-confirm="{{t "absence.remove.confirm"}}">
           <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$d.Back}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
         </form>

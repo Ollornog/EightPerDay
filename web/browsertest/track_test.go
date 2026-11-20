@@ -140,8 +140,8 @@ func TestOtherModesAndReportsOnAPhone(t *testing.T) {
 	b.settle()
 	// The weekly total split into days, after the question: Monday to Friday 2:30 each.
 	b.tap(`[data-spread]`)
-	b.must(`document.querySelector('#confirm-dialog').open`, "splitting asks first")
-	b.tap(`#confirm-dialog [data-confirm-ok]`)
+	b.must(`document.querySelector('[data-confirm-dialog]').open`, "splitting asks first")
+	b.tap(`[data-confirm-dialog] [data-confirm-yes]`)
 	b.must(`location.search.includes('done=spread')`, "the week is split")
 	b.settle()
 	b.open("/")

@@ -24,7 +24,9 @@ so handlers only ever see paths from the root. `data-base` on `<body>` gives it 
 ## Everything from C22
 
 The app has no stylesheet of its own: every class is one of C22's, and a test (`TestEveryClassExistsInTheStylesheet`)
-fails on a class C22 lacks or on any CSS file in `assets/app/`. What the app needs and C22 lacks goes to C22 first.
+fails on a class C22 lacks or on any CSS file in `assets/app/`. What the app needs and C22 lacks goes to C22 first. The page loads C22's `c22.js` besides Basecoat's script; the question before
+a form removes something is C22's dialog (`form[data-confirm]` with `data-confirm-variant="destructive"`, its words in
+`data-confirm-title`, `-ok` and `-cancel` on `<html>`).
 Parts used beyond the plain components:
 
 | Part | Where |
@@ -80,9 +82,13 @@ projects and the incomes of its own days). The details of a day (`POST /book/day
 - **Preferences** (`POST /sheet/prefs`: `view`, `detail`, `expand`) are the person's `core.Preferences`. Without a view
   chosen the table opens; `Sec-CH-UA-Mobile: ?1` or, in the script, a screen narrower than 640 pixels opens the journal.
 - **Layout.** `view.Sheet` makes the page not scroll itself: the sheet's own scroller does, so the head of the table,
-  the column of days and the week's rows stick (C22 utilities `sticky`, `top-0`, `left-0`); the script sets the week
-  rows' offset to the height of the head. The journal hides its field behind the chips until it has the focus
-  (`opacity-0 group-focus-within:opacity-100`).
+  the column of days and the week's rows stick: the table is C22's sticky table (`table[data-variant=grid][data-sticky]`,
+  the week a `tr[data-group-row]`, this week and today named by `aria-current`), and C22's `c22.js` keeps the week
+  rows' offset at the height of the head. A field is C22's field in a cell (`td[data-field][data-type=number] > .input`,
+  what is open, asked for or who sees the note in one `small` below it). The journal's line is C22's chip line
+  (`.chip-input` with `[data-chips]`), the menu C22's popover without JavaScript (`details.popover` with
+  `form[data-popover]`; `c22.js` closes it on Escape or a click outside and gives the focus back), and the employers
+  carry C22's marks in turn (`.badge[data-variant=outline][data-mark=1…5]`, always with their key letter).
 
 The week page (`/week`) keeps the tools of a mode (stopwatch, spans, plan, the week's total, projects only, free text,
 absences of several days, handing in) and the correction of the time account (`POST /book/correction`,

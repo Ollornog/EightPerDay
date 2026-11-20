@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Changed
+
+- The sheet is built from C22's pieces for it (C22 `205158b`, its block "Stundenblatt") instead of utilities and a
+  script of its own: C22's sticky table with the week as its group row, the field in a cell with one line below it,
+  today and this week named by `aria-current`, the journal's chip line, the menu as C22's popover without JavaScript
+  (Escape or a click outside closes it, the focus goes back), and C22's marks for the employers. The page loads C22's
+  `c22.js`, which `scripts/vendor-c22.sh` now copies too; the sheet's own offset script is gone.
+- The question before something is removed is C22's dialog for `form[data-confirm]` (from `c22.js`, words from the
+  attributes on `<html>`, the button marked destructive) instead of a dialog and a script of the app's own.
+
 ### Added
 
 - The note of a day of a managed employer says at its field that the organization sees it ("visible to ACME", German
