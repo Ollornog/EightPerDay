@@ -361,6 +361,20 @@ func TestChangeRequestInEveryView(t *testing.T) {
 		b.must(`!!document.querySelector('[data-week="2026-11-16"] [data-state="requested"]') && document.body.textContent.includes('`+step.shows+`')`,
 			step.view+": the request is marked and the approved value still counts")
 	}
+	// The day's page: the details of a day of the approved week go the same way, with the reason in the form.
+	b.open("/day?d=2026-11-20")
+	b.must(`!!document.querySelector('[data-day-request]') && !!document.querySelector('#di-reason')`,
+		"the day's page says that the week is approved")
+	b.tap(`[data-day-info] summary`)
+	b.typeInto(`#di-place`, "Valley")
+	b.typeInto(`#di-reason`, "Forgot the place")
+	b.tap(`[data-day-info-form] button[type=submit]`)
+	b.must(`location.search.includes('done=requested') && document.querySelector('#di-place')?.value === '' &&
+		(document.querySelector('[data-day-pending]')?.textContent || '').includes('place Valley')`,
+		"the details are asked for and the approved ones still count")
+	b.settle()
+	b.reachable("day of an approved week")
+	b.shot("day-change-requested")
 	// The note of the managed employer's day says that the organization sees it.
 	b.open("/?view=table")
 	b.must(`document.querySelector('#m-2026-11-19-note [data-note-org]')?.textContent === 'visible to ACME' &&
@@ -373,7 +387,7 @@ func TestChangeRequestInEveryView(t *testing.T) {
 	b.open(org)
 	b.must(`(() => { const t = document.querySelector('[data-review] [data-changes]')?.textContent || '';
 		return t.includes('Mon 11-16: 7') && t.includes('Tue 11-17: 6') && t.includes('Wed 11-18: 5') &&
-			t.includes('Thu 11-19: – („Doctor at nine“)'); })()`, "the administrator reads what is asked")
+			t.includes('Thu 11-19: – („Doctor at nine“)') && t.includes('Fri 11-20: – · place Valley'); })()`, "the administrator reads what is asked")
 	b.shot("change-review")
 	b.tap(`[data-review] [data-approve]`)
 	b.must(`location.search.includes('done=decided') && !!document.querySelector('[data-reviews-none]')`, "the change is approved")
@@ -387,6 +401,9 @@ func TestChangeRequestInEveryView(t *testing.T) {
 	b.open("/?view=journal")
 	b.must(`document.querySelector('[data-day="2026-11-19"] [data-note-org]')?.textContent === 'visible to ACME'`,
 		"the journal names the organization next to the note")
+	b.open("/day?d=2026-11-20")
+	b.must(`document.querySelector('#di-place')?.value === 'Valley' && !document.querySelector('[data-day-pending]')`,
+		"the approved details are booked")
 	b.open("/access")
 	b.must(`!!document.querySelector('[data-access="change"]')`, "the access log shows the change")
 	b.settle()

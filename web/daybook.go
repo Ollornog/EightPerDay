@@ -58,6 +58,74 @@ func (h *handler) proposedProjectsIn(lang string, cat core.Catalog, p core.Propo
 	return out
 }
 
+// changeTextIn is all a change request asks one day to hold, as the reviewer and the day's page read it: "6 · Studio 3 h
+// („dentist“) · place Berlin, 40 km in all · + Tip 5.00 EUR, cash".
+func (h *handler) changeTextIn(lang string, cat core.Catalog, p core.ProposedDay) string {
+	return h.proposedTextIn(lang, cat.AbsenceTypes, p) + h.proposedProjectsIn(lang, cat, p) + noteSuffix(p.Note) +
+		h.proposedDetailsIn(lang, p.Details) + h.proposedIncomesIn(lang, cat, p.Incomes)
+}
+
+// proposedDetailsIn is what a change request asks the other details of a day to hold: " · place Berlin, 40 km in all,
+// called out 1.5 h, 2 call-outs", " · no details"; nothing when it leaves them.
+func (h *handler) proposedDetailsIn(lang string, d *core.ProposedDetails) string {
+	if d == nil {
+		return ""
+	}
+	t := h.catalog.translator(lang)
+	var parts []string
+	if d.Place != "" {
+		parts = append(parts, t("change.place", d.Place))
+	}
+	if d.KmOneWay != 0 {
+		parts = append(parts, t("change.kmoneway", kmText(lang, d.KmOneWay)))
+	}
+	if d.KmTotal != 0 {
+		parts = append(parts, t("change.kmtotal", kmText(lang, d.KmTotal)))
+	}
+	if d.StandbyPassive != 0 {
+		parts = append(parts, t("change.standby.passive", hoursText(lang, d.StandbyPassive)))
+	}
+	if d.StandbyActive != 0 {
+		parts = append(parts, t("change.standby.active", hoursText(lang, d.StandbyActive)))
+	}
+	if d.Callouts != 0 {
+		parts = append(parts, t("change.callouts", strconv.Itoa(d.Callouts)))
+	}
+	if len(parts) == 0 {
+		return " · " + t("change.details.none")
+	}
+	return " · " + strings.Join(parts, ", ")
+}
+
+// proposedIncomesIn is what a change request asks the incomes of a day to become: " · + Tip 5.00 EUR, cash" for one
+// added, " · − Job, Miller 120.00 EUR" for one taken off.
+func (h *handler) proposedIncomesIn(lang string, cat core.Catalog, incomes []core.ProposedIncome) string {
+	out := ""
+	for _, x := range incomes {
+		sign, i := "+ ", x.Income()
+		if x.Remove != "" {
+			sign = "− "
+			i, _ = incomeOf(cat, x.Remove)
+		}
+		out += " · " + sign + h.incomeTextIn(lang, i)
+	}
+	return out
+}
+
+// incomeTextIn writes an income in one line: "Job, Miller 120.00 EUR, cash".
+func (h *handler) incomeTextIn(lang string, i core.Income) string {
+	t := h.catalog.translator(lang)
+	text := t("income." + string(i.Kind))
+	if i.Client != "" {
+		text += ", " + i.Client
+	}
+	text += " " + formatMoney(lang, i.Amount, i.Currency)
+	if i.PaidBy != "" {
+		text += ", " + t("paidby."+string(i.PaidBy))
+	}
+	return text
+}
+
 // hoursOfPart writes hours with their half of the day as a day's field reads them back: 4 NM, 3,5 AM.
 func (h *handler) hoursOfPart(r *http.Request, minutes int, part core.DayPart) string {
 	return h.hoursOfPartIn(h.lang(r), minutes, part)
@@ -255,6 +323,36 @@ func (h *handler) requestChange(r *http.Request, cat core.Catalog, emp core.Empl
 	return h.options.Store.Put(ctx, s)
 }
 
+// changeFits reports whether a change request asks only for what belongs to the employer's days: its projects, and the
+// incomes of the day it takes off. Checked before the decision is stored, so an approval never stops halfway.
+func changeFits(cat core.Catalog, emp core.Employer, c core.Submission) error {
+	for _, p := range c.Proposal {
+		for _, x := range p.Projects {
+			if projectOf(cat, x.ProjectID).EmployerID != emp.ID {
+				return core.ErrNotFound
+			}
+		}
+		for _, x := range p.Incomes {
+			if x.Remove == "" {
+				continue
+			}
+			if i, ok := incomeOf(cat, x.Remove); !ok || i.EmployerID != emp.ID || i.Date != p.Date {
+				return core.ErrNotFound
+			}
+		}
+	}
+	return nil
+}
+
+func incomeOf(cat core.Catalog, id string) (core.Income, bool) {
+	for _, i := range cat.Incomes {
+		if i.ID == id {
+			return i, true
+		}
+	}
+	return core.Income{}, false
+}
+
 // applyChange books the values of an approved change request on the member's days and approves the period again as
 // corrected, in the name of the administrator who decided; the member's access log shows the change.
 func (h *handler) applyChange(r *http.Request, org core.Organization, actor core.Actor, emp core.Employer, c core.Submission) error {
@@ -264,6 +362,9 @@ func (h *handler) applyChange(r *http.Request, org core.Organization, actor core
 		return err
 	}
 	reason := "change request " + c.ID
+	if err := changeFits(data.Catalog, emp, c); err != nil {
+		return err
+	}
 	for _, p := range c.Proposal {
 		v := dayValue{minutes: p.Minutes, part: p.Part, typed: p.Typed}
 		if p.Absence != "" {
@@ -272,14 +373,24 @@ func (h *handler) applyChange(r *http.Request, org core.Organization, actor core
 		if err := h.setDay(r, data.Catalog, emp, p.Date, v, reason, true); err != nil {
 			return err
 		}
-		if err := h.setDayNote(r, data.Catalog, emp, p.Date, p.Note, reason); err != nil {
+		if err := h.setDayDetails(r, data.Catalog, emp, p.Date, p.Details, &p.Note, reason); err != nil {
 			return err
 		}
 		for _, x := range p.Projects {
-			if projectOf(data.Catalog, x.ProjectID).EmployerID != emp.ID {
-				return core.ErrNotFound
-			}
 			if err := h.setProjectDay(r, data.Catalog, emp, p.Date, x.ProjectID, x.Minutes, reason); err != nil {
+				return err
+			}
+		}
+		for _, x := range p.Incomes {
+			if x.Remove != "" {
+				if err := h.options.Store.Delete(ctx, core.RecIncome, emp.Owner, x.Remove); err != nil {
+					return err
+				}
+				continue
+			}
+			i := x.Income()
+			i.ID, i.Owner, i.EmployerID, i.Date = core.NewID(), emp.Owner, emp.ID, p.Date
+			if err := h.options.Store.Put(ctx, i); err != nil {
 				return err
 			}
 		}
@@ -413,36 +524,45 @@ func (h *handler) setProjectDay(r *http.Request, cat core.Catalog, emp core.Empl
 		Minutes: minutes, ProjectID: projectID, Precision: core.PrecisionDay, Source: core.SourceManual}}, reason)
 }
 
-// setDayNote makes the note of an employer's day the text: in the details of the day (core.DayInfo.Note), which keep
-// a note with or without hours. Notes the former list kept on the hours of the day go into it.
+// setDayNote makes the note of an employer's day the text (setDayDetails).
 func (h *handler) setDayNote(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, note, reason string) error {
+	return h.setDayDetails(r, cat, emp, date, nil, &note, reason)
+}
+
+// setDayDetails makes the details of an employer's day (core.DayInfo) hold the note, when given, and the other details,
+// when given; what is not given stays. All empty removes them. A note given takes in the notes the former list kept on
+// the hours of the day.
+func (h *handler) setDayDetails(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, details *core.ProposedDetails,
+	note *string, reason string) error {
 	ctx := r.Context()
-	info := core.DayInfo{ID: core.DayInfoID(emp.ID, date), Owner: emp.Owner, EmployerID: emp.ID, Date: date}
-	for _, i := range cat.DayInfos {
-		if i.ID == info.ID {
-			info = i
+	info, _ := cat.DayInfoOf(emp.ID, date)
+	info.ID, info.Owner, info.EmployerID, info.Date = core.DayInfoID(emp.ID, date), emp.Owner, emp.ID, date
+	next := info
+	if details != nil {
+		next = details.On(next)
+	}
+	if note != nil {
+		next.Note = *note
+		entries, err := h.options.Store.Entries(ctx, core.EntryFilter{Owner: emp.Owner, EmployerID: emp.ID, From: date, To: date})
+		if err != nil {
+			return err
 		}
-	}
-	entries, err := h.options.Store.Entries(ctx, core.EntryFilter{Owner: emp.Owner, EmployerID: emp.ID, From: date, To: date})
-	if err != nil {
-		return err
-	}
-	for _, e := range entries {
-		if isManualDay(e, emp.ID) && e.Date == date && e.Note != "" {
-			e.Note = ""
-			if _, err := h.options.Store.UpdateEntry(ctx, e, change(r, reason)); err != nil {
-				return err
+		for _, e := range entries {
+			if isManualDay(e, emp.ID) && e.Date == date && e.Note != "" {
+				e.Note = ""
+				if _, err := h.options.Store.UpdateEntry(ctx, e, change(r, reason)); err != nil {
+					return err
+				}
 			}
 		}
 	}
-	if info.Note == note {
+	if next == info {
 		return nil
 	}
-	info.Note = note
-	if info == (core.DayInfo{ID: info.ID, Owner: info.Owner, EmployerID: info.EmployerID, Date: info.Date}) {
+	if next == (core.DayInfo{ID: info.ID, Owner: info.Owner, EmployerID: info.EmployerID, Date: info.Date}) {
 		return h.options.Store.Delete(ctx, core.RecDayInfo, info.Owner, info.ID)
 	}
-	return h.options.Store.Put(ctx, info)
+	return h.options.Store.Put(ctx, next)
 }
 
 // addCorrection books a correction of the time account (a payout, a cap) with its reason, for whoever may change the

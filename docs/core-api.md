@@ -152,7 +152,9 @@ gives every employer one: `Employer.Key`, else the first free letter of its name
 morning, `ClockSpan.End` past 24:00).
 
 A proposed day of a change request (`ProposedDay`) holds the same: minutes with `Part` and `Typed`, next to half a day
-of an absence minutes, the note of the day, and the hours on projects (`Projects`, `ProposedProject`).
+of an absence minutes, the note of the day, the hours on projects (`Projects`, `ProposedProject`), the other details
+of the day when they change (`Details`, `ProposedDetails`: all of `DayInfo` but the note; `DetailsOf(info)` and
+`details.On(info)` convert) and incomes to add or, with `Remove`, to take off (`Incomes`, `ProposedIncome`).
 
 ## Preferences
 
@@ -182,7 +184,10 @@ Only for an organization with `Features.Approval` on; without it there are no su
 - Locks, in both stores: the days of a period that is handed in or approved refuse entries and absences
   (`Catalog.Locked`, `Catalog.AbsenceLocked`); a leave request locks its absence, and after its approval only the
   decision itself is written (`LeaveDecision` then `UpdateAbsence`; `Catalog.LeaveLocked`). An approved correction
-  opens the period or the absence again; the person changes it and hands it in anew.
+  opens the period or the absence again; the person changes it and hands it in anew. The details of a day
+  (`DayInfo`) and its incomes (`Income`) are locked with the day (`Catalog.DayRecordLocked`): both stores refuse to
+  write, move or delete them on a day that is closed, handed in or approved, the stored record and the one replacing
+  it alike. `Catalog.DayInfoOf(employer, day)` finds the details of a day.
 - A submission is replaced only while it is open and never deleted (`ErrLocked`); decided ones stay as they are.
 - A change request is a correction that carries the values it asks for (`Submission.Proposal`, `ProposedDay`: hours
   with the span typed for them or an absence with a short code, the note of the day, and the hours of the projects

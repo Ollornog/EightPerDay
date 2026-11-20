@@ -275,6 +275,8 @@ func (h *handler) storeError(r *http.Request, err error) string {
 		return h.t(r, "org.error.lastadmin")
 	case errors.Is(err, errReasonNeeded):
 		return h.t(r, "approval.reason.needed")
+	case errors.Is(err, errChangeReason):
+		return h.t(r, "list.error.reason")
 	}
 	return ""
 }

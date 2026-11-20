@@ -32,6 +32,7 @@ func Run(t *testing.T, newStore func(t *testing.T) core.Store) {
 		{"managed and private are separate", managedSeparate},
 		{"organizations", organizations},
 		{"approval", approval},
+		{"details and incomes of a locked day", dayRecords},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) { c.fn(t, newStore(t)) })
@@ -275,6 +276,89 @@ func closedPeriod(t *testing.T, s core.Store) {
 	_, err = s.CreateAbsence(ctx, core.Absence{Owner: "alice", EmployerID: "e1", Type: core.AbsenceVacation,
 		From: core.MustDate("2026-01-30"), To: core.MustDate("2026-02-03")}, core.Change{})
 	wantErr(t, err, core.ErrLocked)
+}
+
+// dayRecords: the details of a day and its incomes are locked with the day (core.Catalog.DayRecordLocked): in a closed
+// period, and in a period handed in or approved, until an approved correction opens it again. Neither writing, moving
+// in or out, nor deleting gets through.
+func dayRecords(t *testing.T, s core.Store) {
+	at := time.Date(2026, 3, 9, 8, 0, 0, 0, time.UTC)
+	org := core.Organization{ID: "acme", Name: "ACME", Features: core.CompanyFeatures{Approval: true,
+		Agreement: "BV 2026-01", ConfirmedBy: "boss", ConfirmedAt: &at}}
+	must(t, s.PutOrganization(ctx, org))
+	emp := managed("alice", "m1", "acme")
+	must(t, s.Put(ctx, emp))
+	must(t, s.Put(ctx, employer("alice", "e2")))
+	tuesday, monday, later := core.MustDate("2026-03-03"), core.MustDate("2026-03-02"), core.MustDate("2026-03-10")
+	info := func(employerID string, d core.Date, place string) core.DayInfo {
+		return core.DayInfo{ID: core.DayInfoID(employerID, d), Owner: "alice", EmployerID: employerID, Date: d, Place: place,
+			StandbyActive: 60, Callouts: 1}
+	}
+	income := func(id string, d core.Date) core.Income {
+		return core.Income{ID: id, Owner: "alice", EmployerID: "m1", Date: d, Kind: core.IncomeTip, Amount: 500, Currency: "EUR",
+			PaidBy: core.PaidCash}
+	}
+	must(t, s.Put(ctx, info("m1", tuesday, "Berlin")))
+	must(t, s.Put(ctx, income("i1", tuesday)))
+	must(t, s.Put(ctx, income("i2", later)))
+	d, err := core.Load(ctx, s, "alice", monday, later)
+	must(t, err)
+	sub, err := core.Submit(org, d, core.SubmitRequest{Kind: core.SubmitPeriod, EmployerID: "m1", From: monday,
+		To: core.MustDate("2026-03-08"), At: at})
+	must(t, err)
+	must(t, s.Put(ctx, sub))
+
+	locked := func(when string) {
+		t.Helper()
+		wantErr(t, s.Put(ctx, info("m1", tuesday, "Hamburg")), core.ErrLocked)
+		wantErr(t, s.Put(ctx, info("m1", monday, "Hamburg")), core.ErrLocked)
+		wantErr(t, s.Delete(ctx, core.RecDayInfo, "alice", core.DayInfoID("m1", tuesday)), core.ErrLocked)
+		wantErr(t, s.Put(ctx, income("i3", monday)), core.ErrLocked)
+		wantErr(t, s.Put(ctx, income("i1", later)), core.ErrLocked)   // out of the locked day
+		wantErr(t, s.Put(ctx, income("i2", tuesday)), core.ErrLocked) // into it
+		wantErr(t, s.Delete(ctx, core.RecIncome, "alice", "i1"), core.ErrLocked)
+		c, err := s.Catalog(ctx, "alice")
+		must(t, err)
+		kept, _ := c.DayInfoOf("m1", tuesday)
+		if kept.Place != "Berlin" || len(c.Incomes) != 2 || c.Incomes[0].Date != tuesday ||
+			c.Incomes[1].Date != later {
+			t.Fatalf("%s: the locked day changed: %+v %+v", when, kept, c.Incomes)
+		}
+	}
+	locked("handed in")
+	// Another employer's day, a day after the period and another person stay open.
+	must(t, s.Put(ctx, info("e2", tuesday, "Hamburg")))
+	must(t, s.Put(ctx, info("m1", later, "Hamburg")))
+	must(t, s.Delete(ctx, core.RecDayInfo, "alice", core.DayInfoID("m1", later)))
+	wantErr(t, s.Delete(ctx, core.RecDayInfo, "bob", core.DayInfoID("m1", tuesday)), core.ErrNotFound)
+
+	boss := core.Actor{Person: "boss", Organization: "acme", Admin: true}
+	approved, err := core.Decide(sub, emp, boss, true, "", at)
+	must(t, err)
+	must(t, s.Put(ctx, approved))
+	locked("approved")
+
+	// An approved correction opens the days again.
+	d, err = core.Load(ctx, s, "alice", monday, later)
+	must(t, err)
+	fix, err := core.Submit(org, d, core.SubmitRequest{Kind: core.SubmitCorrection, EmployerID: "m1", Supersedes: sub.ID,
+		Note: "the call-out", At: at})
+	must(t, err)
+	must(t, s.Put(ctx, fix))
+	locked("correction asked for")
+	fixed, err := core.Decide(fix, emp, boss, true, "", at)
+	must(t, err)
+	must(t, s.Put(ctx, fixed))
+	must(t, s.Put(ctx, info("m1", tuesday, "Hamburg")))
+	must(t, s.Put(ctx, income("i1", later)))
+	must(t, s.Delete(ctx, core.RecIncome, "alice", "i1"))
+
+	// A closed period locks them too, without any approval.
+	must(t, s.Put(ctx, info("e2", core.MustDate("2026-01-15"), "Munich")))
+	must(t, s.Put(ctx, core.PeriodClose{ID: "p1", Owner: "alice", EmployerID: "e2", From: core.MustDate("2026-01-01"),
+		To: core.MustDate("2026-01-31"), ClosedAt: time.Now()}))
+	wantErr(t, s.Put(ctx, info("e2", core.MustDate("2026-01-15"), "Rome")), core.ErrLocked)
+	wantErr(t, s.Delete(ctx, core.RecDayInfo, "alice", core.DayInfoID("e2", core.MustDate("2026-01-15"))), core.ErrLocked)
 }
 
 func absences(t *testing.T, s core.Store) {
