@@ -28,7 +28,7 @@
           <input class="input min-w-0 flex-1" id="passkey-{{.ID}}" name="name" value="{{.Name}}" maxlength="100">
           <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "action.rename"}}</button>
         </form>
-        <form method="post" action="{{base}}/account/passkeys/{{.ID}}/remove" data-confirm="{{t "account.passkey.remove.confirm"}}">
+        <form method="post" action="{{base}}/account/passkeys/{{.ID}}/remove" data-confirm-variant="destructive" data-confirm="{{t "account.passkey.remove.confirm"}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
         </form>
         <p class="w-full text-muted-foreground text-xs">{{t "account.passkey.added"}} {{date .Created}}{{if .LastUsed}} · {{t "account.passkey.used"}} {{date .LastUsed}}{{end}}</p>
@@ -72,7 +72,7 @@
         <button type="submit" class="btn" data-variant="outline">{{if .Account.HasPassword}}{{t "account.password.change"}}{{else}}{{t "account.password.set"}}{{end}}</button>
       </form>
       {{if and .Account.HasPassword .Account.Passkeys}}
-      <form method="post" action="{{base}}/account/password/remove" data-confirm="{{t "account.password.remove.confirm"}}">
+      <form method="post" action="{{base}}/account/password/remove" data-confirm-variant="destructive" data-confirm="{{t "account.password.remove.confirm"}}">
         <button type="submit" class="btn" data-variant="ghost">{{t "account.password.remove"}}</button>
       </form>
       {{end}}

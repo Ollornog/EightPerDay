@@ -34,8 +34,9 @@ const (
 var (
 	sheetViews   = []string{viewTable, viewJournal, viewGrid}
 	sheetDetails = []string{detailAuto, detailHours, detailProjects, detailEmployers}
-	// employerMarks are the badge variants that tell employers apart next to their key letter (never the colour alone).
-	employerMarks = []string{"primary", "info", "secondary", "warning", "success", "outline"}
+	// employerMarks is how many marks C22 has for telling entities apart (.badge[data-mark="1"…"5"], a dot in a chart
+	// colour); the employers take them in turn, always next to their key letter (never the colour alone).
+	employerMarks = 5
 )
 
 // weeksBefore is how many weeks before this week the sheet shows at first, weeksAhead how many after it (to plan), and
@@ -80,7 +81,7 @@ type sheetEmployer struct {
 	core.Employer
 	Index    int
 	Key      string
-	Mark     string
+	Mark     int // 1…employerMarks, C22's data-mark
 	Projects []core.Project
 	// HasTarget: the employer has a schedule. Approval: its organization approves weeks. Org: the name of the
 	// organization that manages it, which sees the notes of its days; empty for a private employer.
@@ -217,7 +218,7 @@ func (h *handler) buildSheet(ctx context.Context, lang string, cat core.Catalog,
 	gapsFrom := today.AddDays(-7 * 8)
 	from = minDate(from, gapsFrom)
 	for i, e := range employers {
-		se := &sheetEmployer{Employer: e, Index: i, Key: keyOf[e.ID], Mark: employerMarks[i%len(employerMarks)],
+		se := &sheetEmployer{Employer: e, Index: i, Key: keyOf[e.ID], Mark: i%employerMarks + 1,
 			Projects: activeProjects(cat, e.ID), Expanded: slices.Contains(prefs.Expanded, e.ID)}
 		se.start, se.HasTarget = accountStart(cat, e.ID, rng.from)
 		org, on, err := h.approvalOrg(ctx, e)

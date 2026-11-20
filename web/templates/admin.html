@@ -49,7 +49,7 @@
           {{if .Disabled}}
           <form method="post" action="{{base}}/admin/accounts/{{.ID}}/enable"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.enable"}}</button></form>
           {{else}}
-          <form method="post" action="{{base}}/admin/accounts/{{.ID}}/disable" data-confirm="{{t "admin.disable.confirm"}}"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.disable"}}</button></form>
+          <form method="post" action="{{base}}/admin/accounts/{{.ID}}/disable" data-confirm-variant="destructive" data-confirm="{{t "admin.disable.confirm"}}"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.disable"}}</button></form>
           {{end}}
           {{if .Admin}}
           <form method="post" action="{{base}}/admin/accounts/{{.ID}}/member"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.member"}}</button></form>

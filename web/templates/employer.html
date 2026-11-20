@@ -35,7 +35,7 @@
       <p class="text-sm">{{t "employer.mode.now"}} <span class="font-semibold" data-current-mode="{{$d.Mode}}">{{t (print "mode." $d.Mode)}}</span></p>
       {{if $d.ModeChanges}}
       <ul class="grid gap-1 text-sm">{{range $d.ModeChanges}}<li class="flex items-center gap-2"><span class="tabular-nums">{{t "employer.mode.from" (day .ValidFrom)}}</span><span class="flex-1">{{t (print "mode." .Mode)}}</span>
-        {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="mode"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}</li>{{end}}</ul>
+        {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm-variant="destructive" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="mode"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}</li>{{end}}</ul>
       {{end}}
       {{if $d.CanChange}}
       <form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/mode" class="grid gap-3">
@@ -63,7 +63,7 @@
       {{range $d.Schedules}}
       <div class="grid gap-1 rounded-md border p-3 text-sm" data-schedule>
         <div class="flex items-center gap-2"><span class="flex-1 font-medium">{{t "employer.mode.from" (day .ValidFrom)}} · {{hours .Week}} {{t "employer.perweek"}}</span>
-          {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="schedule"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}</div>
+          {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm-variant="destructive" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="schedule"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}</div>
         <p class="text-muted-foreground text-xs tabular-nums">{{$s := .}}{{range $d.Weekdays}}{{t (print "weekday." .)}} {{index $s.Hours .}} {{end}}{{if .LeaveDays}}· {{t "employer.leavedays"}} {{half .LeaveDays}}{{end}}</p>
       </div>
       {{else}}
@@ -106,7 +106,7 @@
       {{range $d.PayRules}}
       <div class="flex items-center gap-2 rounded-md border p-3 text-sm" data-payrule>
         <span class="min-w-0 flex-1">{{t (print "pay." .Basis)}} · <span class="tabular-nums">{{money .Amount .Currency}}</span>{{if .Unit}} / {{t (print "unit." .Unit)}}{{else if or (eq .Basis "standby_passive") (eq .Basis "standby_active")}} / {{t "unit.hour"}}{{end}}{{if .HalfAmount}} · <span data-half-amount>{{t "employer.pay.half.short" (money .HalfAmount .Currency)}}</span>{{end}} · {{t "employer.mode.from" (day .ValidFrom)}}</span>
-        {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="pay"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
+        {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm-variant="destructive" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="pay"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
       </div>
       {{else}}
       <p class="text-muted-foreground text-sm">{{t "employer.pay.none"}}</p>
@@ -145,7 +145,7 @@
       {{range $d.AbsencePays}}
       <div class="flex items-center gap-2 rounded-md border p-3 text-sm" data-absencepay>
         <span class="min-w-0 flex-1">{{$type := .Type}}{{if eq .Type "public_holiday"}}{{t "absence.public_holiday"}}{{else}}{{range $d.Types}}{{if eq .Key $type}}{{.Name}}{{end}}{{end}}{{end}} · {{t (print "absencepay." .Method)}}{{if eq .Method "average"}} ({{if .Weeks}}{{.Weeks}}{{else}}13{{end}} {{t "absencepay.weeks.unit"}}){{end}} · {{t "employer.mode.from" (day .ValidFrom)}}</span>
-        {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="absence-pay"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
+        {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm-variant="destructive" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="absence-pay"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
       </div>
       {{else}}
       <p class="text-muted-foreground text-sm">{{t "employer.absencepay.none"}}</p>
@@ -177,7 +177,7 @@
       {{range $d.Surcharges}}
       <div class="flex items-center gap-2 rounded-md border p-3 text-sm" data-surcharge>
         <span class="min-w-0 flex-1">{{t (print "surcharge." .Kind)}} <span class="tabular-nums">{{percent .BasisPoints}}</span>{{if eq .Kind "night"}} · <span class="tabular-nums">{{clock .WindowStart}}–{{clock .WindowEnd}}</span>{{end}}{{if .BaseAmount}} · {{t "surcharge.base"}} <span class="tabular-nums">{{money .BaseAmount .Currency}}</span>{{end}} · {{t "employer.mode.from" (day .ValidFrom)}}</span>
-        {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="surcharge"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
+        {{if $d.CanChange}}<form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/delete" data-confirm-variant="destructive" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="owner" value="{{$d.Owner}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="kind" value="surcharge"><input type="hidden" name="record" value="{{.ID}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>{{end}}
       </div>
       {{else}}
       <p class="text-muted-foreground text-sm">{{t "employer.surcharges.none"}}</p>
@@ -249,7 +249,7 @@
   </div>
 
   {{if and $d.CanChange (not $d.Org)}}
-  <form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/archive" data-confirm="{{t "employer.archive.confirm"}}">
+  <form method="post" action="{{base}}/employers/{{$d.Employer.ID}}/archive" data-confirm-variant="destructive" data-confirm="{{t "employer.archive.confirm"}}">
     <input type="hidden" name="back" value="{{$d.Back}}">
     <button type="submit" class="btn w-full" data-variant="ghost">{{t "employer.archive.employer"}}</button>
   </form>

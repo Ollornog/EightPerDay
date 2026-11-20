@@ -89,7 +89,7 @@
           {{if .EmployerID}}<a class="btn" data-variant="outline" data-size="sm" href="{{base}}/employers/{{.EmployerID}}?owner={{.Person}}">{{t "org.member.settings"}}</a>{{end}}
           <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/role"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="membership" value="{{.ID}}">
             {{if eq .Role "admin"}}<input type="hidden" name="role" value="member"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.member"}}</button>{{else}}<input type="hidden" name="role" value="admin"><button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "admin.make.admin"}}</button>{{end}}</form>
-          <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/end" data-confirm="{{t "org.end.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="membership" value="{{.ID}}"><input type="hidden" name="until" value="{{$d.Today}}">
+          <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/end" data-confirm-variant="destructive" data-confirm="{{t "org.end.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="membership" value="{{.ID}}"><input type="hidden" name="until" value="{{$d.Today}}">
             <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "org.end"}}</button></form>
         </div>
         {{end}}
@@ -121,7 +121,7 @@
     <section class="grid gap-3">
       {{range $d.Org.Templates}}
       <div class="flex items-center gap-2 text-sm" data-template><span class="min-w-0 flex-1">{{.Name}} · {{t (print "mode." .Mode)}}</span>
-        <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/remove-template" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="name" value="{{.Name}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form></div>
+        <form method="post" action="{{base}}/orgs/{{$d.Org.ID}}/remove-template" data-confirm-variant="destructive" data-confirm="{{t "employer.delete.confirm"}}"><input type="hidden" name="back" value="{{$d.Back}}"><input type="hidden" name="name" value="{{.Name}}"><button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form></div>
       {{end}}
       <details>
         <summary class="btn" data-variant="outline">{{template "icon-plus"}}{{t "org.templates.add"}}</summary>

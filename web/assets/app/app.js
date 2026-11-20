@@ -23,29 +23,8 @@
     if (event.target instanceof HTMLDialogElement) event.target.close();
   });
 
-  // ---- The question before a form removes something: a dialog of the page, never the browser's own question box.
-  let confirmed = null;
-  document.addEventListener("submit", (event) => {
-    const form = event.target;
-    if (!(form instanceof HTMLFormElement) || !form.dataset.confirm) return;
-    if (confirmed === form) {
-      confirmed = null;
-      return;
-    }
-    const dialog = document.getElementById("confirm-dialog");
-    if (!dialog) return;
-    event.preventDefault();
-    dialog.querySelector("[data-confirm-text]").textContent = form.dataset.confirm;
-    const ok = dialog.querySelector("[data-confirm-ok]");
-    const onOK = () => {
-      dialog.close();
-      confirmed = form;
-      form.requestSubmit(event.submitter || undefined);
-    };
-    ok.addEventListener("click", onOK, { once: true });
-    dialog.addEventListener("close", () => ok.removeEventListener("click", onOK), { once: true });
-    dialog.showModal();
-  }, true);
+  // ---- The question before a form removes something (form[data-confirm]) is C22's dialog (c22.js); its words come
+  // from the attributes on <html>.
 
   // ---- Theme: light and dark, kept in this browser (theme.js applies it before the first paint).
   document.addEventListener("click", (event) => {
@@ -284,17 +263,8 @@
     const scriptOnly = () => {
       for (const el of sheet.querySelectorAll("[data-save-week], [data-week-reason]")) el.hidden = true;
     };
-    // The week's row sticks right below the head of the table: its offset is the height of the head.
-    const stick = () => {
-      const head = sheet.querySelector("[data-sheet-table] thead");
-      if (!head) return;
-      const top = head.getBoundingClientRect().height + "px";
-      for (const cell of sheet.querySelectorAll("[data-sheet-table] tr[data-week-row] > *")) cell.style.top = top;
-    };
+    // The week's row sticks right below the head of the table on its own: C22's sticky table (c22.js keeps the offset).
     scriptOnly();
-    stick();
-    const head = sheet.querySelector("[data-sheet-table] thead");
-    if (head && "ResizeObserver" in window) new ResizeObserver(stick).observe(head);
 
     const isText = (input) => input.dataset.col === "note" || input.dataset.col === "line";
     // A field without the focus shows its value as the server wrote it (the value attribute); with the focus what was
@@ -399,7 +369,6 @@
         old.replaceChildren(...fresh.childNodes);
       }
       scriptOnly();
-      stick();
     }
 
     // ---- Moving with the keyboard.

@@ -1,6 +1,6 @@
 {{define "layout" -}}
 <!doctype html>
-<html lang="{{.Lang}}"{{if .Embedded}} data-embedded data-theme-key="{{or .ThemeKey "themeMode"}}"{{end}}>
+<html lang="{{.Lang}}" data-confirm-title="{{t "dialog.sure"}}" data-confirm-ok="{{t "dialog.confirm"}}" data-confirm-cancel="{{t "dialog.cancel"}}"{{if .Embedded}} data-embedded data-theme-key="{{or .ThemeKey "themeMode"}}"{{end}}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -10,6 +10,7 @@
   <link rel="manifest" href="{{base}}/manifest.webmanifest">{{end}}
   <link rel="stylesheet" href="{{base}}/assets/c22/css/c22-vega.css?v={{.Version}}">
   <script src="{{base}}/assets/app/theme.js?v={{.Version}}"></script>
+  <script defer src="{{base}}/assets/c22/js/c22.js?v={{.Version}}"></script>
   <script defer src="{{base}}/assets/c22/js/basecoat.all.min.js?v={{.Version}}"></script>
   <script defer src="{{base}}/assets/app/app.js?v={{.Version}}"></script>
 </head>
@@ -66,15 +67,6 @@
   {{end}}
   {{end}}
   {{template "about-dialog" .}}
-  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-dialog-title">
-    <div>
-      <header><h2 id="confirm-dialog-title">{{t "dialog.sure"}}</h2><p data-confirm-text></p></header>
-      <footer>
-        <button type="button" class="btn" data-variant="outline" data-close-dialog>{{t "dialog.cancel"}}</button>
-        <button type="button" class="btn" data-variant="destructive" data-confirm-ok>{{t "dialog.confirm"}}</button>
-      </footer>
-    </div>
-  </dialog>
 </body>
 </html>
 {{- end}}

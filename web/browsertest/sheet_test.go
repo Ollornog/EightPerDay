@@ -92,6 +92,11 @@ func TestTableWeekInTenKeys(t *testing.T) {
 	b.must(`document.querySelector('[data-sheet]')?.dataset.view === 'table' && !!document.querySelector('[data-sheet-table]')`, "the start page is the table")
 	b.reachable("table")
 	b.shot("table")
+	// A field is the cell (C22's td[data-field] > .input): no frame of its own; today's row is tinted by aria-current.
+	b.must(`(() => { const f = getComputedStyle(document.querySelector('input[data-cell][data-col^="e-"]'));
+		return f.borderTopWidth === '0px' && f.borderRadius === '0px'; })()`, "a field has no frame of its own")
+	b.must(`getComputedStyle(document.querySelector('#today > td')).backgroundColor !== getComputedStyle(document.querySelector('[data-line]:not(#today) > td')).backgroundColor`,
+		"today's row stands out")
 	keys := b.typeWeek(workdays, []string{"8", "9", "8", "9", "8"}, "e-", "Enter")
 	if keys > 10 {
 		t.Fatalf("%d key presses for a week", keys)
@@ -206,6 +211,14 @@ func TestJournalOnAPhone(t *testing.T) {
 		return chips.includes('Studio 3 h') && chips.includes('long day') && document.querySelector('[data-slot="d-2026-11-18-sum"]').textContent.trim() === '11'; })()`,
 		"the line books both employers, the project and the note")
 	b.must(`document.querySelector('#c-2026-11-18-line').value === '8 p3 studio long day'`, "the line is written back the same way")
+	// Without the focus the line shows as chips (C22's .chip-input), with the focus as the field; the marks differ.
+	b.eval(`document.activeElement.blur()`)
+	b.must(`getComputedStyle(document.querySelector('#c-2026-11-18-line')).opacity === '0'`, "without the focus the field is hidden behind its chips")
+	b.eval(`document.querySelector('#c-2026-11-18-line').focus()`)
+	b.must(`getComputedStyle(document.querySelector('#c-2026-11-18-line')).opacity === '1'`, "with the focus the field shows")
+	b.eval(`document.activeElement.blur()`)
+	b.must(`(() => { const marks = [...document.querySelectorAll('[data-slot="ch-2026-11-18"] [data-chip][data-mark]')].map(c => getComputedStyle(c, '::before').backgroundColor);
+		return marks.length === 2 && marks[0] !== marks[1]; })()`, "each employer has its own mark")
 	b.reachable("journal with two employers")
 	b.shot("journal-two")
 }
@@ -216,6 +229,17 @@ func TestGridWeekInTenKeys(t *testing.T) {
 	b.wide()
 	b.signUp("eva", false)
 	b.addEmployer("Office", "schedule", "8")
+	// The menu is C22's popover: Escape closes it and gives the focus back to its button, so does a click outside.
+	b.tap(`[data-view-menu] summary`)
+	b.must(`document.querySelector('[data-view-menu]').open && getComputedStyle(document.querySelector('[data-sheet-prefs]')).visibility === 'visible'`, "the menu opens")
+	b.eval(`document.querySelector('[data-choose-view="grid"]').focus()`)
+	b.key("Escape", false)
+	b.must(`!document.querySelector('[data-view-menu]').open && document.activeElement === document.querySelector('[data-view-menu] summary')`,
+		"Escape closes the menu and the focus goes back")
+	b.tap(`[data-view-menu] summary`)
+	b.must(`document.querySelector('[data-view-menu]').open`, "the menu opens again")
+	b.tap(`[data-hint]`)
+	b.must(`!document.querySelector('[data-view-menu]').open`, "a click outside closes the menu")
 	b.tap(`[data-view-menu] summary`)
 	b.tap(`[data-choose-view="grid"]`)
 	b.must(`document.querySelector('[data-sheet]')?.dataset.view === 'grid' && !!document.querySelector('[data-sheet-grid]')`, "the grid is chosen")

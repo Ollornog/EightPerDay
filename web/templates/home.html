@@ -96,7 +96,7 @@
       <div class="flex items-center gap-2" data-absence>
         <span class="badge" data-variant="secondary">{{.Name}}</span>
         <span class="min-w-0 flex-1 text-sm tabular-nums">{{day .From}}{{if ne .From .To}} – {{day .To}}{{end}}{{if .HalfDay}} · {{t "track.half"}}{{end}}{{if eq .Status "requested"}} · {{t "absence.requested"}}{{else if eq .Status "rejected"}} · {{t "absence.rejected"}}{{end}}</span>
-        <form method="post" action="{{base}}/absences/{{.ID}}/remove" data-confirm="{{t "absence.remove.confirm"}}">
+        <form method="post" action="{{base}}/absences/{{.ID}}/remove" data-confirm-variant="destructive" data-confirm="{{t "absence.remove.confirm"}}">
           <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$d.Back}}">
           <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
         </form>
@@ -142,7 +142,7 @@
       {{if .Note}}<p class="text-xs">{{.Note}}</p>{{end}}
       {{if .Reason}}<p class="text-xs" data-reason>{{t "approval.reason"}}: {{.Reason}}</p>{{end}}
       {{if eq .Status "submitted"}}
-      <form method="post" action="{{base}}/approval/{{.ID}}/withdraw" data-confirm="{{t "approval.withdraw.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
+      <form method="post" action="{{base}}/approval/{{.ID}}/withdraw" data-confirm-variant="destructive" data-confirm="{{t "approval.withdraw.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
         <button type="submit" class="btn" data-variant="ghost" data-size="sm">{{t "approval.withdraw"}}</button></form>
       {{end}}
       {{if .Correctable}}
@@ -178,7 +178,7 @@
   </section>
   {{if and .WeekMinutes .CanSettings}}
   <footer class="flex-col gap-2">
-    <form method="post" action="{{base}}/book/spread" class="w-full" data-confirm="{{t "weeksum.spread.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+    <form method="post" action="{{base}}/book/spread" class="w-full" data-confirm-variant="destructive" data-confirm="{{t "weeksum.spread.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
       <button type="submit" class="btn w-full" data-variant="ghost" data-spread>{{t "weeksum.spread"}}</button></form>
     <p class="text-muted-foreground text-xs">{{t "weeksum.spread.hint"}}</p>
   </footer>
@@ -212,7 +212,7 @@
   <li class="flex items-center gap-2 text-sm" data-entry>
     <span class="tabular-nums">{{if .Start}}{{.Start}}–{{.End}}{{else if eq .Kind "adjust"}}{{t "track.deviation"}} {{signed .Minutes}}{{else if eq .Kind "break"}}{{t "track.break"}} {{hours .Minutes}}{{else}}{{hours .Minutes}}{{end}}</span>
     <span class="min-w-0 flex-1 truncate text-muted-foreground">{{.Project}}{{if .Note}} {{.Note}}{{end}}{{if .Tags}} {{.Tags}}{{end}}</span>
-    <form method="post" action="{{base}}/entries/{{.ID}}/remove" data-confirm="{{t "entry.remove.confirm"}}">
+    <form method="post" action="{{base}}/entries/{{.ID}}/remove" data-confirm-variant="destructive" data-confirm="{{t "entry.remove.confirm"}}">
       <input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="back" value="{{$.Back}}">
       <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button>
     </form>
@@ -267,7 +267,7 @@
       <button type="submit" class="btn w-full" data-confirm-week>{{template "icon-check-small"}}{{t "plan.weekright"}}</button></form>
     {{end}}
     {{if .CanSettings}}
-    <form method="post" action="{{base}}/book/exact" class="w-full" data-confirm="{{t "plan.exact.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
+    <form method="post" action="{{base}}/book/exact" class="w-full" data-confirm-variant="destructive" data-confirm="{{t "plan.exact.confirm"}}"><input type="hidden" name="employer" value="{{.Employer.ID}}"><input type="hidden" name="week" value="{{.Week}}"><input type="hidden" name="back" value="{{.Back}}">
       <button type="submit" class="btn w-full" data-variant="ghost">{{t "plan.exact"}}</button></form>
     {{end}}
   </footer>
@@ -382,7 +382,7 @@
     {{range .Corrections}}
     <div class="flex items-center gap-2 text-sm" data-correction-item>
       <span class="min-w-0 flex-1 tabular-nums">{{day .Date}} · {{sdec .Minutes}} · {{.Reason}}</span>
-      <form method="post" action="{{base}}/corrections/{{.ID}}/remove" data-confirm="{{t "correction.remove.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
+      <form method="post" action="{{base}}/corrections/{{.ID}}/remove" data-confirm-variant="destructive" data-confirm="{{t "correction.remove.confirm"}}"><input type="hidden" name="back" value="{{$back}}">
         <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "action.remove"}}">{{template "icon-trash"}}</button></form>
     </div>
     {{end}}
