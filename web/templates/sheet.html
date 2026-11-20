@@ -146,6 +146,7 @@
 {{if $d.NoteFixed}}<span class="block px-2 py-1 text-xs" data-slot="c-{{$d.Date}}-note" data-fixed>{{$d.Note}}</span>
 {{else if eq .X "note"}}<input class="input w-full min-w-32 rounded-none border-0 bg-transparent shadow-none" data-size="sm" id="c-{{$d.Date}}-note" data-slot="c-{{$d.Date}}-note" data-cell data-x="{{.X}}" data-date="{{$d.Date}}" data-col="note" name="c:{{$d.Date}}:note" form="wf-{{.Week}}" value="{{$d.Note}}" data-raw="{{$d.Note}}" maxlength="2000" autocomplete="off" aria-label="{{t "list.note.of" (t (print "weekday." $d.Weekday)) (short $d.Date)}}"><input type="hidden" name="w:{{$d.Date}}:note" value="{{$d.Note}}" form="wf-{{.Week}}">
 {{else}}<input class="input w-full min-w-16 rounded-none border-0 bg-transparent shadow-none" data-size="sm" id="c-{{$d.Date}}-note" data-slot="c-{{$d.Date}}-note" data-cell data-x="{{.X}}" data-date="{{$d.Date}}" data-col="note" name="c:{{$d.Date}}:note" form="wf-{{.Week}}" value="{{$d.Note}}" data-raw="{{$d.Note}}" maxlength="2000" autocomplete="off" aria-label="{{t "list.note.of" (t (print "weekday." $d.Weekday)) (short $d.Date)}}"><input type="hidden" name="w:{{$d.Date}}:note" value="{{$d.Note}}" form="wf-{{.Week}}">{{end}}
+<span class="block px-2 text-muted-foreground text-xs" data-slot="m-{{$d.Date}}-note">{{if $d.NoteHasProposal}}<span data-proposed>→ {{$d.NoteProposed}}</span>{{end}}</span>
 {{end}}
 
 {{/* ---- A: the table. Days are rows, the employers and their projects columns; the week's row sticks on top. ---- */}}

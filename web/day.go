@@ -313,8 +313,9 @@ func (h *handler) removeIncome(w http.ResponseWriter, r *http.Request) {
 }
 
 // bookDayInfo keeps the details of a day: place of work, kilometres, standby and its call-outs. All empty removes them.
+// The note of the day stays as it is: it changes on the sheet, through a change request in an approved week.
 func (h *handler) bookDayInfo(w http.ResponseWriter, r *http.Request) {
-	_, emp, ok := h.bookingContext(w, r)
+	cat, emp, ok := h.bookingContext(w, r)
 	if !ok {
 		return
 	}
@@ -325,6 +326,11 @@ func (h *handler) bookDayInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	i := core.DayInfo{ID: core.DayInfoID(emp.ID, date), Owner: emp.Owner, EmployerID: emp.ID, Date: date,
 		Place: strings.TrimSpace(r.PostFormValue("place"))}
+	for _, kept := range cat.DayInfos {
+		if kept.ID == i.ID {
+			i.Note = kept.Note
+		}
+	}
 	var errs [5]error
 	i.KmOneWay, errs[0] = parseKm(r.PostFormValue("km_one_way"))
 	i.KmTotal, errs[1] = parseKm(r.PostFormValue("km_total"))

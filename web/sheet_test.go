@@ -627,3 +627,133 @@ func TestCorrectionOfTheTimeAccount(t *testing.T) {
 		t.Error("a member is offered the correction")
 	}
 }
+
+// Notes and projects of an approved week go the way of the hours: a change request with a reason, in the table's
+// field, in the journal's line and in the form without JavaScript; one request holds them all, the approved values
+// count until the organization decides, and the decision books them and lands in the access log.
+func TestSheetChangeRequestForNotesAndProjects(t *testing.T) {
+	s, worker, org, member, managed := approvalSite(t)
+	studio := core.Project{ID: core.NewID(), Owner: member.ID, EmployerID: managed.ID, Name: "Studio"}
+	if err := s.store.Put(context.Background(), studio); err != nil {
+		t.Fatal(err)
+	}
+	col, pcol := "e-"+managed.ID, "p-"+studio.ID
+	worker.mustCell(monday, col, "9")
+	worker.mustCell(monday, "note", "dentist")
+	worker.mustCell(monday, pcol, "2")
+	worker.mustPost("/approval/submit", url.Values{"employer": {managed.ID}, "kind": {"period"}, "from": {monday.String()},
+		"to": {monday.AddDays(6).String()}, "back": {"/"}})
+	s.mustPost("/orgs/"+org+"/decide", url.Values{"submission": {submissions(t, s, member.ID)[0].ID}, "decision": {"approve"}, "back": {"/"}})
+	body := worker.get("/").body
+	if strings.Contains(body, `data-slot="c-2026-11-16-note" data-fixed`) || fieldValue(t, body, monday, pcol) != "2" {
+		t.Fatal("the note and the project of the approved week are not fields")
+	}
+	// Without a reason each asks for one; with it each becomes a request, never a change in place.
+	for _, c := range [][2]string{{"note", "dentist, then home"}, {pcol, "3"}} {
+		if status, a := worker.cell(monday, c[0], c[1], ""); status != http.StatusOK || !a.Reason {
+			t.Fatalf("%s without a reason: %d %+v", c[0], status, a)
+		}
+		if status, a := worker.cell(monday, c[0], c[1], "the afternoon"); status != http.StatusOK || a.Done != "requested" {
+			t.Fatalf("%s: %d %+v", c[0], status, a)
+		}
+	}
+	// The journal's line: hours as a span, a project and a note of Tuesday in one save.
+	if status, a := worker.cell(tuesday, "line", "8-16:30 30m 1 studio late shift", "forgot Tuesday"); status != http.StatusOK ||
+		a.Done != "requested" {
+		t.Fatalf("the line: %d %+v", status, a)
+	}
+	// The form without JavaScript: a note alone.
+	form := url.Values{"back": {"/"}, "c:2026-11-18:note": {"training"}, "w:2026-11-18:note": {""}, "reason": {"and Wednesday"}}
+	if a := worker.mustPost("/sheet/week", form); !strings.Contains(a.header.Get("Location"), "done=requested") {
+		t.Errorf("redirect %s", a.header.Get("Location"))
+	}
+	// Saving the details of the day keeps its note.
+	worker.mustPost("/book/dayinfo", url.Values{"employer": {managed.ID}, "date": {monday.String()}, "place": {"Berlin"}, "back": {"/"}})
+	if e := worker.entries(member.ID); len(e) != 2 || e[0].Minutes+e[1].Minutes != 540+120 {
+		t.Fatalf("the approved values changed before the decision: %+v", e)
+	}
+	if day := weekOfSheet(t, sheetOf(t, worker, member.ID, nil), monday).Days[0]; day.Note != "dentist" ||
+		!day.NoteHasProposal || day.NoteProposed != "dentist, then home" {
+		t.Fatalf("the approved note changed or the request is not marked: %+v", day)
+	}
+	var request core.Submission
+	for _, x := range submissions(t, s, member.ID) {
+		if x.Kind == core.SubmitCorrection {
+			if request.ID != "" {
+				t.Fatal("a second change request instead of one")
+			}
+			request = x
+		}
+	}
+	if p := request.Proposal; len(p) != 3 ||
+		p[0].Minutes != 540 || p[0].Note != "dentist, then home" || len(p[0].Projects) != 1 || p[0].Projects[0].Minutes != 180 ||
+		p[1].Minutes != 480 || p[1].Typed != "8-16:30 30m" || p[1].Note != "late shift" || len(p[1].Projects) != 1 ||
+		p[1].Projects[0].Minutes != 60 || p[2].Minutes != 0 || p[2].Note != "training" || len(p[2].Projects) != 0 {
+		t.Fatalf("change request %+v", p)
+	}
+	week := weekOfSheet(t, sheetOf(t, worker, member.ID, nil), monday)
+	if cells := week.Days[0].Cells; len(cells) != 2 || cells[0].HasProposal || !cells[1].HasProposal || cells[1].Proposed != "3" {
+		t.Errorf("Monday's hours did not change, its project did: %+v", cells)
+	}
+	var chips []string
+	for _, c := range week.Days[0].Chips {
+		chips = append(chips, c.Text)
+	}
+	if got := strings.Join(chips, " | "); !strings.Contains(got, "→ Studio 3 h") || !strings.Contains(got, "→ dentist, then home") {
+		t.Errorf("the journal's chips do not show the request: %s", got)
+	}
+	if review := s.get("/orgs/" + org).body; !strings.Contains(review, "Studio 3 h") || !strings.Contains(review, "dentist, then home") {
+		t.Error("the reviewer does not see the projects and the note asked for")
+	}
+	s.mustPost("/orgs/"+org+"/decide", url.Values{"submission": {request.ID}, "decision": {"approve"}, "back": {"/"}})
+	booked := map[string]int{}
+	for _, e := range worker.entries(member.ID) {
+		booked[e.Date.String()+" "+e.ProjectID+" "+e.Typed] += e.Minutes
+	}
+	if booked["2026-11-16  "] != 540 || booked["2026-11-16 "+studio.ID+" "] != 180 || booked["2026-11-17  8-16:30 30m"] != 480 ||
+		booked["2026-11-17 "+studio.ID+" "] != 60 || len(booked) != 4 {
+		t.Fatalf("the approved request was not booked: %v", booked)
+	}
+	days := weekOfSheet(t, sheetOf(t, worker, member.ID, nil), monday).Days
+	if days[0].Note != "dentist, then home" || days[1].Note != "late shift" || days[2].Note != "training" {
+		t.Errorf("notes %q %q %q", days[0].Note, days[1].Note, days[2].Note)
+	}
+	if log := worker.get("/access").body; !strings.Contains(log, "Changed") {
+		t.Error("the access log lacks the change")
+	}
+	// Approved again, the week is closed again: a note without a reason asks for one.
+	if _, a := worker.cell(monday, "note", "again", ""); !a.Reason {
+		t.Errorf("the week approved again took a change in place: %+v", a)
+	}
+}
+
+// A project of a week handed in (not yet approved) stays as it is, in every view.
+func TestSheetHandedInWeekKeepsProjects(t *testing.T) {
+	s, worker, _, member, managed := approvalSite(t)
+	studio := core.Project{ID: core.NewID(), Owner: member.ID, EmployerID: managed.ID, Name: "Studio"}
+	if err := s.store.Put(context.Background(), studio); err != nil {
+		t.Fatal(err)
+	}
+	worker.mustCell(monday, "p-"+studio.ID, "2")
+	worker.mustPost("/approval/submit", url.Values{"employer": {managed.ID}, "kind": {"period"}, "from": {monday.String()},
+		"to": {monday.AddDays(6).String()}, "back": {"/"}})
+	for _, c := range [][2]string{{"p-" + studio.ID, "3"}, {"line", "3 studio"}} {
+		if _, a := worker.cell(monday, c[0], c[1], "why"); a.Error == "" || a.Done != "" {
+			t.Errorf("%s: a handed-in project changed: %+v", c[0], a)
+		}
+	}
+}
+
+// Spans typed into the sheet count for the rest between two working days in the person's overview, across employers.
+func TestRestHintFromTypedSpans(t *testing.T) {
+	s, _ := trackSite(t)
+	me := s.me("tom", false)
+	late := s.employer(me, "Bar", core.ModeExact, "")
+	early := s.employer(me, "Bakery", core.ModeExact, "")
+	s.mustCell(monday, "e-"+late.ID, "14-22")
+	s.mustCell(tuesday, "e-"+early.ID, "6-14 30m")
+	report := s.get("/reports?month=2026-11").body
+	if !strings.Contains(report, "2026-11-17: only 8:00 h of rest") {
+		t.Errorf("no hint on the rest: %.2000s", report[strings.Index(report, "<main"):])
+	}
+}

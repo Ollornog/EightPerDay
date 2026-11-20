@@ -194,6 +194,14 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- Notes and projects of an approved week go the way of the hours (M-6 follow-up): a change in the table's field, in
+  the journal's line or in the week's form without JavaScript becomes a change request with a reason, the approved
+  values count until the organization decides, and its decision books them and is in the access log. A proposed day
+  carries the hours of the projects that change (`ProposedDay.Projects`), the span typed for its hours
+  (`ProposedDay.Typed`) and a note as long as the note of a day (2000 characters). Before, these fields of an approved
+  week were refused, and saving the details of a day (place, kilometres, standby) erased its note.
+- Spans typed for the hours of a day (`8-16:30 30m`, `Entry.Typed`) count for the rest of eleven hours between two
+  working days (§ 5 ArbZG) in the person's overview, like spans with start and end (`core.TypedSpans`).
 - A form without a date (such as a pay rule or a surcharge) answers that the date is missing instead of failing.
 - The browser test taps only once the page has come to rest; a section that still grew moved the touch elsewhere.
 - The browser test of an own leave request tapped the first leave button of the page, the quick button of Monday in

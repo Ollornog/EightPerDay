@@ -3,6 +3,7 @@
 package web
 
 import (
+	"cmp"
 	"context"
 	"slices"
 	"strings"
@@ -155,6 +156,8 @@ type sheetDay struct {
 	Others                 int
 	Note                   string
 	NoteFixed              bool
+	NoteProposed           string
+	NoteHasProposal        bool
 	Line                   string
 	LineFixed              bool
 	Chips                  []sheetChip
@@ -440,6 +443,11 @@ func (h *handler) sheetWeek(lang string, s *sheet, data core.Data, from core.Dat
 		}
 		d.Note = strings.Join(dayNotes(s, date, notes[date]), " · ")
 		d.NoteFixed = h.dayFixed(cat, d.Default, date)
+		for _, e := range s.Employers {
+			if p, ok := openProposal(cat, e, date); ok && p.Note != dayNoteOf(data, e.ID, date) {
+				d.NoteProposed, d.NoteHasProposal = cmp.Or(p.Note, "–"), true
+			}
+		}
 		h.dayLine(lang, s, cat, &d)
 		if !d.NoteFixed || !d.LineFixed {
 			w.Editable = true
@@ -487,10 +495,29 @@ func dayNotes(s *sheet, date core.Date, infoNotes []string) []string {
 	return out
 }
 
-// dayFixed reports whether the employer's day is handed in or approved, so nothing of it changes in place.
+// dayFixed reports whether the employer's day is handed in, or approved where no change request can open it, so
+// nothing of it changes from the sheet.
 func (h *handler) dayFixed(cat core.Catalog, e *sheetEmployer, date core.Date) bool {
-	_, ok := cat.PeriodAt(e.ID, date)
-	return ok
+	period, ok := cat.PeriodAt(e.ID, date)
+	return ok && !(e.Approval && period.Status == core.SubmissionApproved)
+}
+
+// openProposal is what the open change request of the employer's approved week asks the day to hold.
+func openProposal(cat core.Catalog, e *sheetEmployer, date core.Date) (core.ProposedDay, bool) {
+	period, ok := cat.PeriodAt(e.ID, date)
+	if !ok || !e.Approval || period.Status != core.SubmissionApproved {
+		return core.ProposedDay{}, false
+	}
+	request, open := cat.OpenCorrection(period.ID)
+	if !open {
+		return core.ProposedDay{}, false
+	}
+	for _, p := range request.Proposal {
+		if p.Date == date {
+			return p, true
+		}
+	}
+	return core.ProposedDay{}, false
 }
 
 // sheetCell is the field of a column on a day.
@@ -504,8 +531,19 @@ func (h *handler) sheetCell(lang string, cat core.Catalog, col *sheetColumn, dat
 			cell.Shown = hoursText(lang, m)
 			cell.Raw = cell.Shown
 		}
-		// Projects of a week handed in or approved stay as they are: a change request carries the day's hours only.
-		cell.Fixed = inPeriod
+		// Projects of a week handed in stay as they are; in an approved week they change through a change request.
+		cell.Fixed = inPeriod && !changeable
+		cell.Approved = changeable
+		if p, ok := openProposal(cat, e, date); ok {
+			for _, x := range p.Projects {
+				if x.ProjectID == col.Project.ID {
+					cell.Proposed, cell.HasProposal = hoursText(lang, x.Minutes), true
+					if x.Minutes == 0 {
+						cell.Proposed = "–"
+					}
+				}
+			}
+		}
 		return cell
 	}
 	day := e.days[date]
@@ -538,12 +576,19 @@ func (h *handler) sheetCell(lang string, cat core.Catalog, col *sheetColumn, dat
 	}
 	if changeable {
 		cell.Approved = true
-		if request, open := cat.OpenCorrection(period.ID); open {
+		// The hours the open change request asks for, where they are not those approved (it may change the projects or
+		// the note alone).
+		if p, ok := openProposal(cat, e, date); ok {
 			types := cat.AbsenceTypesFor(e.ID)
-			for _, p := range request.Proposal {
-				if p.Date == date {
-					cell.Proposed, cell.HasProposal = h.proposedTextIn(lang, types, p), true
-				}
+			var now []string
+			if c.replaceable {
+				now = append(now, c.text)
+			}
+			if manual > 0 {
+				now = append(now, hours)
+			}
+			if proposed := h.proposedTextIn(lang, types, p); proposed != cmp.Or(strings.Join(now, " "), "–") {
+				cell.Proposed, cell.HasProposal = proposed, true
 			}
 		}
 	}
@@ -607,6 +652,17 @@ func (h *handler) dayLine(lang string, s *sheet, cat core.Catalog, d *sheetDay) 
 		if cell.HasProposal {
 			d.Chips = append(d.Chips, sheetChip{Employer: e, Text: "→ " + cell.Proposed})
 		}
+		if p, ok := openProposal(cat, e, d.Date); ok {
+			for _, x := range p.Projects {
+				if x.Minutes != e.onProjects[d.Date][x.ProjectID] {
+					d.Chips = append(d.Chips, sheetChip{Employer: e, Text: "→ " + projectOf(cat, x.ProjectID).Name + " " +
+						hoursText(lang, x.Minutes) + " " + h.catalog[lang]["sheet.hours.unit"]})
+				}
+			}
+		}
+	}
+	if d.NoteHasProposal {
+		d.Chips = append(d.Chips, sheetChip{Employer: d.Default, Text: "→ " + d.NoteProposed})
 	}
 	if d.Note != "" {
 		words = append(words, d.Note)

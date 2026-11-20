@@ -283,8 +283,9 @@ func TestOlderWeeksWhileScrolling(t *testing.T) {
 	b.must(`document.querySelector('[data-slot="wk-2026-06-01-sum"]').textContent.trim() === '14'`, "the week far up sums anew")
 }
 
-// On a managed employer a change to an approved week becomes a change request in every view: the field asks for the
-// reason, the approved value counts until the administrator approves, and then the week holds the new values.
+// On a managed employer a change to an approved week becomes a change request in every view, for hours and notes
+// alike: the field asks for the reason, the approved value counts until the administrator approves, and then the week
+// holds the new values.
 func TestChangeRequestInEveryView(t *testing.T) {
 	b := setup(t)
 	b.signUp("tom", false)
@@ -339,6 +340,7 @@ func TestChangeRequestInEveryView(t *testing.T) {
 		{"journal", "2026-11-16", "line", "7", "→ 7"},
 		{"table", "2026-11-17", "e-", "6", "→ 6"},
 		{"grid", "2026-11-18", "e-", "5", "→ 5"},
+		{"table", "2026-11-19", "note", "Doctor at nine", "→ Doctor at nine"},
 	} {
 		b.open("/?view=" + step.view)
 		b.tap(field(step.date, step.col))
@@ -366,7 +368,8 @@ func TestChangeRequestInEveryView(t *testing.T) {
 	b.signIn("boss")
 	b.open(org)
 	b.must(`(() => { const t = document.querySelector('[data-review] [data-changes]')?.textContent || '';
-		return t.includes('Mon 11-16: 7') && t.includes('Tue 11-17: 6') && t.includes('Wed 11-18: 5'); })()`, "the administrator reads what is asked")
+		return t.includes('Mon 11-16: 7') && t.includes('Tue 11-17: 6') && t.includes('Wed 11-18: 5') &&
+			t.includes('Thu 11-19: – („Doctor at nine“)'); })()`, "the administrator reads what is asked")
 	b.shot("change-review")
 	b.tap(`[data-review] [data-approve]`)
 	b.must(`location.search.includes('done=decided') && !!document.querySelector('[data-reviews-none]')`, "the change is approved")
@@ -375,6 +378,7 @@ func TestChangeRequestInEveryView(t *testing.T) {
 
 	b.signIn("tom")
 	b.must(`document.querySelector('#c-2026-11-16-line')?.value === '7' && !document.querySelector('[data-state="requested"]') &&
+		document.querySelector('#c-2026-11-19-line')?.value === 'Doctor at nine' &&
 		!!document.querySelector('[data-week="2026-11-16"] [data-state="approved"]')`, "the week holds the new values, approved again")
 	b.open("/access")
 	b.must(`!!document.querySelector('[data-access="change"]')`, "the access log shows the change")

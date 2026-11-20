@@ -63,15 +63,25 @@ type Submission struct {
 	Proposal []ProposedDay `json:"proposal,omitempty"`
 }
 
-// ProposedDay is what a change request asks one day to hold: hours (with their half of the day), an absence of a type
-// with a short code, or half a day of such an absence with hours, and a note.
+// ProposedDay is what a change request asks one day to hold: hours (with their half of the day and the span typed for
+// them), an absence of a type with a short code, or half a day of such an absence with hours, the note of the day, and
+// the hours on projects. The hours and the note are the whole day as asked for; Projects names only the projects whose
+// hours change (zero takes them off), the others stay.
 type ProposedDay struct {
-	Date    Date    `json:"date"`
-	Minutes int     `json:"minutes,omitempty"`
-	Part    DayPart `json:"part,omitempty"`
-	Absence string  `json:"absence,omitempty"`
-	HalfDay bool    `json:"half_day,omitempty"`
-	Note    string  `json:"note,omitempty"`
+	Date     Date              `json:"date"`
+	Minutes  int               `json:"minutes,omitempty"`
+	Part     DayPart           `json:"part,omitempty"`
+	Typed    string            `json:"typed,omitempty"`
+	Absence  string            `json:"absence,omitempty"`
+	HalfDay  bool              `json:"half_day,omitempty"`
+	Note     string            `json:"note,omitempty"`
+	Projects []ProposedProject `json:"projects,omitempty"`
+}
+
+// ProposedProject is the hours a change request asks a project of the employer to hold on the day.
+type ProposedProject struct {
+	ProjectID string `json:"project_id"`
+	Minutes   int    `json:"minutes"`
 }
 
 // Meta files the submission.
@@ -147,8 +157,20 @@ func (s Submission) Validate() error {
 			return invalid("a proposed half of a day needs minutes")
 		case p.Absence == "" && p.HalfDay:
 			return invalid("only an absence is half a day")
-		case len(p.Note) > 200:
-			return invalid("a proposed note is longer than 200 characters")
+		case len(p.Note) > 2000:
+			return invalid("a proposed note is longer than 2000 characters")
+		case len(p.Typed) > 200 || (p.Typed != "" && p.Minutes == 0):
+			return invalid("a proposed span needs minutes and is at most 200 characters")
+		}
+		projects := map[string]bool{}
+		for _, x := range p.Projects {
+			if err := checkRef("project", x.ProjectID, true); err != nil {
+				return err
+			}
+			if projects[x.ProjectID] || x.Minutes < 0 || x.Minutes > 24*60 {
+				return invalid("a proposed project lies twice in a day or its minutes are out of range")
+			}
+			projects[x.ProjectID] = true
 		}
 		seen[p.Date] = true
 	}

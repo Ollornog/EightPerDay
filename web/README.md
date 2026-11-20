@@ -70,9 +70,10 @@ after it), `?from=…` opens it further up, and `?part=weeks&before=…` answers
   (`core.ProjectWord`). What the line no longer says goes; employers whose day is handed in keep it.
 - **Saving** goes through `setDay` (the day's hours as one manual entry with its half and typed text, a short code as
   an absence of that day alone), `setProjectDay` (one entry per project and day) and `setDayNote` (the note in the
-  day's details). A day handed in refuses changes; a day of an approved week where the organization approves weeks
-  becomes a change request (`requestChange`, merged into an open one), which the organization's page lists and
-  `applyChange` books once approved.
+  day's details). A day handed in refuses changes; a change to a day of an approved week where the organization
+  approves weeks, of its hours, its projects or its note alike (`changeWay`), becomes a change request (`proposeDay`
+  starts from what the open request already asks for the day, `requestChange` merges it), which the organization's
+  page lists and `applyChange` books once approved. The details of a day (`POST /book/dayinfo`) keep its note.
 - **Preferences** (`POST /sheet/prefs`: `view`, `detail`, `expand`) are the person's `core.Preferences`. Without a view
   chosen the table opens; `Sec-CH-UA-Mobile: ?1` or, in the script, a screen narrower than 640 pixels opens the journal.
 - **Layout.** `view.Sheet` makes the page not scroll itself: the sheet's own scroller does, so the head of the table,

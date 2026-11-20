@@ -38,5 +38,6 @@ detail as the records need.
   correction of the time account stay reachable.
 
 Tasks: [T-13](T-13-sheet-view-model.md), [T-14](T-14-line-of-a-day.md), [T-15](T-15-preferences.md),
-[T-16](T-16-clean-up-list-and-week.md). The first release ([M-4](M-4-first-release.md)) follows after the
+[T-16](T-16-clean-up-list-and-week.md); follow-ups in [T-17](T-17-m6-follow-ups.md) (notes and projects of an approved
+week as change requests, typed spans for the rest). The first release ([M-4](M-4-first-release.md)) follows after the
 maintainer has accepted it.
