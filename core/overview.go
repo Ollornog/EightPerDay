@@ -150,16 +150,32 @@ func PersonalOverview(d Data, from, to Date, weekStart time.Weekday) (Overview, 
 	return out, nil
 }
 
-// restHints compares the last end of a day with the first start of the next, over the spans of all employments.
+// restHints compares the last end of a day with the first start of the next, over the spans of all employments: the
+// spans clocked or booked with start and end, and the spans typed for the hours of a day (Entry.Typed, 8-16:30 30m).
 func restHints(d Data, from, to Date) []Hint {
 	type span struct{ start, end time.Time }
 	byDate := map[Date][]span{}
 	for _, e := range d.Entries {
 		emp, ok := d.Catalog.Employer(e.EmployerID)
-		if !ok || emp.Kind != KindEmployer || e.Kind != EntryWork || e.DeletedAt != nil || e.Start == nil || e.End == nil {
+		if !ok || emp.Kind != KindEmployer || e.Kind != EntryWork || e.DeletedAt != nil {
 			continue
 		}
-		byDate[e.Date] = append(byDate[e.Date], span{*e.Start, *e.End})
+		if e.Start != nil && e.End != nil {
+			byDate[e.Date] = append(byDate[e.Date], span{*e.Start, *e.End})
+			continue
+		}
+		if e.Typed == "" {
+			continue
+		}
+		loc, err := time.LoadLocation(e.TimeZone)
+		if e.TimeZone == "" || err != nil {
+			if loc, err = emp.Location(); err != nil {
+				loc = time.UTC
+			}
+		}
+		for _, s := range TypedSpans(e.Typed) {
+			byDate[e.Date] = append(byDate[e.Date], span{e.Date.At(s.Start, loc), e.Date.At(s.End, loc)})
+		}
 	}
 	var out []Hint
 	for date := from; date.Before(to); date = date.AddDays(1) {

@@ -47,7 +47,7 @@ owner, from, to)`. `Load` reads entries from the day before `from` on, for night
 | `LeaveAt(data, employerID, year, today)` | `LeaveStatus`: the leave account as of a day: the entitlement earned up to it (aliquot, half days), approved leave taken up to it and planned after it, requested, remaining |
 | `Overlaps(data, absence)` | Leave of other people on days of an absence, for a reviewer: types that count against leave only (never sickness), approved or requested |
 | `ComputeEarnings(data, employerID, from, to)` | Earnings per pay rule: hourly, per project, per assignment (day or job), flat per period; paid absences and surcharges; `Reasons` splits the total by reason |
-| `PersonalOverview(data, from, to, weekStart)` | The person's view over all employers, with hints on the Working Hours Act; refuses data of several people |
+| `PersonalOverview(data, from, to, weekStart)` | The person's view over all employers, with hints on the Working Hours Act; refuses data of several people. The rest between two working days reads the spans with start and end and the spans typed for the hours of a day (`Entry.Typed`, `TypedSpans`) |
 | `Ledger(data, employerID, start, from, to, until)` | `[]LedgerWeek`: the weeks of a list with their days, sums up to `until`, the corrections dated in them and the balance carried from week to week since `start`; its last balance equals `Overtime(…, start, until)` |
 | `WeekGaps(data, employerID, start, from, today, approval)` | `[]WeekGap`: weeks that lack something, for notices: working days before today without any booking, a plan week over and not confirmed, a week over and not handed in where the organization approves weeks |
 | `PublicHolidays(region, year)`, `Regions()`, `AddHolidayRule` | Public holidays of the German states and Austria, as data, and of parts of a state (see below) |
@@ -148,9 +148,11 @@ day of absence and more than 24 hours.
 `DayOptions.Default` is the employer of hours without a key, `Keys` maps keys to employers (`EmployerKeys(employers)`
 gives every employer one: `Employer.Key`, else the first free letter of its name, then two letters, then any letter),
 `Projects` the projects a word may name. `ProjectWord(p)` writes a project back so that it reads the same.
+`TypedSpans(typed)` reads the spans back out of what was typed (`8-16:30 30m` is 08:00 to 16:30; `22-6` ends the next
+morning, `ClockSpan.End` past 24:00).
 
-A proposed day of a change request (`ProposedDay`) holds the same: minutes with `Part`, and next to half a day of an
-absence, minutes.
+A proposed day of a change request (`ProposedDay`) holds the same: minutes with `Part` and `Typed`, next to half a day
+of an absence minutes, the note of the day, and the hours on projects (`Projects`, `ProposedProject`).
 
 ## Preferences
 
@@ -183,7 +185,8 @@ Only for an organization with `Features.Approval` on; without it there are no su
   opens the period or the absence again; the person changes it and hands it in anew.
 - A submission is replaced only while it is open and never deleted (`ErrLocked`); decided ones stay as they are.
 - A change request is a correction that carries the values it asks for (`Submission.Proposal`, `ProposedDay`: hours
-  or an absence with a short code, and a note, per day of the approved period; `SubmitRequest.Proposal`). Until it is
+  with the span typed for them or an absence with a short code, the note of the day, and the hours of the projects
+  that change, per day of the approved period; `SubmitRequest.Proposal`). Until it is
   decided the period stays binding and its approved values count. Approved, it opens the period like any correction;
   the caller then books the proposed values and hands the period in anew, approved by the same decision (the
   standalone program does both in one step). `Catalog.PeriodAt` gives the binding period of a day,

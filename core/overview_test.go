@@ -5,6 +5,8 @@ package core
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -179,6 +181,49 @@ func TestPersonalOverview(t *testing.T) {
 	two.Employers = append(two.Employers, bob)
 	if _, err := PersonalOverview(Data{Catalog: two}, d("2026-03-02"), d("2026-03-08"), time.Monday); !errors.Is(err, ErrNotPersonal) {
 		t.Fatalf("overview over two people: %v", err)
+	}
+}
+
+// Spans typed for the hours of a day (8-16:30 30m) count for the rest between two days like spans with start and end,
+// in the time zone of the entry, across employers, and a span into the next day ends there.
+func TestRestHintsFromTypedSpans(t *testing.T) {
+	job := employerOf(ModeSchedule, "")
+	job.ID, job.TimeZone = "job", "Europe/Berlin"
+	second := managedEmployer("second", "acme")
+	typed := func(emp, date, text string, minutes int) Entry {
+		e := work(date, minutes)
+		e.EmployerID, e.Typed, e.TimeZone = emp, text, "Europe/Berlin"
+		return e
+	}
+	cat := Catalog{Employers: []Employer{job, second}}
+	entries := []Entry{
+		// Monday ends 22:00 at the second employer, Tuesday starts 06:00 at the job: 8 h of rest.
+		typed("job", "2026-03-02", "8-16:30 30m", 480), typed("second", "2026-03-02", "18-22", 240),
+		typed("job", "2026-03-03", "6-12 13-15", 480),
+		// Wednesday's night shift ends Thursday 06:00, Thursday's next work starts 14:00 the same day: Thursday's work
+		// begins 8 h after the end; Friday starts 07:00 after Thursday ends 18:00: 13 h.
+		typed("job", "2026-03-04", "22-6", 480), typed("job", "2026-03-05", "14-18", 240),
+		typed("job", "2026-03-06", "7-15", 480),
+		// Hours typed as hours say nothing about the clock.
+		work("2026-03-07", 300),
+	}
+	entries[len(entries)-1].EmployerID = "job"
+	o, err := PersonalOverview(Data{Catalog: cat, Entries: entries}, d("2026-03-02"), d("2026-03-08"), time.Monday)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, h := range o.Hints {
+		if h.Code == HintRestUnder11h {
+			got = append(got, h.Date.String()+"/"+strconv.Itoa(h.Minutes))
+		}
+	}
+	if strings.Join(got, " ") != "2026-03-03/480 2026-03-05/480" {
+		t.Errorf("rest hints: %v", got)
+	}
+	spans := TypedSpans("8-16:30 30m, 22-6; Pause 7.15-7.45")
+	if len(spans) != 3 || spans[0] != (ClockSpan{480, 990}) || spans[1] != (ClockSpan{1320, 1800}) || spans[2] != (ClockSpan{435, 465}) {
+		t.Errorf("spans: %+v", spans)
 	}
 }
 

@@ -45,6 +45,19 @@ func (h *handler) proposedTextIn(lang string, types []core.AbsenceType, p core.P
 	return strings.Join(words, " ")
 }
 
+// proposedProjectsIn is what a change request asks the projects of a day to hold: " · Studio 3 h", "· Studio –".
+func (h *handler) proposedProjectsIn(lang string, cat core.Catalog, p core.ProposedDay) string {
+	out := ""
+	for _, x := range p.Projects {
+		hours := "–"
+		if x.Minutes > 0 {
+			hours = hoursText(lang, x.Minutes) + " " + h.catalog[lang]["sheet.hours.unit"]
+		}
+		out += " · " + projectOf(cat, x.ProjectID).Name + " " + hours
+	}
+	return out
+}
+
 // hoursOfPart writes hours with their half of the day as a day's field reads them back: 4 NM, 3,5 AM.
 func (h *handler) hoursOfPart(r *http.Request, minutes int, part core.DayPart) string {
 	return h.hoursOfPartIn(h.lang(r), minutes, part)
@@ -192,7 +205,7 @@ type dayValue struct {
 
 // proposed is the value of a row as a change request asks for it.
 func (v dayValue) proposed(date core.Date, note string) core.ProposedDay {
-	p := core.ProposedDay{Date: date, Minutes: v.minutes, Part: v.part, Note: note}
+	p := core.ProposedDay{Date: date, Minutes: v.minutes, Part: v.part, Typed: v.typed, Note: note}
 	if v.code != nil {
 		p.Absence, p.HalfDay = v.code.Absence, v.code.HalfDay
 	}
@@ -200,8 +213,9 @@ func (v dayValue) proposed(date core.Date, note string) core.ProposedDay {
 }
 
 // requestChange asks the organization to change days of an approved period (a correction with the proposed values,
-// core.Submit). An open change request of the period takes the new days in, a day asked for again its new value.
-// The approved values count until the organization decides.
+// core.Submit). An open change request of the period takes the new days in, a day asked for again its new value
+// (proposeDay builds that value from the one asked for before). The approved values count until the organization
+// decides.
 func (h *handler) requestChange(r *http.Request, cat core.Catalog, emp core.Employer, period core.Submission, days []core.ProposedDay,
 	reason string) error {
 	ctx := r.Context()
@@ -249,16 +263,25 @@ func (h *handler) applyChange(r *http.Request, org core.Organization, actor core
 	if err != nil {
 		return err
 	}
+	reason := "change request " + c.ID
 	for _, p := range c.Proposal {
-		v := dayValue{minutes: p.Minutes, part: p.Part}
+		v := dayValue{minutes: p.Minutes, part: p.Part, typed: p.Typed}
 		if p.Absence != "" {
 			v.code = &core.DayCode{Absence: p.Absence, HalfDay: p.HalfDay}
 		}
-		if err := h.setDay(r, data.Catalog, emp, p.Date, v, "change request "+c.ID, true); err != nil {
+		if err := h.setDay(r, data.Catalog, emp, p.Date, v, reason, true); err != nil {
 			return err
 		}
-		if err := h.setDayNote(r, data.Catalog, emp, p.Date, p.Note); err != nil {
+		if err := h.setDayNote(r, data.Catalog, emp, p.Date, p.Note, reason); err != nil {
 			return err
+		}
+		for _, x := range p.Projects {
+			if projectOf(data.Catalog, x.ProjectID).EmployerID != emp.ID {
+				return core.ErrNotFound
+			}
+			if err := h.setProjectDay(r, data.Catalog, emp, p.Date, x.ProjectID, x.Minutes, reason); err != nil {
+				return err
+			}
 		}
 	}
 	if data, err = h.options.Store.Managed(ctx, org.ID, c.From, c.To); err != nil {
@@ -357,7 +380,8 @@ func (h *handler) setManualDay(r *http.Request, cat core.Catalog, emp core.Emplo
 }
 
 // setProjectDay keeps the hours of a day on a project in one entry; zero removes them.
-func (h *handler) setProjectDay(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, projectID string, minutes int) error {
+func (h *handler) setProjectDay(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, projectID string, minutes int,
+	reason string) error {
 	ctx := r.Context()
 	entries, err := h.options.Store.Entries(ctx, core.EntryFilter{Owner: emp.Owner, EmployerID: emp.ID, From: date, To: date})
 	if err != nil {
@@ -368,14 +392,14 @@ func (h *handler) setProjectDay(r *http.Request, cat core.Catalog, emp core.Empl
 			continue
 		}
 		if minutes == 0 {
-			if err := h.options.Store.DeleteEntry(ctx, e.Owner, e.ID, e.Version, change(r, "")); err != nil {
+			if err := h.options.Store.DeleteEntry(ctx, e.Owner, e.ID, e.Version, change(r, reason)); err != nil {
 				return err
 			}
 			continue
 		}
 		if e.Minutes != minutes {
 			e.Minutes = minutes
-			if _, err := h.options.Store.UpdateEntry(ctx, e, change(r, "")); err != nil {
+			if _, err := h.options.Store.UpdateEntry(ctx, e, change(r, reason)); err != nil {
 				return err
 			}
 		}
@@ -386,12 +410,12 @@ func (h *handler) setProjectDay(r *http.Request, cat core.Catalog, emp core.Empl
 	}
 	loc, _ := emp.Location()
 	return h.book(r, cat, []core.Entry{{Owner: emp.Owner, EmployerID: emp.ID, Kind: core.EntryWork, Date: date, TimeZone: loc.String(),
-		Minutes: minutes, ProjectID: projectID, Precision: core.PrecisionDay, Source: core.SourceManual}}, "")
+		Minutes: minutes, ProjectID: projectID, Precision: core.PrecisionDay, Source: core.SourceManual}}, reason)
 }
 
 // setDayNote makes the note of an employer's day the text: in the details of the day (core.DayInfo.Note), which keep
 // a note with or without hours. Notes the former list kept on the hours of the day go into it.
-func (h *handler) setDayNote(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, note string) error {
+func (h *handler) setDayNote(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, note, reason string) error {
 	ctx := r.Context()
 	info := core.DayInfo{ID: core.DayInfoID(emp.ID, date), Owner: emp.Owner, EmployerID: emp.ID, Date: date}
 	for _, i := range cat.DayInfos {
@@ -406,7 +430,7 @@ func (h *handler) setDayNote(r *http.Request, cat core.Catalog, emp core.Employe
 	for _, e := range entries {
 		if isManualDay(e, emp.ID) && e.Date == date && e.Note != "" {
 			e.Note = ""
-			if _, err := h.options.Store.UpdateEntry(ctx, e, change(r, "")); err != nil {
+			if _, err := h.options.Store.UpdateEntry(ctx, e, change(r, reason)); err != nil {
 				return err
 			}
 		}

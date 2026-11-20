@@ -12,7 +12,7 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[M-3](M-3-embedding.md)** Embedding: another application runs the core in its own database — 5/5 erledigt
 * ☐ **[M-4](M-4-first-release.md)** The first release — 0/1 erledigt
 * ☑ **[M-5](M-5-list-view.md)** List view and leave planning: a start page that gives an overview — 6/6 erledigt
-* ☑ **[M-6](M-6-views-and-detail.md)** Views and detail: one sheet in three views, typed in fewer keys — 4/4 erledigt
+* ☑ **[M-6](M-6-views-and-detail.md)** Views and detail: one sheet in three views, typed in fewer keys — 5/5 erledigt
 
 ## Aufgaben
 
@@ -32,6 +32,7 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[T-14](T-14-line-of-a-day.md)** The line of a day: the core's parser for one day, employer keys, jobs by a word · M-6
 * ☑ **[T-15](T-15-preferences.md)** Preferences per person: the view, the detail, the employers whose jobs stand open · M-6
 * ☑ **[T-16](T-16-clean-up-list-and-week.md)** Clean-up: the former list and /weeks go, the week page keeps its tools · M-6
+* ☑ **[T-17](T-17-m6-follow-ups.md)** M-6 follow-ups: notes and projects of an approved week as change requests, typed spans for the rest · M-6
 
 ## Entscheidungen (ADR)
 

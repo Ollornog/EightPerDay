@@ -321,7 +321,7 @@ func (h *handler) applyCell(r *http.Request, cat core.Catalog, date core.Date, c
 	}
 	switch {
 	case col == "note":
-		return "", h.applyNote(r, cat, c, date, value, reason)
+		return h.applyNote(r, cat, c, date, value, reason)
 	case col == "line":
 		return h.applyLine(r, cat, c, date, value, reason)
 	case strings.HasPrefix(col, "e-"):
@@ -361,10 +361,7 @@ func (h *handler) applyCell(r *http.Request, cat core.Catalog, date core.Date, c
 		if line.Note != "" || minutes > 24*60 {
 			return "", &core.ParseError{Token: line.Note, Msg: "not hours"}
 		}
-		if _, locked := cat.PeriodAt(emp.ID, date); locked {
-			return "", core.ErrLocked
-		}
-		return "", h.setProjectDay(r, cat, emp, date, p.ID, minutes)
+		return h.writeProjects(r, cat, c, emp, date, map[string]int{p.ID: minutes}, reason)
 	}
 	return "", core.ErrNotFound
 }
@@ -432,29 +429,110 @@ func sameValue(a, b dayValue) bool {
 	return codes && a.minutes == b.minutes && a.part == b.part && a.typed == b.typed
 }
 
-// writeDay makes an employer's day hold the value: at once, or through a change request where the organization
-// approved the week (with the reason; without one errChangeReason).
+// changeWay says how a change of an employer's day is written: at once (request false), or as a change request where
+// the organization approved the week (request true; it needs the reason, without one errChangeReason). A day handed
+// in, or approved without approval switched on, is locked. Hours, projects and notes all go this way.
+func (h *handler) changeWay(r *http.Request, cat core.Catalog, emp core.Employer, date core.Date, reason string) (core.Submission,
+	bool, error) {
+	period, inPeriod := cat.PeriodAt(emp.ID, date)
+	if !inPeriod {
+		return period, false, nil
+	}
+	_, approval, err := h.approvalOrg(r.Context(), emp)
+	if err != nil {
+		return period, false, err
+	}
+	if !approval || period.Status != core.SubmissionApproved {
+		return period, false, core.ErrLocked
+	}
+	if reason == "" {
+		return period, false, errChangeReason
+	}
+	return period, true, nil
+}
+
+// proposeDay asks for a change of one day of an approved period: the day as the open change request already asks for
+// it, or else as it holds now, changed by change. The catalog is read again, so the hours, projects and note of one
+// save (a line of the journal) land in the same request one after the other.
+func (h *handler) proposeDay(r *http.Request, c sheetDayContext, emp core.Employer, period core.Submission, date core.Date,
+	reason string, change func(*core.ProposedDay)) error {
+	cat, err := h.ownCatalog(r.Context())
+	if err != nil {
+		return err
+	}
+	day := currentValue(c.data, emp, date).proposed(date, dayNoteOf(c.data, emp.ID, date))
+	if open, ok := cat.OpenCorrection(period.ID); ok {
+		for _, p := range open.Proposal {
+			if p.Date == date {
+				day = p
+			}
+		}
+	}
+	change(&day)
+	return h.requestChange(r, cat, emp, period, []core.ProposedDay{day}, reason)
+}
+
+// writeDay makes an employer's day hold the value: at once, or through a change request (changeWay).
 func (h *handler) writeDay(r *http.Request, cat core.Catalog, c sheetDayContext, emp core.Employer, date core.Date, v dayValue,
 	reason string) (string, error) {
 	if sameValue(v, currentValue(c.data, emp, date)) {
 		return "", nil
 	}
-	period, inPeriod := cat.PeriodAt(emp.ID, date)
-	if !inPeriod {
-		return "", h.setDay(r, cat, emp, date, v, "", false)
-	}
-	_, approval, err := h.approvalOrg(r.Context(), emp)
+	period, request, err := h.changeWay(r, cat, emp, date, reason)
 	if err != nil {
 		return "", err
 	}
-	if !approval || period.Status != core.SubmissionApproved {
-		return "", core.ErrLocked
+	if !request {
+		return "", h.setDay(r, cat, emp, date, v, "", false)
 	}
-	if reason == "" {
-		return "", errChangeReason
+	return "requested", h.proposeDay(r, c, emp, period, date, reason, func(p *core.ProposedDay) {
+		next := v.proposed(date, "")
+		p.Minutes, p.Part, p.Typed, p.Absence, p.HalfDay = next.Minutes, next.Part, next.Typed, next.Absence, next.HalfDay
+	})
+}
+
+// writeProjects makes the employer's projects hold the hours of the day (zero takes a project off): at once, or through
+// a change request (changeWay). Projects that hold these hours already ask for nothing.
+func (h *handler) writeProjects(r *http.Request, cat core.Catalog, c sheetDayContext, emp core.Employer, date core.Date,
+	want map[string]int, reason string) (string, error) {
+	have := map[string]int{}
+	for _, e := range c.data.Entries {
+		if isProjectDay(e, emp.ID) && e.Date == date {
+			have[e.ProjectID] += e.Minutes
+		}
 	}
-	note := dayNoteOf(c.data, emp.ID, date)
-	return "requested", h.requestChange(r, cat, emp, period, []core.ProposedDay{v.proposed(date, note)}, reason)
+	var ids []string
+	for id, m := range want {
+		if have[id] != m {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return "", nil
+	}
+	slices.Sort(ids)
+	period, request, err := h.changeWay(r, cat, emp, date, reason)
+	if err != nil {
+		return "", err
+	}
+	if request {
+		return "requested", h.proposeDay(r, c, emp, period, date, reason, func(p *core.ProposedDay) {
+			for _, id := range ids {
+				i := slices.IndexFunc(p.Projects, func(x core.ProposedProject) bool { return x.ProjectID == id })
+				if i < 0 {
+					p.Projects = append(p.Projects, core.ProposedProject{ProjectID: id})
+					i = len(p.Projects) - 1
+				}
+				p.Projects[i].Minutes = want[id]
+			}
+		})
+	}
+	for _, id := range ids {
+		if err := h.setProjectDay(r, cat, emp, date, id, want[id], ""); err != nil {
+			return "", err
+		}
+	}
+	return "", nil
 }
 
 // dayNoteOf is the note an employer's day holds: in its details, or on its hours from the former list.
@@ -473,10 +551,11 @@ func dayNoteOf(data core.Data, employerID string, date core.Date) string {
 }
 
 // applyNote makes the note of the day the text: the day's own employer keeps it, the notes of the other employers of
-// that day go (the field showed them all, so the text holds them).
-func (h *handler) applyNote(r *http.Request, cat core.Catalog, c sheetDayContext, date core.Date, note, reason string) error {
+// that day go (the field showed them all, so the text holds them). A note of an approved week changes through a change
+// request (changeWay), like the hours.
+func (h *handler) applyNote(r *http.Request, cat core.Catalog, c sheetDayContext, date core.Date, note, reason string) (string, error) {
 	if len(note) > 2000 {
-		return &core.ParseError{Msg: "the note is longer than 2000 characters"}
+		return "", &core.ParseError{Msg: "the note is longer than 2000 characters"}
 	}
 	current := map[string]string{}
 	var joined []string
@@ -487,8 +566,9 @@ func (h *handler) applyNote(r *http.Request, cat core.Catalog, c sheetDayContext
 		}
 	}
 	if note == strings.Join(joined, " · ") {
-		return nil
+		return "", nil
 	}
+	done := ""
 	for _, e := range c.employers {
 		want := ""
 		if e.ID == c.def.ID {
@@ -497,14 +577,21 @@ func (h *handler) applyNote(r *http.Request, cat core.Catalog, c sheetDayContext
 		if current[e.ID] == want {
 			continue
 		}
-		if _, locked := cat.PeriodAt(e.ID, date); locked {
-			return core.ErrLocked
+		period, request, err := h.changeWay(r, cat, e, date, reason)
+		switch {
+		case err != nil:
+			return "", err
+		case request:
+			done = "requested"
+			err = h.proposeDay(r, c, e, period, date, reason, func(p *core.ProposedDay) { p.Note = want })
+		default:
+			err = h.setDayNote(r, cat, e, date, want, "")
 		}
-		if err := h.setDayNote(r, cat, e, date, want); err != nil {
-			return err
+		if err != nil {
+			return "", err
 		}
 	}
-	return nil
+	return done, nil
 }
 
 // applyLine makes the day hold what its line says: every employer's own hours or code, its hours on projects, and the
@@ -535,36 +622,30 @@ func (h *handler) applyLine(r *http.Request, cat core.Catalog, c sheetDayContext
 		if d != "" {
 			done = d
 		}
+		// The projects the line names, and those it no longer names at zero.
 		want := map[string]int{}
 		for _, g := range line.Groups {
 			if g.EmployerID == emp.ID && g.ProjectID != "" {
 				want[g.ProjectID] += g.Minutes
 			}
 		}
-		have := map[string]int{}
 		for _, e := range c.data.Entries {
-			if isProjectDay(e, emp.ID) && e.Date == date {
-				have[e.ProjectID] += e.Minutes
+			if _, named := want[e.ProjectID]; isProjectDay(e, emp.ID) && e.Date == date && !named {
+				want[e.ProjectID] = 0
 			}
 		}
-		for id, m := range have {
-			if _, ok := want[id]; !ok && m > 0 {
-				want[id] = 0
-			}
+		if d, err = h.writeProjects(r, cat, c, emp, date, want, reason); err != nil {
+			return "", err
 		}
-		for id, m := range want {
-			if have[id] == m {
-				continue
-			}
-			if _, locked := cat.PeriodAt(emp.ID, date); locked {
-				return "", core.ErrLocked
-			}
-			if err := h.setProjectDay(r, cat, emp, date, id, m); err != nil {
-				return "", err
-			}
+		if d != "" {
+			done = d
 		}
 	}
-	return done, h.applyNote(r, cat, c, date, line.Note, reason)
+	d, err := h.applyNote(r, cat, c, date, line.Note, reason)
+	if d != "" {
+		done = d
+	}
+	return done, err
 }
 
 // renderPart writes one template of a page alone, for a part the page loads into itself.

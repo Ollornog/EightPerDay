@@ -42,6 +42,38 @@ type DayGroup struct {
 	Tags  []string `json:"tags,omitempty"`
 }
 
+// ClockSpan is a span of a day in minutes after midnight; End is past 24:00 for a span into the next day (22-6).
+type ClockSpan struct{ Start, End int }
+
+// TypedSpans reads the spans out of what was typed for the hours of a day (Entry.Typed, DayGroup.Typed): 8-16:30 30m
+// is 08:00 to 16:30, 8-12 13-17 two spans, 22-6 runs into the next day. Breaks and other words are left out.
+func TypedSpans(typed string) []ClockSpan {
+	var out []ClockSpan
+	for _, tok := range strings.Fields(typed) {
+		if s, ok := readSpan(strings.ToLower(strings.TrimRight(tok, ",;"))); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// readSpan reads a span from start to end (8-13:30, 22-6), in lower case.
+func readSpan(word string) (ClockSpan, bool) {
+	m := reSpan.FindStringSubmatch(word)
+	if m == nil {
+		return ClockSpan{}, false
+	}
+	start, err1 := clock(m[1], m[2])
+	end, err2 := clock(m[3], m[4])
+	if err1 != nil || err2 != nil || start == end {
+		return ClockSpan{}, false
+	}
+	if end < start {
+		end += 24 * 60
+	}
+	return ClockSpan{start, end}, true
+}
+
 // DayLine is a line of a day read by ParseDay.
 type DayLine struct {
 	Groups []DayGroup `json:"groups"`
@@ -88,16 +120,12 @@ func readDayValue(word string) (dayValue, bool) {
 		return dayValue{code: &code}, true
 	}
 	lower := strings.ToLower(word)
-	if m := reSpan.FindStringSubmatch(lower); m != nil {
-		start, err1 := clock(m[1], m[2])
-		end, err2 := clock(m[3], m[4])
-		if err1 != nil || err2 != nil || start == end {
+	if reSpan.MatchString(lower) {
+		s, ok := readSpan(lower)
+		if !ok {
 			return dayValue{}, false
 		}
-		if end < start {
-			end += 24 * 60
-		}
-		return dayValue{minutes: end - start, hours: true, span: true}, true
+		return dayValue{minutes: s.End - s.Start, hours: true, span: true}, true
 	}
 	body, part := lower, DayPart("")
 	for _, suffix := range []string{"vm", "nm", "am", "pm", "v", "n", "a", "p"} {

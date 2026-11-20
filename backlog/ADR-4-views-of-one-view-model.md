@@ -45,6 +45,9 @@ The second option.
 - A new view is a template, not a calculation. A number that is wrong is wrong in all three, and fixed in one place.
 - The journal's line and the fields share `core.ParseDay`; the list's own pattern and parser are gone.
 - A span typed into a field keeps its text (`Entry.Typed`) next to the hours; start and end of such a day are not
-  stored as a span, so the hints on rest periods only see spans booked as spans (stopwatch, the week page).
+  stored as a span, and the hints on rest periods read them back from the text (`core.TypedSpans`, since T-17).
 - A note of a day lives in the details of the day (`DayInfo.Note`) of the day's employer; for a managed employer the
-  organization sees it, like every record of that employer.
+  organization sees it, like every record of that employer. Decided by the maintainer on 2026-11-20 (T-17): it stays
+  so, and the field says it in every view and in the form without JavaScript ("visible to <organization>", German
+  "sichtbar für <Organisation>"); a private employer's note says nothing of the kind. What is private belongs to a
+  private employer's day.
