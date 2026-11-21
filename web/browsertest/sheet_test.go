@@ -97,6 +97,9 @@ func TestTableWeekInTenKeys(t *testing.T) {
 		return f.borderTopWidth === '0px' && f.borderRadius === '0px'; })()`, "a field has no frame of its own")
 	b.must(`getComputedStyle(document.querySelector('#today > td')).backgroundColor !== getComputedStyle(document.querySelector('[data-line]:not(#today) > td')).backgroundColor`,
 		"today's row stands out")
+	// The sticky first cell is tinted like the rest of the row, and opaque (what scrolls under it must not shine through).
+	b.must(`(() => { const c = [...document.querySelectorAll('#today > *')].map(e => getComputedStyle(e).backgroundColor);
+		return new Set(c).size === 1 && c[0] !== 'rgba(0, 0, 0, 0)' && !c[0].includes('/'); })()`, "today's row is tinted in its first cell too")
 	keys := b.typeWeek(workdays, []string{"8", "9", "8", "9", "8"}, "e-", "Enter")
 	if keys > 10 {
 		t.Fatalf("%d key presses for a week", keys)
@@ -244,6 +247,9 @@ func TestGridWeekInTenKeys(t *testing.T) {
 	b.tap(`[data-choose-view="grid"]`)
 	b.must(`document.querySelector('[data-sheet]')?.dataset.view === 'grid' && !!document.querySelector('[data-sheet-grid]')`, "the grid is chosen")
 	b.settle()
+	// Today is a column of the grid: C22's th[aria-current="date"], no utility class of the app's own.
+	b.must(`(() => { const h = document.querySelector('[data-sheet-grid] thead th[aria-current="date"]');
+		return !!h && !h.classList.contains('bg-accent') && getComputedStyle(h).boxShadow !== 'none'; })()`, "today's head of the grid is C22's column of today")
 	b.shot("grid")
 	b.tap(field("2026-11-16", "e-"))
 	keys := b.typeWeek(workdays, []string{"8", "9", "8", "9", "8"}, "e-", "Tab")
