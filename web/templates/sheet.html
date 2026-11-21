@@ -254,7 +254,7 @@
     <table class="table" data-variant="grid">
       <thead><tr>
         <th scope="col"></th>
-        {{range $w.Days}}{{if .Today}}<th class="bg-accent text-end" scope="col" aria-current="date">{{else}}<th class="text-end" scope="col">{{end}}{{t (print "weekday." .Weekday)}} <span class="text-muted-foreground text-xs">{{short .Date}}</span>{{if .Holiday}} <span class="text-muted-foreground text-xs" title="{{.Holiday}}" data-holiday>{{t "code.public"}}</span>{{end}}</th>{{end}}
+        {{range $w.Days}}{{if .Today}}<th class="text-end" scope="col" aria-current="date">{{else}}<th class="text-end" scope="col">{{end}}{{t (print "weekday." .Weekday)}} <span class="text-muted-foreground text-xs">{{short .Date}}</span>{{if .Holiday}} <span class="text-muted-foreground text-xs" title="{{.Holiday}}" data-holiday>{{t "code.public"}}</span>{{end}}</th>{{end}}
         <th class="text-end" scope="col">Σ</th>
       </tr></thead>
       <tbody>

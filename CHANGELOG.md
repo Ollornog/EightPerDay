@@ -8,6 +8,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- C22 `a2bd9a9`: today's row is tinted in its sticky first cell too (it stayed white beside the bar), and today in the
+  week grid is C22's own `th[aria-current="date"]` instead of the app's `bg-accent`.
 - The sheet is built from C22's pieces for it (C22 `205158b`, its block "Stundenblatt") instead of utilities and a
   script of its own: C22's sticky table with the week as its group row, the field in a cell with one line below it,
   today and this week named by `aria-current`, the journal's chip line, the menu as C22's popover without JavaScript
