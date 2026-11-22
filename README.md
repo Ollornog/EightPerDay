@@ -87,6 +87,10 @@ only from the trusted proxies.
 race detector, and a browser test in a real Chrome on the screen of a phone. It needs Go, Python 3, the PostgreSQL
 server binaries and Chrome. `scripts/check-image.sh` checks the container image. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+A change that touches only docs (`README*.md`, `CHANGELOG*.md`, `docs/**.md`, `backlog/**.md`) goes on a branch
+`doku/<topic>`. Its pull request runs the fast check only (hygiene, links, anchors), skips the image check and the audit,
+and merges itself once the required workflows are green.
+
 ## License
 
 The code is under the [MIT License](LICENSE).
