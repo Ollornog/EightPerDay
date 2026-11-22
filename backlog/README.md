@@ -10,9 +10,9 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[M-1](M-1-core-library.md)** The core library: model, calculations, parser, storage — noch keine Aufgaben
 * ☑ **[M-2](M-2-standalone-binary.md)** The standalone program with a small web interface — noch keine Aufgaben
 * ☑ **[M-3](M-3-embedding.md)** Embedding: another application runs the core in its own database — 5/5 erledigt
-* ☐ **[M-4](M-4-first-release.md)** The first release — 0/1 erledigt
+* ☐ **[M-4](M-4-first-release.md)** The first release — 0/2 erledigt
 * ☑ **[M-5](M-5-list-view.md)** List view and leave planning: a start page that gives an overview — 6/6 erledigt
-* ☑ **[M-6](M-6-views-and-detail.md)** Views and detail: one sheet in three views, typed in fewer keys — 5/5 erledigt
+* ☑ **[M-6](M-6-views-and-detail.md)** Views and detail: one sheet in three views, typed in fewer keys — 6/6 erledigt
 
 ## Aufgaben
 
@@ -34,6 +34,7 @@ Konventionen: [README-KONVENTION.md](README-KONVENTION.md).
 * ☑ **[T-16](T-16-clean-up-list-and-week.md)** Clean-up: the former list and /weeks go, the week page keeps its tools · M-6
 * ☑ **[T-17](T-17-m6-follow-ups.md)** M-6 follow-ups: notes and projects of an approved week as change requests, typed spans for the rest · M-6
 * ☑ **[T-18](T-18-day-details-of-an-approved-week.md)** The details and incomes of a day of an approved week as change requests, locked in the core · M-6
+* ☐ **[T-19](T-19-tint-the-cells-of-today-s-column-in-the-week-grid.md)** Tint the cells of today's column in the week grid with td[aria-current=date] · M-4
 
 ## Entscheidungen (ADR)
 
