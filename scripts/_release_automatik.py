@@ -428,8 +428,11 @@ def taggen(root: str, repo: str, version: str) -> None:
         prs = gh(f"repos/{repo}/commits/{kopf}/pulls")
         zweige = sorted({p["head"]["ref"][len("release/v"):] for p in prs or []
                          if p.get("merged_at") and p["head"]["ref"].startswith("release/v") and p["user"]["login"] == APP_LOGIN})
+        if not zweige:
+            print(f"Keine Version angegeben, und der Kopf {kopf[:12]} ist kein Merge eines Release-PR der App — nichts zu tun")
+            return
         if len(zweige) != 1:
-            raise Fehler(f"Keine Version angegeben, und der Kopf {kopf[:12]} ist nicht der Merge genau eines Release-PR der App")
+            raise Fehler(f"Keine Version angegeben, und der Kopf {kopf[:12]} ist der Merge mehrerer Release-PR: {', '.join(zweige)}")
         version = zweige[0]
     if not (SEMVER.match(version) if k["schema"] == "semver" else DATUM.match(version)):
         raise Fehler(f"Version {version!r} passt nicht zum Schema {k['schema']}")
