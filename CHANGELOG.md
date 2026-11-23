@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- Test kit synced to 0.59.1 (fast pre-push); nightly repeat run `nightly-repeat` enabled (CI gets `workflow_call`).
 - Docs fast lane: a classifier job runs `scripts/_nur_text.sh`; on a text-only PR the image check and the audit skip
   (a skipped job is a green check; the `if:` is the fail-safe form checked by the kit). Push, schedule and manual runs
   behave as before.
