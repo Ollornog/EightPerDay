@@ -1205,6 +1205,7 @@ jobs:
     permissions:
       contents: read
       packages: read
+      pull-requests: read
     outputs:
       reason: ${{ steps.check.outputs.reason }}
     steps:
